@@ -1,6 +1,6 @@
 const std = @import("std");
 const build_helpers = @import("build_helpers.zig");
-const package_name = "coconut";
+const package_name = "btczee";
 const package_path = "src/lib.zig";
 
 // List of external dependencies that this package requires.
@@ -67,7 +67,7 @@ pub fn build(b: *std.Build) !void {
     b.installArtifact(lib);
 
     // **************************************************************
-    // *              COCONUT AS AN EXECUTABLE                    *
+    // *              BTCZEE AS AN EXECUTABLE                    *
     // **************************************************************
     {
         const exe = b.addExecutable(.{
