@@ -10,6 +10,10 @@
             .url = "https://github.com/StringNick/zig-cli/archive/c9b9d17b14c524785a32a5b7c930b9584a331372.zip",
             .hash = "12204099afd10139d640e1c5b5338c7434bf5d7bb8336728007f575b8b3a05821e96",
         },
+        .httpz = .{
+            .url = "git+https://github.com/karlseguin/http.zig#d3e3fb3cf2f3caa2432338282dbe750f85e24254",
+            .hash = "12205748a52926d9e6dbb1ac07462d8772c1e2fd6f52e4d822d8bf282f425efd1330",
+        },
     },
     .paths = .{
         "build.zig",
