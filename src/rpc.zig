@@ -9,15 +9,18 @@ pub const RPC = struct {
     config: *const Config,
     mempool: *Mempool,
     storage: *Storage,
-    p2p: *P2P,
 
-    pub fn init(allocator: std.mem.Allocator, config: *const Config, mempool: *Mempool, storage: *Storage, p2p: *P2P) !RPC {
+    pub fn init(
+        allocator: std.mem.Allocator,
+        config: *const Config,
+        mempool: *Mempool,
+        storage: *Storage,
+    ) !RPC {
         return RPC{
             .allocator = allocator,
             .config = config,
             .mempool = mempool,
             .storage = storage,
-            .p2p = p2p,
         };
     }
 

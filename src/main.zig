@@ -16,6 +16,9 @@ pub fn main() !void {
     var config = try Config.load(allocator, "bitcoin.conf.example");
     defer config.deinit();
 
+    var cli = try CLI.init(allocator);
+    defer cli.deinit();
+
     // Initialize components
     var mempool = try Mempool.init(allocator, &config);
     defer mempool.deinit();
@@ -26,17 +29,14 @@ pub fn main() !void {
     var p2p = try P2P.init(allocator, &config);
     defer p2p.deinit();
 
-    var rpc = try RPC.init(allocator, &config, &mempool, &storage, &p2p);
+    var rpc = try RPC.init(allocator, &config, &mempool, &storage);
     defer rpc.deinit();
-
-    var cli = try CLI.init(allocator, &config, &rpc);
-    defer cli.deinit();
 
     // Start the node
     try startNode(&mempool, &storage, &p2p, &rpc, &cli);
 }
 
-fn startNode(_: *Mempool, _: *Storage, p2p: *P2P, rpc: *RPC, cli: *CLI) !void {
+fn startNode(_: *Mempool, _: *Storage, p2p: *P2P, rpc: *RPC, _: *CLI) !void {
     std.log.info("Starting btczee node...", .{});
 
     // Start P2P network
@@ -44,9 +44,6 @@ fn startNode(_: *Mempool, _: *Storage, p2p: *P2P, rpc: *RPC, cli: *CLI) !void {
 
     // Start RPC server
     try rpc.start();
-
-    // Start CLI
-    try cli.start();
 
     // Main event loop
     while (true) {

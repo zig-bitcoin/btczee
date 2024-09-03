@@ -4,14 +4,10 @@ const RPC = @import("rpc.zig").RPC;
 
 pub const CLI = struct {
     allocator: std.mem.Allocator,
-    config: *const Config,
-    rpc: *RPC,
 
-    pub fn init(allocator: std.mem.Allocator, config: *const Config, rpc: *RPC) !CLI {
+    pub fn init(allocator: std.mem.Allocator) !CLI {
         return CLI{
             .allocator = allocator,
-            .config = config,
-            .rpc = rpc,
         };
     }
 
