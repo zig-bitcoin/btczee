@@ -1,6 +1,6 @@
 const std = @import("std");
 const build_helpers = @import("build_helpers.zig");
-const package_name = "coconut";
+const package_name = "btczee";
 const package_path = "src/lib.zig";
 
 // List of external dependencies that this package requires.
@@ -41,7 +41,7 @@ pub fn build(b: *std.Build) !void {
     // **************************************************************
     // *               BTCZEE AS A MODULE                           *
     // **************************************************************
-    // expose coconut as a module
+    // expose btczee as a module
     _ = b.addModule(package_name, .{
         .root_source_file = b.path(package_path),
         .imports = deps,
@@ -67,7 +67,7 @@ pub fn build(b: *std.Build) !void {
     b.installArtifact(lib);
 
     // **************************************************************
-    // *              COCONUT AS AN EXECUTABLE                    *
+    // *              BTCZEE AS AN EXECUTABLE                    *
     // **************************************************************
     {
         const exe = b.addExecutable(.{
@@ -142,4 +142,14 @@ pub fn build(b: *std.Build) !void {
 
     const bench_step = b.step("bench", "Run benchmarks");
     bench_step.dependOn(&run_bench.step);
+
+    // Add documentation generation step
+    const install_docs = b.addInstallDirectory(.{
+        .source_dir = lib.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs",
+    });
+
+    const docs_step = b.step("docs", "Generate documentation");
+    docs_step.dependOn(&install_docs.step);
 }
