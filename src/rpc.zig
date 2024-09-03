@@ -1,0 +1,33 @@
+const std = @import("std");
+const Config = @import("config.zig").Config;
+const Mempool = @import("mempool.zig").Mempool;
+const Storage = @import("storage.zig").Storage;
+const P2P = @import("p2p.zig").P2P;
+
+pub const RPC = struct {
+    allocator: std.mem.Allocator,
+    config: *const Config,
+    mempool: *Mempool,
+    storage: *Storage,
+    p2p: *P2P,
+
+    pub fn init(allocator: std.mem.Allocator, config: *const Config, mempool: *Mempool, storage: *Storage, p2p: *P2P) !RPC {
+        return RPC{
+            .allocator = allocator,
+            .config = config,
+            .mempool = mempool,
+            .storage = storage,
+            .p2p = p2p,
+        };
+    }
+
+    pub fn deinit(self: *RPC) void {
+        // Clean up resources if needed
+        _ = self;
+    }
+
+    pub fn start(self: *RPC) !void {
+        std.log.info("Starting RPC server on port {}", .{self.config.rpc_port});
+        // Implement RPC server initialization
+    }
+};

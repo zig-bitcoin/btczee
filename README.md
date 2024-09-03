@@ -56,6 +56,7 @@ You can find the roadmap of the project in the [docs/roadmap.md](./docs/roadmap.
 - [Bitcoin Core](https://github.com/bitcoin/bitcoin)
 - [Learn me a bitcoin](https://learnmeabitcoin.com/)
 - [Mastering Bitcoin](https://github.com/bitcoinbook/bitcoinbook)
+- [Onboarding to Bitcoin Core](https://github.com/chaincodelabs/onboarding-to-bitcoin-core)
 - [Zig](https://github.com/ziglang/zig)
 - [Zig Standard Library](https://github.com/ziglang/zig/tree/master/lib/std)
 - [Ziglings](https://codeberg.org/ziglings/exercises/)
