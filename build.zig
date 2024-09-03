@@ -105,6 +105,12 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
+    // Add dependency modules to the library.
+    for (deps) |mod| lib_unit_tests.root_module.addImport(
+        mod.name,
+        mod.module,
+    );
+
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
 
     const exe_unit_tests = b.addTest(.{
