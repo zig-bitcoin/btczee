@@ -1,49 +1,54 @@
 const std = @import("std");
-const cli = @import("zig-cli");
-
-// Configuration settings for the CLI
-const Args = struct {
-    mint: bool = false,
-    mnemonic: bool = false,
-};
-
-var cfg: Args = .{};
+const Config = @import("config.zig").Config;
+const Mempool = @import("mempool.zig").Mempool;
+const Storage = @import("storage.zig").Storage;
+const P2P = @import("p2p.zig").P2P;
+const RPC = @import("rpc.zig").RPC;
+const CLI = @import("cli.zig").CLI;
 
 pub fn main() !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
+    // Initialize the allocator
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    const allocator = arena.allocator();
+    // Load configuration
+    var config = try Config.load(allocator, "bitcoin.conf.example");
+    defer config.deinit();
 
-    var r = try cli.AppRunner.init(allocator);
-    defer r.deinit();
+    var cli = try CLI.init(allocator);
+    defer cli.deinit();
 
-    // Define the CLI app
-    const app = cli.App{
-        .version = "0.0.1",
-        .author = "@AbdelStark",
-        .command = .{
-            .name = "btczee",
-            .target = .{
-                .subcommands = &.{
-                    .{
-                        .name = "info",
-                        .description = .{
-                            .one_line = "Display information about btczee",
-                        },
-                        .options = &.{},
-                        .target = .{ .action = .{ .exec = displayInfo } },
-                    },
-                },
-            },
-        },
-    };
+    // Initialize components
+    var mempool = try Mempool.init(allocator, &config);
+    defer mempool.deinit();
 
-    return r.run(&app);
+    var storage = try Storage.init(allocator, &config);
+    defer storage.deinit();
+
+    var p2p = try P2P.init(allocator, &config);
+    defer p2p.deinit();
+
+    var rpc = try RPC.init(allocator, &config, &mempool, &storage);
+    defer rpc.deinit();
+
+    // Start the node
+    try startNode(&mempool, &storage, &p2p, &rpc, &cli);
 }
 
-fn displayInfo() !void {
-    const stdout = std.io.getStdOut().writer();
+fn startNode(_: *Mempool, _: *Storage, p2p: *P2P, rpc: *RPC, _: *CLI) !void {
+    std.log.info("Starting btczee node...", .{});
 
-    try stdout.print("Version: 0.1.0\n", .{});
+    // Start P2P network
+    try p2p.start();
+
+    // Start RPC server
+    try rpc.start();
+
+    // Main event loop
+    while (true) {
+        // Handle events, process blocks, etc.
+        std.log.debug("Waiting for blocks...", .{});
+        std.time.sleep(std.time.ns_per_s);
+    }
 }

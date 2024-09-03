@@ -1,0 +1,9 @@
+# Bitcoin configuration file
+
+# Network-related settings
+testnet=0
+port=8333
+rpcport=8332
+
+# Data directory
+datadir=.bitcoin

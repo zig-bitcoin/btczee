@@ -19,7 +19,6 @@ fn bech32(_: Context, _: std.mem.Allocator, _: *std.time.Timer) !void {}
 
 fn benchmarkZul(_: std.mem.Allocator) !void {
     const ctx = Context{};
-    defer ctx.dhke.deinit();
 
     (try zul.benchmark.runC(ctx, bech32, .{})).print("bech32");
 }

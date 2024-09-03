@@ -41,7 +41,7 @@ pub fn build(b: *std.Build) !void {
     // **************************************************************
     // *               BTCZEE AS A MODULE                           *
     // **************************************************************
-    // expose coconut as a module
+    // expose btczee as a module
     _ = b.addModule(package_name, .{
         .root_source_file = b.path(package_path),
         .imports = deps,
@@ -142,4 +142,14 @@ pub fn build(b: *std.Build) !void {
 
     const bench_step = b.step("bench", "Run benchmarks");
     bench_step.dependOn(&run_bench.step);
+
+    // Add documentation generation step
+    const install_docs = b.addInstallDirectory(.{
+        .source_dir = lib.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs",
+    });
+
+    const docs_step = b.step("docs", "Generate documentation");
+    docs_step.dependOn(&install_docs.step);
 }
