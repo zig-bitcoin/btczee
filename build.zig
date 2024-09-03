@@ -9,6 +9,10 @@ const external_dependencies = [_]build_helpers.Dependency{
         .name = "zig-cli",
         .module_name = "zig-cli",
     },
+    .{
+        .name = "httpz",
+        .module_name = "httpz",
+    },
 };
 
 pub fn build(b: *std.Build) !void {
