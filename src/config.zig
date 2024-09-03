@@ -20,6 +20,8 @@ pub const Config = struct {
     /// Data directory
     datadir: []const u8,
 
+    seednode: []const u8,
+
     /// Load the configuration from a file
     ///
     /// # Arguments
@@ -44,6 +46,7 @@ pub const Config = struct {
             .p2p_port = 8333,
             .testnet = false,
             .datadir = try allocator.dupe(u8, ".bitcoin"),
+            .seednode = "",
         };
 
         var buf: [1024]u8 = undefined;

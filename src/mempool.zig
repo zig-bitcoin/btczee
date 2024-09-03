@@ -190,6 +190,7 @@ test "Mempool" {
         .p2p_port = 8333,
         .testnet = false,
         .datadir = "/tmp/btczee",
+        .seednode = "",
     };
     var mempool = try Mempool.init(allocator, &config);
     defer mempool.deinit();
