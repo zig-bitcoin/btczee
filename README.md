@@ -17,6 +17,12 @@
 
 You can find the architecture of the project in the [docs/architecture.md](./docs/architecture.md) file.
 
+## Run
+
+```sh
+zig build run
+```
+
 ## Test
 
 ```sh

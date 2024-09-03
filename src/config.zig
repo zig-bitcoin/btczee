@@ -1,12 +1,36 @@
 const std = @import("std");
 
+/// Global configuration for the node
+///
+/// This is loaded from the `bitcoin.conf` file
+/// Must be loaded before any other modules are used.
+/// Must be compatible with Bitcoin Core's `bitcoin.conf` format.
 pub const Config = struct {
     allocator: std.mem.Allocator,
+
+    /// RPC port
     rpc_port: u16,
+
+    /// P2P port
     p2p_port: u16,
+
+    /// Testnet flag
     testnet: bool,
+
+    /// Data directory
     datadir: []const u8,
 
+    /// Load the configuration from a file
+    ///
+    /// # Arguments
+    /// - `allocator`: Memory allocator
+    /// - `filename`: Path to the configuration file
+    ///
+    /// # Returns
+    /// - `Config`: Configuration
+    /// # Errors
+    /// - Failed to read the file
+    /// - Failed to parse the file
     pub fn load(allocator: std.mem.Allocator, filename: []const u8) !Config {
         const file = try std.fs.cwd().openFile(filename, .{});
         defer file.close();

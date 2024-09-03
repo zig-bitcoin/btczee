@@ -4,6 +4,11 @@ const Mempool = @import("mempool.zig").Mempool;
 const Storage = @import("storage.zig").Storage;
 const P2P = @import("p2p.zig").P2P;
 
+/// RPC Server handler.
+///
+/// The RPC server is responsible for handling the RPC requests from the clients.
+///
+/// See https://developer.bitcoin.org/reference/rpc/
 pub const RPC = struct {
     allocator: std.mem.Allocator,
     config: *const Config,

@@ -2,6 +2,7 @@ const std = @import("std");
 const Config = @import("config.zig").Config;
 const RPC = @import("rpc.zig").RPC;
 
+/// CLI for the node
 pub const CLI = struct {
     allocator: std.mem.Allocator,
 
