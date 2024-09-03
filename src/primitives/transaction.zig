@@ -31,7 +31,7 @@ const Transaction = struct {
     version: u32,
     lockTime: u32,
 
-    pub fn init(vin: []TxIn, vout: []TxOut, version: u32, lockTime: u32) Transaction {
+    pub fn new(vin: []TxIn, vout: []TxOut, version: u32, lockTime: u32) Transaction {
         return Transaction{
             .vin = vin,
             .vout = vout,
