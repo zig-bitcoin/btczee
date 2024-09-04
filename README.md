@@ -77,8 +77,16 @@ Commands:
 Usage: btczee node <subcommand>
 
 Subcommands:
-  run    Run the node
   help   Display help for node
+```
+
+Example:
+
+```sh
+zig build run -- node
+
+# OR (after a build)
+./zig-out/bin/btczee node
 ```
 
 ### Wallet
@@ -90,6 +98,15 @@ Subcommands:
   create    Create a new wallet
   load      Load an existing wallet
   help      Display help for wallet
+```
+
+Example:
+
+```sh
+zig build run -- wallet create
+
+# OR (after a build)
+./zig-out/bin/btczee wallet create
 ```
 
 ## Test
