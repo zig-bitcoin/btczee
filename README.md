@@ -15,7 +15,51 @@
 
 ## Architecture
 
-You can find the architecture of the project in the [docs/architecture.md](./docs/architecture.md) file.
+You can find the architecture of the project and description of components in the [docs/architecture.md](./docs/architecture.md) file.
+
+```mermaid
+graph TD
+    Node[Node] --> Network
+    Node --> Mempool
+    Node --> Wallet
+    Node --> Storage
+    Node --> Miner
+
+    Network --> Mempool
+    Network --> Storage
+
+    Mempool --> Wallet
+    Mempool --> Storage
+
+    Wallet --> Storage
+
+    Miner --> Mempool
+    Miner --> Storage
+
+    subgraph "Core Components"
+        Node
+        Network
+        Mempool
+        Wallet
+        Storage
+        Miner
+    end
+
+    subgraph "Supporting Components"
+        Types
+        Primitives
+        Config
+    end
+
+    Node -.-> Types
+    Node -.-> Primitives
+    Node -.-> Config
+
+    classDef core fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef support fill:#bbf,stroke:#333,stroke-width:1px;
+    class Node,Network,Mempool,Wallet,Storage,Miner core;
+    class Types,Primitives,Config support;
+```
 
 ## Run
 

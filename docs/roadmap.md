@@ -1,46 +1,57 @@
 ## Roadmap [in progress]
 
-### Cryptographic primitives 
-* [ ] SHA-256
-* [ ] RIPEMD160
-* [ ] ECDSA
+### Cryptographic primitives
+
+- [ ] SHA-256
+- [ ] RIPEMD160
+- [ ] ECDSA
 
 ### Primitives (data structures)
-* [ ] Transaction structure
-* [ ] Block structure
-* [ ] Merkle tree
 
-### Networking 
-* [ ] Peer-to-peer network implementation
-* [ ] Message handling and serialization
+- [ ] Transaction structure
+- [ ] Block structure
+- [ ] Merkle tree
 
-### Transaction 
-* [ ] Transaction checks: CoinBase, duplicate inputs, overflows
-* [ ] Transaction validation
+### Networking
 
-### Chain 
-* [ ] Block validation
-* [ ] Chain management
-* [ ] UTXO set
+- [ ] Peer-to-peer network implementation
+- [ ] Message handling and serialization
+
+### Transaction
+
+- [ ] Transaction checks: CoinBase, duplicate inputs, overflows
+- [ ] Transaction validation
+
+### Chain
+
+- [ ] Block validation
+- [ ] Chain management
+- [ ] UTXO set
 
 ### Consensus
-* [ ] Parameters: genesis hash, BIP block numbers, difficulty
-* [ ] Proof of work algorithm
-* [ ] Difficulty adjustment
 
-### Wallet 
-* [ ] Address generation
-* [ ] Transaction creation and signing 
+- [ ] Parameters: genesis hash, BIP block numbers, difficulty
+- [ ] Proof of work algorithm
+- [ ] Difficulty adjustment
 
-### Miner 
-* [ ] Block creation
-* [ ] Mining algorithm and rewards
+### Wallet
 
-### Bitcoin Script 
-* [ ] Bitcoin Script interpreter
+- [ ] Address generation
+- [ ] Transaction creation and signing
 
-### Mempool 
-* [ ] Transaction pool management
+### Miner
 
-### RPC 
-* [ ] API calls to the node 
+- [ ] Block creation
+- [ ] Mining algorithm and rewards
+
+### Bitcoin Script
+
+- [ ] Bitcoin Script interpreter
+
+### Mempool
+
+- [ ] Transaction pool management
+
+### RPC
+
+- [ ] API calls to the node
