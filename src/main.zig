@@ -1,10 +1,10 @@
 const std = @import("std");
-const Config = @import("config.zig").Config;
-const Mempool = @import("mempool.zig").Mempool;
-const Storage = @import("storage.zig").Storage;
-const P2P = @import("p2p.zig").P2P;
-const RPC = @import("rpc.zig").RPC;
-const CLI = @import("cli.zig").CLI;
+const Config = @import("config/config.zig").Config;
+const Mempool = @import("core/mempool.zig").Mempool;
+const Storage = @import("storage/storage.zig").Storage;
+const P2P = @import("network/p2p.zig").P2P;
+const RPC = @import("network/rpc.zig").RPC;
+const node = @import("node/node.zig");
 
 pub fn main() !void {
     // Initialize the allocator
@@ -15,9 +15,6 @@ pub fn main() !void {
     // Load configuration
     var config = try Config.load(allocator, "bitcoin.conf.example");
     defer config.deinit();
-
-    var cli = try CLI.init(allocator);
-    defer cli.deinit();
 
     // Initialize components
     var mempool = try Mempool.init(allocator, &config);
@@ -33,22 +30,5 @@ pub fn main() !void {
     defer rpc.deinit();
 
     // Start the node
-    try startNode(&mempool, &storage, &p2p, &rpc, &cli);
-}
-
-fn startNode(_: *Mempool, _: *Storage, p2p: *P2P, rpc: *RPC, _: *CLI) !void {
-    std.log.info("Starting btczee node...", .{});
-
-    // Start P2P network
-    try p2p.start();
-
-    // Start RPC server
-    try rpc.start();
-
-    // Main event loop
-    while (true) {
-        // Handle events, process blocks, etc.
-        std.log.debug("Waiting for blocks...", .{});
-        std.time.sleep(std.time.ns_per_s);
-    }
+    try node.startNode(&mempool, &storage, &p2p, &rpc);
 }

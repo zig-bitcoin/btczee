@@ -1,8 +1,7 @@
 const std = @import("std");
-const Config = @import("config.zig").Config;
-const Mempool = @import("mempool.zig").Mempool;
-const Storage = @import("storage.zig").Storage;
-const P2P = @import("p2p.zig").P2P;
+const Config = @import("../config/config.zig").Config;
+const Mempool = @import("../core/mempool.zig").Mempool;
+const Storage = @import("../storage/storage.zig").Storage;
 const httpz = @import("httpz");
 
 /// RPC Server handler.

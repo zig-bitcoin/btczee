@@ -1,6 +1,6 @@
 const std = @import("std");
 const net = std.net;
-const Config = @import("config.zig").Config;
+const Config = @import("../config/config.zig").Config;
 const Peer = @import("peer.zig").Peer;
 
 /// P2P network handler.

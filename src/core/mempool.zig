@@ -1,6 +1,6 @@
 const std = @import("std");
-const Config = @import("config.zig").Config;
-const tx = @import("transaction.zig");
+const Config = @import("../config/config.zig").Config;
+const tx = @import("../types/transaction.zig");
 
 const Transaction = struct {};
 

@@ -1,5 +1,5 @@
 const std = @import("std");
-const Config = @import("config.zig").Config;
+const Config = @import("../config/config.zig").Config;
 
 /// Storage handler.
 ///
