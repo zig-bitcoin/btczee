@@ -78,6 +78,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   <tbody>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/AbdelStark"><img src="https://avatars.githubusercontent.com/u/45264458?v=4?s=100" width="100px;" alt="A₿del ∞/21M 🐺 - 🐱"/><br /><sub><b>A₿del ∞/21M 🐺 - 🐱</b></sub></a><br /><a href="https://github.com/zig-bitcoin/btczee/commits?author=AbdelStark" title="Code">💻</a> <a href="#ideas-AbdelStark" title="Ideas, Planning, & Feedback">🤔</a> <a href="#mentoring-AbdelStark" title="Mentoring">🧑‍🏫</a> <a href="#projectManagement-AbdelStark" title="Project Management">📆</a> <a href="#research-AbdelStark" title="Research">🔬</a> <a href="https://github.com/zig-bitcoin/btczee/pulls?q=is%3Apr+reviewed-by%3AAbdelStark" title="Reviewed Pull Requests">👀</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/lana-shanghai"><img src="https://avatars.githubusercontent.com/u/31368580?v=4?s=100" width="100px;" alt="lanaivina"/><br /><sub><b>lanaivina</b></sub></a><br /><a href="https://github.com/zig-bitcoin/btczee/commits?author=lana-shanghai" title="Code">💻</a></td>
     </tr>
   </tbody>
   <tfoot>
