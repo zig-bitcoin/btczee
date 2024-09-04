@@ -64,7 +64,32 @@ graph TD
 ## Run
 
 ```sh
-zig build run
+Usage: btczee [command] [args]
+
+Commands:
+  node     <subcommand>
+  wallet   <subcommand>
+```
+
+### Node
+
+```sh
+Usage: btczee node <subcommand>
+
+Subcommands:
+  run    Run the node
+  help   Display help for node
+```
+
+### Wallet
+
+```sh
+Usage: btczee wallet <subcommand>
+
+Subcommands:
+  create    Create a new wallet
+  load      Load an existing wallet
+  help      Display help for wallet
 ```
 
 ## Test

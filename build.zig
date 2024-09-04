@@ -6,8 +6,8 @@ const package_path = "src/lib.zig";
 // List of external dependencies that this package requires.
 const external_dependencies = [_]build_helpers.Dependency{
     .{
-        .name = "zig-cli",
-        .module_name = "zig-cli",
+        .name = "clap",
+        .module_name = "clap",
     },
     .{
         .name = "httpz",
