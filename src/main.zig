@@ -1,3 +1,15 @@
+//
+// ___.    __
+// \_ |___/  |_  ____ ________ ____   ____
+//  | __ \   __\/ ___\\___   // __ \_/ __ \
+//  | \_\ \  | \  \___ /    /\  ___/\  ___/
+// |___  /__|  \___  >_____ \\___  >\___  >
+//      \/          \/      \/    \/     \/
+//
+// Bitcoin Implementation in Zig
+// =============================
+
+//==== Imports ====//
 const std = @import("std");
 const Config = @import("config/config.zig").Config;
 const Mempool = @import("core/mempool.zig").Mempool;
@@ -7,27 +19,33 @@ const RPC = @import("network/rpc.zig").RPC;
 const node = @import("node/node.zig");
 const ArgParser = @import("util/ArgParser.zig");
 
+//==== Main Entry Point ====//
 pub fn main() !void {
     // Initialize the allocator
     var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
     const gpa = gpa_state.allocator();
     defer _ = gpa_state.deinit();
 
+    // Parse command-line arguments
     const args = try std.process.argsAlloc(gpa);
     defer std.process.argsFree(gpa, args);
 
+    // Set up buffered stdout
     var stdout_buffered = std.io.bufferedWriter(std.io.getStdOut().writer());
     const stdout = stdout_buffered.writer();
 
+    // Run the main program logic
     try mainFull(.{
         .allocator = gpa,
         .args = args[1..],
         .stdout = stdout.any(),
     });
 
+    // Flush the buffered stdout
     return stdout_buffered.flush();
 }
 
+//==== Main Program Logic ====//
 pub fn mainFull(options: struct {
     allocator: std.mem.Allocator,
     args: []const []const u8,
@@ -42,12 +60,14 @@ pub fn mainFull(options: struct {
     return program.mainCommand();
 }
 
+//==== Program Structure ====//
 const Program = @This();
 
 allocator: std.mem.Allocator,
 args: ArgParser,
 stdout: std.io.AnyWriter,
 
+//==== Usage Messages ====//
 const main_usage =
     \\Usage: btczee [command] [args]
     \\
@@ -58,6 +78,30 @@ const main_usage =
     \\
 ;
 
+const node_sub_usage =
+    \\Usage:
+    \\  btczee node [command] [args]
+    \\  btczee node [options] [ids]...
+    \\
+    \\Commands:
+    \\  help                   Display this message
+    \\
+;
+
+const wallet_sub_usage =
+    \\Usage:
+    \\  btczee wallet [command] [args]
+    \\
+    \\Commands:
+    \\  create                 Create a new wallet
+    \\  load                   Load an existing wallet
+    \\  help                   Display this message
+    \\
+;
+
+//==== Command Handlers ====//
+
+// Main Command Handler
 pub fn mainCommand(program: *Program) !void {
     while (program.args.next()) {
         if (program.args.flag(&.{"node"}))
@@ -75,27 +119,32 @@ pub fn mainCommand(program: *Program) !void {
     return error.InvalidArgument;
 }
 
-const node_sub_usage =
-    \\Usage:
-    \\  btczee node [command] [args]
-    \\  btczee node [options] [ids]...
-    \\
-    \\Commands:
-    \\  help                   Display this message
-    \\
-;
-
+// Node Subcommand Handler
 fn nodeSubCommand(program: *Program) !void {
-    // Handle potential node subcommands here
     if (program.args.next()) {
         if (program.args.flag(&.{ "-h", "--help", "help" }))
             return program.stdout.writeAll(node_sub_usage);
     }
-
-    // Otherwise, run the node
     return program.runNodeCommand();
 }
 
+// Wallet Subcommand Handler
+fn walletSubCommand(program: *Program) !void {
+    if (program.args.next()) {
+        if (program.args.flag(&.{"create"}))
+            return program.walletCreateCommand();
+        if (program.args.flag(&.{"load"}))
+            return program.walletLoadCommand();
+        if (program.args.flag(&.{ "-h", "--help", "help" }))
+            return program.stdout.writeAll(wallet_sub_usage);
+    }
+    try std.io.getStdErr().writeAll(wallet_sub_usage);
+    return error.InvalidArgument;
+}
+
+//==== Command Implementations ====//
+
+// Node Command Implementation
 fn runNodeCommand(program: *Program) !void {
     // Load configuration
     var config = try Config.load(program.allocator, "bitcoin.conf.example");
@@ -118,34 +167,14 @@ fn runNodeCommand(program: *Program) !void {
     try node.startNode(&mempool, &storage, &p2p, &rpc);
 }
 
-const wallet_sub_usage =
-    \\Usage:
-    \\  btczee wallet [command] [args]
-    \\
-    \\Commands:
-    \\  create                 Create a new wallet
-    \\  load                   Load an existing wallet
-    \\  help                   Display this message
-    \\
-;
-
-fn walletSubCommand(program: *Program) !void {
-    if (program.args.next()) {
-        if (program.args.flag(&.{"create"}))
-            return program.walletCreateCommand();
-        if (program.args.flag(&.{"load"}))
-            return program.walletLoadCommand();
-        if (program.args.flag(&.{ "-h", "--help", "help" }))
-            return program.stdout.writeAll(wallet_sub_usage);
-    }
-    try std.io.getStdErr().writeAll(wallet_sub_usage);
-    return error.InvalidArgument;
-}
-
+// Wallet Create Command Implementation
 fn walletCreateCommand(program: *Program) !void {
-    return program.stdout.writeAll("Not implemented yet\n");
+    return program.stdout.writeAll("Wallet creation not implemented yet\n");
 }
 
+// Wallet Load Command Implementation
 fn walletLoadCommand(program: *Program) !void {
-    return program.stdout.writeAll("Not implemented yet\n");
+    return program.stdout.writeAll("Wallet loading not implemented yet\n");
 }
+
+//==== End of File ====//
