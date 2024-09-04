@@ -1,3 +1,9 @@
+//! Benchmark module handles the benchmarking of btczee.
+//! Currently, it is using the zul library to run the benchmarks.
+//! The benchmarks can be run with:
+//! ```
+//! zig build bench
+//! ```
 const std = @import("std");
 
 const zul = @import("zul");

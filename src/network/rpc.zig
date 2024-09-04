@@ -1,3 +1,6 @@
+//! RPC module handles the RPC server of btczee.
+//! It is responsible for the communication between the node and the clients.
+//! See https://developer.bitcoin.org/reference/rpc/
 const std = @import("std");
 const Config = @import("../config/config.zig").Config;
 const Mempool = @import("../core/mempool.zig").Mempool;
@@ -8,13 +11,24 @@ const httpz = @import("httpz");
 ///
 /// The RPC server is responsible for handling the RPC requests from the clients.
 ///
-/// See https://developer.bitcoin.org/reference/rpc/
 pub const RPC = struct {
+    /// Allocator   .
     allocator: std.mem.Allocator,
+    /// Configuration.
     config: *const Config,
+    /// Transaction pool.
     mempool: *Mempool,
+    /// Blockchain storage.
     storage: *Storage,
 
+    /// Initialize the RPC server.
+    /// # Arguments
+    /// - `allocator`: Allocator.
+    /// - `config`: Configuration.
+    /// - `mempool`: Transaction pool.
+    /// - `storage`: Blockchain storage.
+    /// # Returns
+    /// - `RPC`: RPC server.
     pub fn init(
         allocator: std.mem.Allocator,
         config: *const Config,
@@ -31,10 +45,14 @@ pub const RPC = struct {
         return rpc;
     }
 
+    /// Deinitialize the RPC server.
+    /// Clean up the RPC server resources.
     pub fn deinit(self: *RPC) void {
         _ = self;
     }
 
+    /// Start the RPC server.
+    /// The RPC server will start a HTTP server and listen on the RPC port.
     pub fn start(self: *RPC) !void {
         std.log.info("Starting RPC server on port {}", .{self.config.rpc_port});
         var handler = Handler{};

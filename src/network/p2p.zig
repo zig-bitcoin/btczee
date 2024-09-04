@@ -1,3 +1,6 @@
+//! P2P module handles the peer-to-peer networking of btczee.
+//! It is responsible for the connection to other nodes in the network.
+//! It can receive and send messages to other nodes, based on the Bitcoin protocol.
 const std = @import("std");
 const net = std.net;
 const Config = @import("../config/config.zig").Config;
@@ -5,12 +8,21 @@ const Peer = @import("peer.zig").Peer;
 
 /// P2P network handler.
 pub const P2P = struct {
+    /// Allocator.
     allocator: std.mem.Allocator,
+    /// Configuration.
     config: *const Config,
+    /// List of peers.
     peers: std.ArrayList(*Peer),
+    /// Listener.
     listener: ?net.Server,
 
-    /// Initialize the P2P network
+    /// Initialize the P2P network handler.
+    /// # Arguments
+    /// - `allocator`: Allocator.
+    /// - `config`: Configuration.
+    /// # Returns
+    /// - `P2P`: P2P network handler.
     pub fn init(allocator: std.mem.Allocator, config: *const Config) !P2P {
         return P2P{
             .allocator = allocator,
@@ -20,7 +32,7 @@ pub const P2P = struct {
         };
     }
 
-    /// Deinitialize the P2P network
+    /// Deinitialize the P2P network handler.
     pub fn deinit(self: *P2P) void {
         if (self.listener) |*l| l.deinit();
         for (self.peers.items) |peer| {
@@ -29,10 +41,11 @@ pub const P2P = struct {
         self.peers.deinit();
     }
 
-    /// Start the P2P network
+    /// Start the P2P network handler.
     pub fn start(self: *P2P) !void {
         std.log.info("Starting P2P network on port {}", .{self.config.p2p_port});
 
+        // TODO: Implement the P2P network handler
         // Initialize the listener
         // const address = try net.Address.parseIp4("0.0.0.0", self.config.p2p_port);
         // const stream = try net.tcpConnectToAddress(address);
@@ -49,7 +62,8 @@ pub const P2P = struct {
         // try self.connectToSeedNodes();
     }
 
-    /// Accept incoming connections
+    /// Accept incoming connections.
+    /// The P2P network handler will accept incoming connections and handle them in a separate thread.
     fn acceptConnections(self: *P2P) !void {
         while (true) {
             const connection = self.listener.?.accept() catch |err| {
@@ -63,7 +77,10 @@ pub const P2P = struct {
         }
     }
 
-    /// Handle a new connection
+    /// Handle a new connection.
+    /// # Arguments
+    /// - `self`: P2P network handler.
+    /// - `connection`: Connection.
     fn handleConnection(self: *P2P, connection: net.Server.Connection) void {
         const peer = Peer.init(self.allocator, connection) catch |err| {
             std.log.err("Failed to initialize peer: {}", .{err});
@@ -71,12 +88,14 @@ pub const P2P = struct {
             return;
         };
 
+        // Add the peer to the list of peers
         self.peers.append(peer) catch |err| {
             std.log.err("Failed to add peer: {}", .{err});
             peer.deinit();
             return;
         };
 
+        // Start the peer in a new thread
         peer.start() catch |err| {
             std.log.err("Peer encountered an error: {}", .{err});
             _ = self.peers.swapRemove(self.peers.items.len - 1);
@@ -84,8 +103,9 @@ pub const P2P = struct {
         };
     }
 
-    /// Connect to seed nodes
+    /// Connect to seed nodes.
     fn connectToSeedNodes(self: *P2P) !void {
+        // If no seed nodes are configured, do nothing
         if (self.config.seednode.len == 0) {
             return;
         }
