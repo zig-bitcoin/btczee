@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  ZIG_VERSION: 0.14.0-dev.1409+6d2945f1f
+  ZIG_VERSION: 0.14.0-dev.1457+7e3180487
 
 jobs:
   build:
