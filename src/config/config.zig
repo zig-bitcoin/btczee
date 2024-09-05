@@ -62,7 +62,6 @@ pub const Config = struct {
             } else if (std.mem.eql(u8, key, "testnet")) {
                 config.testnet = std.mem.eql(u8, value, "1");
             } else if (std.mem.eql(u8, key, "datadir")) {
-                allocator.free(config.datadir);
                 config.datadir = try allocator.dupeZ(u8, value);
             }
         }
