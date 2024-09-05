@@ -16,7 +16,6 @@ pub const Dependency = struct {
 pub fn generateModuleDependencies(
     b: *std.Build,
     external_dependencies: []const Dependency,
-    dependencies_opts: anytype,
 ) ![]std.Build.Module.Import {
     var dependency_modules = std.ArrayList(*std.Build.Module).init(b.allocator);
     defer _ = dependency_modules.deinit();
@@ -25,7 +24,7 @@ pub fn generateModuleDependencies(
     for (external_dependencies) |dep| {
         const module = b.dependency(
             dep.name,
-            dependencies_opts,
+            .{},
         ).module(dep.module_name);
         _ = dependency_modules.append(module) catch unreachable;
     }

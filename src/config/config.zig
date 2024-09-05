@@ -18,7 +18,7 @@ pub const Config = struct {
     testnet: bool,
 
     /// Data directory
-    datadir: []const u8,
+    datadir: [:0]const u8,
 
     seednode: []const u8,
 
@@ -45,7 +45,7 @@ pub const Config = struct {
             .rpc_port = 8332,
             .p2p_port = 8333,
             .testnet = false,
-            .datadir = try allocator.dupe(u8, ".bitcoin"),
+            .datadir = ".bitcoin",
             .seednode = "",
         };
 
@@ -63,7 +63,7 @@ pub const Config = struct {
                 config.testnet = std.mem.eql(u8, value, "1");
             } else if (std.mem.eql(u8, key, "datadir")) {
                 allocator.free(config.datadir);
-                config.datadir = try allocator.dupe(u8, value);
+                config.datadir = try allocator.dupeZ(u8, value);
             }
         }
 

@@ -14,6 +14,10 @@
             .url = "git+https://github.com/Hejsil/zig-clap#2d9db156ae928860a9acf2f1260750d3b44a4c98",
             .hash = "122005e589ab3b6bff8e589b45f5b12cd27ce79f266bdac17e9f33ebfe2fbaff7fe3",
         },
+        .lmdb = .{
+            .url = "git+https://github.com/zig-bitcoin/zig-lmdb#9d6d9db15ed957674d9702aa7745ed4cf7b7a443",
+            .hash = "1220d5ca02660a791ea022d60a032ae56b629002d3930117d8047ecf615f012044f7",
+        },
     },
     .paths = .{
         "build.zig",
