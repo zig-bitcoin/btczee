@@ -13,6 +13,10 @@ const external_dependencies = [_]build_helpers.Dependency{
         .name = "httpz",
         .module_name = "httpz",
     },
+    .{
+        .name = "lmdb",
+        .module_name = "lmdb",
+    },
 };
 
 pub fn build(b: *std.Build) !void {
@@ -30,16 +34,11 @@ pub fn build(b: *std.Build) !void {
     // **************************************************************
     // *            HANDLE DEPENDENCY MODULES                       *
     // **************************************************************
-    const dependencies_opts = .{
-        .target = target,
-        .optimize = optimize,
-    };
 
     // This array can be passed to add the dependencies to lib, executable, tests, etc using `addModule` function.
     const deps = build_helpers.generateModuleDependencies(
         b,
         &external_dependencies,
-        dependencies_opts,
     ) catch unreachable;
 
     // **************************************************************

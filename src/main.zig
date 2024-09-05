@@ -154,7 +154,7 @@ fn runNodeCommand(program: *Program) !void {
     var mempool = try Mempool.init(program.allocator, &config);
     defer mempool.deinit();
 
-    var storage = try Storage.init(program.allocator, &config);
+    var storage = try Storage.init(&config);
     defer storage.deinit();
 
     var p2p = try P2P.init(program.allocator, &config);
