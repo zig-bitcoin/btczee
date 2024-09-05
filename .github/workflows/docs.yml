@@ -3,8 +3,6 @@ name: Generate and Deploy Docs
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 permissions: write-all
 
@@ -12,40 +10,15 @@ env:
   ZIG_VERSION: 0.14.0-dev.1409+6d2945f1f
 
 jobs:
-  build:
+  docs:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
-
-      - name: Cache Zig
-        uses: actions/cache@v3
+      - uses: goto-bus-stop/setup-zig@v2
         with:
-          path: ~/zig
-          key: ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}
-
-      - name: Install Zig
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          wget https://ziglang.org/builds/zig-linux-x86_64-${{ env.ZIG_VERSION }}.tar.xz
-          tar -xf zig-linux-x86_64-${{ env.ZIG_VERSION }}.tar.xz
-          mv zig-linux-x86_64-${{ env.ZIG_VERSION }} ~/zig
-
-      - name: Add Zig to PATH
-        run: echo "${HOME}/zig" >> $GITHUB_PATH
-
-      - name: Cache Zig build artifacts
-        uses: actions/cache@v3
-        with:
-          path: |
-            zig-cache
-            ~/.cache/zig
-          key: ${{ runner.os }}-zig-build-${{ hashFiles('**/*.zig') }}
-          restore-keys: |
-            ${{ runner.os }}-zig-build-
-
-      - name: Build Docs
-        run: zig build docs
+          version: ${{ env.ZIG_VERSION }}
+      - run: zig build test
 
       - name: Deploy
         if: ${{ github.ref == 'refs/heads/main' }} && steps.check_changes.outcome == 'success'
