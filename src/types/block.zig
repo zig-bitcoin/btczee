@@ -1,5 +1,6 @@
 const std = @import("std");
 
+// A bitcoin block with additonal usefull data
 pub const Block = struct {
     hash: [32]u8,
     height: i32,
