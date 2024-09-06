@@ -24,3 +24,10 @@ jobs:
 
       - name: Run benchmarks
         run: zig build bench -Doptimize=ReleaseFast
+
+      - name: Run node
+        run: |
+          zig build -Doptimize=Debug run -- node &
+          BITCOIN_NODE_PID=$!
+          sleep 1
+          kill $BITCOIN_NODE_PID
