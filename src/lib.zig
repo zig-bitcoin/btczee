@@ -15,6 +15,7 @@ pub const rpc = @import("network/rpc.zig");
 pub const storage = @import("storage/storage.zig");
 pub const wallet = @import("wallet/wallet.zig");
 pub const miner = @import("miner/miner.zig");
+pub const node = @import("node/node.zig");
 
 test {
     @import("std").testing.refAllDeclsRecursive(@This());
