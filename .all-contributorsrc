@@ -3,7 +3,9 @@
   "projectOwner": "zig-bitcoin",
   "repoType": "github",
   "repoHost": "https://github.com",
-  "files": ["README.md"],
+  "files": [
+    "README.md"
+  ],
   "imageSize": 100,
   "commit": true,
   "commitConvention": "gitmoji",
@@ -27,7 +29,18 @@
       "name": "lanaivina",
       "avatar_url": "https://avatars.githubusercontent.com/u/31368580?v=4",
       "profile": "https://github.com/lana-shanghai",
-      "contributions": ["code"]
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "tdelabro",
+      "name": "Timothée Delabrouille",
+      "avatar_url": "https://avatars.githubusercontent.com/u/34384633?v=4",
+      "profile": "https://github.com/tdelabro",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
