@@ -17,6 +17,10 @@ const external_dependencies = [_]build_helpers.Dependency{
         .name = "lmdb",
         .module_name = "lmdb",
     },
+    .{
+        .name = "bitcoin-primitives",
+        .module_name = "bitcoin-primitives",
+    },
 };
 
 pub fn build(b: *std.Build) !void {

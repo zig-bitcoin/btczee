@@ -18,6 +18,10 @@
             .url = "git+https://github.com/zig-bitcoin/zig-lmdb#eb7436d091464131551759b0f80d4f1d1a15ece1",
             .hash = "1220f9e1eb744c8dc2750c1e6e1ceb1c2d521bedb161ddead1a6bb772032e576d74a",
         },
+        .@"bitcoin-primitives" = .{
+            .url = "git+https://github.com/zig-bitcoin/bitcoin-primitives#17430ab361bb966b7cabb6c835adbe79c72276aa",
+            .hash = "12205840417b3b689acadf210bf1c815de4045381aa744d64e93e332bb49e9714d5f",
+        },
     },
     .paths = .{
         "build.zig",
