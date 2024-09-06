@@ -152,12 +152,15 @@ fn runNodeCommand(program: *Program) !void {
 
     // Initialize components
     var mempool = try Mempool.init(program.allocator, &config);
+    defer mempool.deinit();
     var storage = try Storage.init(&config);
+    defer storage.deinit();
     var p2p = try P2P.init(program.allocator, &config);
+    defer p2p.deinit();
     var rpc = try RPC.init(program.allocator, &config, &mempool, &storage);
+    defer rpc.deinit();
 
     var node = try Node.init(&mempool, &storage, &p2p, &rpc);
-    // Node has the responsibility to deinitialize all the components
     defer node.deinit();
 
     // Start the node

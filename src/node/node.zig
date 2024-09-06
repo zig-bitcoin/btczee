@@ -45,10 +45,7 @@ pub const Node = struct {
     /// Deinitialize the node.
     /// Cleans up the resources used by the node.
     pub fn deinit(self: *Node) void {
-        self.mempool.deinit();
-        self.storage.deinit();
-        self.p2p.deinit();
-        self.rpc.deinit();
+        _ = self;
     }
 
     /// Start the node.
