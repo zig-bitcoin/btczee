@@ -3,12 +3,7 @@ const Allocator = std.mem.Allocator;
 const testing = std.testing;
 
 /// Errors that can occur during stack operations
-pub const StackError = error{
-    /// Occurs when trying to pop or peek from an empty stack
-    StackUnderflow,
-    /// Occurs when memory allocation fails
-    OutOfMemory,
-};
+pub const StackError = error{ /// Occurs when trying to pop or peek from an empty stack StackUnderflow, /// Occurs when memory allocation fails OutOfMemory, InvalidValue };
 
 /// Stack for script execution
 ///
@@ -60,6 +55,58 @@ pub const Stack = struct {
             self.allocator.free(copy);
             return StackError.OutOfMemory;
         };
+    }
+
+    /// Push an integer onto the stack
+    ///
+    /// # Arguments
+    /// - `value`: The integer value to be pushed onto the stack
+    ///
+    /// # Returns
+    /// - `StackError` if out of memory
+    pub fn pushInt(self: *Stack, value: i64) StackError!void {
+        var buffer: [8]u8 = undefined;
+        const bytes = std.mem.asBytes(&value);
+        @memcpy(&buffer, bytes);
+        try self.push(&buffer);
+    }
+
+    /// Push a byte array onto the stack
+    ///
+    /// # Arguments
+    /// - `value`: The byte array to be pushed onto the stack
+    ///
+    /// # Returns
+    /// - `StackError` if out of memory
+    pub fn pushByteArray(self: *Stack, value: []const u8) StackError!void {
+        try self.push(value);
+    }
+
+    /// Pop an integer from the stack
+    ///
+    /// # Returns
+    /// - `i64`: The popped integer value
+    /// - `StackError` if the stack is empty or the value is invalid
+    pub fn popInt(self: *Stack) StackError!i64 {
+        const value = try self.pop();
+        defer self.allocator.free(value);
+
+        if (value.len > 8) return StackError.InvalidValue;
+
+        var buffer: [8]u8 = undefined;
+        std.mem.copyBackwards(u8, buffer[0..value.len], value);
+        return std.mem.bytesToValue(i64, &buffer);
+    }
+
+    /// Pop a boolean value from the stack
+    ///
+    /// # Returns
+    /// - `bool`: The popped boolean value
+    /// - `StackError` if the stack is empty
+    pub fn popBool(self: *Stack) StackError!bool {
+        const value = try self.pop();
+        defer self.allocator.free(value);
+        return if (value.len == 1 and value[0] != 0) true else false;
     }
 
     /// Pop an item from the stack
@@ -210,4 +257,77 @@ test "Stack out of memory simulation" {
 
     // Verify the stack is still empty
     try testing.expectEqual(@as(usize, 0), stack.len());
+}
+
+test "Stack pushInt and popInt" {
+    const allocator = testing.allocator;
+    var stack = Stack.init(allocator);
+    defer stack.deinit();
+
+    // Test pushing and popping positive integers
+    try stack.pushInt(42);
+    try testing.expectEqual(@as(i64, 42), try stack.popInt());
+
+    // Test pushing and popping negative integers
+    try stack.pushInt(-123);
+    try testing.expectEqual(@as(i64, -123), try stack.popInt());
+
+    // Test pushing and popping zero
+    try stack.pushInt(0);
+    try testing.expectEqual(@as(i64, 0), try stack.popInt());
+
+    // Test pushing and popping large integers
+    try stack.pushInt(std.math.maxInt(i64));
+    try testing.expectEqual(std.math.maxInt(i64), try stack.popInt());
+
+    try stack.pushInt(std.math.minInt(i64));
+    try testing.expectEqual(std.math.minInt(i64), try stack.popInt());
+
+    // Test popping from empty stack
+    try testing.expectError(StackError.StackUnderflow, stack.popInt());
+}
+
+test "Stack pushByteArray" {
+    const allocator = testing.allocator;
+    var stack = Stack.init(allocator);
+    defer stack.deinit();
+
+    // Test pushing and popping a byte array
+    const bytes = [_]u8{ 0x12, 0x34, 0x56, 0x78 };
+    try stack.pushByteArray(&bytes);
+
+    const popped = try stack.pop();
+    defer allocator.free(popped);
+    try testing.expectEqualSlices(u8, &bytes, popped);
+
+    // Test pushing and popping an empty byte array
+    try stack.pushByteArray(&[_]u8{});
+    const empty = try stack.pop();
+    defer allocator.free(empty);
+    try testing.expectEqualSlices(u8, &[_]u8{}, empty);
+}
+
+test "Stack popBool" {
+    const allocator = testing.allocator;
+    var stack = Stack.init(allocator);
+    defer stack.deinit();
+
+    // Test popping true
+    try stack.push(&[_]u8{1});
+    try testing.expect(try stack.popBool());
+
+    // Test popping false
+    try stack.push(&[_]u8{0});
+    try testing.expect(!(try stack.popBool()));
+
+    // Test popping non-zero value as true
+    try stack.push(&[_]u8{255});
+    try testing.expect(try stack.popBool());
+
+    // Test popping empty array as false
+    try stack.push(&[_]u8{});
+    try testing.expect(!(try stack.popBool()));
+
+    // Test popping from empty stack
+    try testing.expectError(StackError.StackUnderflow, stack.popBool());
 }

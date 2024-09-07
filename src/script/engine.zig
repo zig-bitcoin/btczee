@@ -4,6 +4,7 @@ const Stack = @import("stack.zig").Stack;
 const StackError = @import("stack.zig").StackError;
 const Script = @import("lib.zig").Script;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
+const arithmetic = @import("opcodes/arithmetic.zig");
 
 /// Errors that can occur during script execution
 pub const EngineError = error{
@@ -111,10 +112,12 @@ pub const Engine = struct {
             0x61 => try self.opNop(),
             0x69 => try self.opVerify(),
             0x6a => try self.opReturn(),
-            0x74 => try self.opDepth(),
             0x76 => try self.opDup(),
             0x87 => try self.opEqual(),
             0x88 => try self.opEqualVerify(),
+            0x8b => try arithmetic.op1Add(self),
+            0x8c => try arithmetic.op1Sub(self),
+            0x8f => try arithmetic.opNegate(self),
             0xa9 => try self.opHash160(),
             0xac => try self.opCheckSig(),
             else => return error.UnknownOpcode,
@@ -233,15 +236,6 @@ pub const Engine = struct {
     fn opReturn(self: *Engine) !void {
         _ = self;
         return error.EarlyReturn;
-    }
-
-    /// OP_DEPTH: Push the size of the stack onto the stack
-    ///
-    /// # Returns
-    /// - `EngineError`: If an error occurs during execution
-    fn opDepth(self: *Engine) !void {
-        const depth = self.stack.len();
-        try self.stack.push(&[_]u8{@as(u8, depth)});
     }
 
     /// OP_DUP: Duplicate the top stack item
