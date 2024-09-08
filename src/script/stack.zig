@@ -8,8 +8,10 @@ pub const StackError = error{
     StackUnderflow,
     /// Occurs when memory allocation fails
     OutOfMemory,
-
-    InvalidValue
+    // Occurs when the value is invalid
+    InvalidValue,
+    // Occurs when a verify operation fails
+    VerifyFailed
 };
 
 /// Stack for script execution
@@ -114,6 +116,15 @@ pub const Stack = struct {
         const value = try self.pop();
         defer self.allocator.free(value);
         return if (value.len == 1 and value[0] != 0) true else false;
+    }
+
+    // Function to push a boolean value onto the stack
+    pub fn pushBool(self: *Stack, value: bool) !void {
+        if (value) {
+            try self.pushByteArray(&[_]u8{1});
+        } else {
+            try self.pushByteArray(&[_]u8{0});
+        }
     }
 
     /// Pop an item from the stack
