@@ -29,29 +29,33 @@ pub fn opNegate(self: *Engine) !void {
     try self.stack.pushInt(result);
 }
 
+/// Computes the absolute value of the top stack item
 pub fn opAbs(engine: *Engine) !void {
     const value = try engine.stack.popInt();
-    const result = if (value == std.math.minInt(i64)) 
+    const result = if (value == std.math.minInt(i64))
         std.math.minInt(i64) // Handle overflow case
-    else if (value < 0) 
-        -value 
-    else 
+    else if (value < 0)
+        -value
+    else
         value;
     try engine.stack.pushInt(result);
 }
 
+/// Pushes true if the top stack item is 0, false otherwise
 pub fn opNot(self: *Engine) !void {
     const value = try self.stack.popInt();
     const result = if (value == 0) true else false;
     try self.stack.pushBool(result);
 }
 
+/// Pushes 1 if the top stack item is not 0, 0 otherwise
 pub fn op0NotEqual(self: *Engine) !void {
     const value = try self.stack.popInt();
     const result: i64 = if (value != 0) 1 else 0;
     try self.stack.pushInt(result);
 }
 
+/// Adds the top two stack items
 pub fn opAdd(self: *Engine) !void {
     const b = try self.stack.popInt();
     const a = try self.stack.popInt();
@@ -59,6 +63,7 @@ pub fn opAdd(self: *Engine) !void {
     try self.stack.pushInt(result[0]);
 }
 
+/// Subtracts the top stack item from the second top stack item
 pub fn opSub(self: *Engine) !void {
     const b = try self.stack.popInt();
     const a = try self.stack.popInt();
@@ -66,6 +71,7 @@ pub fn opSub(self: *Engine) !void {
     try self.stack.pushInt(result[0]);
 }
 
+/// Pushes true if both top two stack items are non-zero, false otherwise
 pub fn opBoolAnd(self: *Engine) !void {
     const b = try self.stack.popInt();
     const a = try self.stack.popInt();
@@ -73,6 +79,7 @@ pub fn opBoolAnd(self: *Engine) !void {
     try self.stack.pushBool(result);
 }
 
+/// Pushes true if either of the top two stack items is non-zero, false otherwise
 pub fn opBoolOr(self: *Engine) !void {
     const b = try self.stack.popInt();
     const a = try self.stack.popInt();
@@ -80,6 +87,7 @@ pub fn opBoolOr(self: *Engine) !void {
     try self.stack.pushBool(result);
 }
 
+/// Pushes true if the top two stack items are equal, false otherwise
 pub fn opNumEqual(self: *Engine) !void {
     const b = try self.stack.popInt();
     const a = try self.stack.popInt();
@@ -87,6 +95,7 @@ pub fn opNumEqual(self: *Engine) !void {
     try self.stack.pushBool(result);
 }
 
+/// Helper function to verify the top stack item is true
 pub fn abstractVerify(self: *Engine) !void {
     const verified = try self.stack.popBool();
     if (!verified) {
@@ -94,11 +103,13 @@ pub fn abstractVerify(self: *Engine) !void {
     }
 }
 
+/// Combines opNumEqual and abstractVerify operations
 pub fn opNumEqualVerify(self: *Engine) !void {
     try opNumEqual(self);
     try abstractVerify(self);
 }
 
+/// Pushes true if the top two stack items are not equal, false otherwise
 pub fn opNumNotEqual(self: *Engine) !void {
     const b = try self.stack.popInt();
     const a = try self.stack.popInt();
@@ -106,6 +117,7 @@ pub fn opNumNotEqual(self: *Engine) !void {
     try self.stack.pushBool(result);
 }
 
+/// Pushes true if the second top stack item is less than the top stack item, false otherwise
 pub fn opLessThan(self: *Engine) !void {
     const b = try self.stack.popInt();
     const a = try self.stack.popInt();
@@ -113,6 +125,7 @@ pub fn opLessThan(self: *Engine) !void {
     try self.stack.pushBool(result);
 }
 
+/// Pushes true if the second top stack item is greater than the top stack item, false otherwise
 pub fn opGreaterThan(self: *Engine) !void {
     const b = try self.stack.popInt();
     const a = try self.stack.popInt();
@@ -120,6 +133,7 @@ pub fn opGreaterThan(self: *Engine) !void {
     try self.stack.pushBool(result);
 }
 
+/// Pushes true if the second top stack item is less than or equal to the top stack item, false otherwise
 pub fn opLessThanOrEqual(self: *Engine) !void {
     const b = try self.stack.popInt();
     const a = try self.stack.popInt();
@@ -127,6 +141,7 @@ pub fn opLessThanOrEqual(self: *Engine) !void {
     try self.stack.pushBool(result);
 }
 
+/// Pushes true if the second top stack item is greater than or equal to the top stack item, false otherwise
 pub fn opGreaterThanOrEqual(self: *Engine) !void {
     const b = try self.stack.popInt();
     const a = try self.stack.popInt();
@@ -134,6 +149,7 @@ pub fn opGreaterThanOrEqual(self: *Engine) !void {
     try self.stack.pushBool(result);
 }
 
+/// Pushes the minimum of the top two stack items
 pub fn opMin(self: *Engine) !void {
     const b = try self.stack.popInt();
     const a = try self.stack.popInt();
@@ -141,6 +157,7 @@ pub fn opMin(self: *Engine) !void {
     try self.stack.pushInt(result);
 }
 
+/// Pushes the maximum of the top two stack items
 pub fn opMax(self: *Engine) !void {
     const b = try self.stack.popInt();
     const a = try self.stack.popInt();
@@ -148,6 +165,7 @@ pub fn opMax(self: *Engine) !void {
     try self.stack.pushInt(result);
 }
 
+/// Pushes true if x is within the range [min, max], false otherwise
 pub fn opWithin(self: *Engine) !void {
     const max = try self.stack.popInt();
     const min = try self.stack.popInt();
@@ -919,5 +937,52 @@ test "OP_WITHIN operation" {
 
         // Ensure the stack is empty after popping the result
         try testing.expectEqual(@as(usize, 0), engine.stack.len());
+    }
+}
+
+test "OP_NUMEQUALVERIFY operation" {
+    const allocator = testing.allocator;
+
+    // Test cases
+    const testCases = [_]struct {
+        a: i64,
+        b: i64,
+        shouldVerify: bool,
+    }{
+        .{ .a = 0, .b = 0, .shouldVerify = true },
+        .{ .a = 1, .b = 1, .shouldVerify = true },
+        .{ .a = -1, .b = -1, .shouldVerify = true },
+        .{ .a = std.math.maxInt(i64), .b = std.math.maxInt(i64), .shouldVerify = true },
+        .{ .a = std.math.minInt(i64), .b = std.math.minInt(i64), .shouldVerify = true },
+        .{ .a = 0, .b = 1, .shouldVerify = false },
+        .{ .a = 1, .b = 0, .shouldVerify = false },
+        .{ .a = -1, .b = 1, .shouldVerify = false },
+        .{ .a = 42, .b = 43, .shouldVerify = false },
+    };
+
+    for (testCases) |tc| {
+        // Create a dummy script (content doesn't matter for this test)
+        const script_bytes = [_]u8{0x00};
+        const script = Script.init(&script_bytes);
+
+        var engine = Engine.init(allocator, script, ScriptFlags{});
+        defer engine.deinit();
+
+        // Push the input values onto the stack
+        try engine.stack.pushInt(tc.a);
+        try engine.stack.pushInt(tc.b);
+
+        // Execute OP_NUMEQUALVERIFY
+        if (tc.shouldVerify) {
+            // If it should verify, expect no error
+            try opNumEqualVerify(&engine);
+            // Ensure the stack is empty after successful verification
+            try testing.expectEqual(@as(usize, 0), engine.stack.len());
+        } else {
+            // If it should not verify, expect VerifyFailed error
+            try testing.expectError(StackError.VerifyFailed, opNumEqualVerify(&engine));
+            // The stack should be empty even after a failed verification
+            try testing.expectEqual(@as(usize, 0), engine.stack.len());
+        }
     }
 }

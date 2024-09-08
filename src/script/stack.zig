@@ -54,7 +54,7 @@ pub const Stack = struct {
     ///
     /// # Returns
     /// - `StackError` if out of memory
-    pub fn push(self: *Stack, item: []const u8) StackError!void {
+    pub fn pushByteArray(self: *Stack, item: []const u8) StackError!void {
         // Create a copy of the input item
         const copy = self.allocator.dupe(u8, item) catch return StackError.OutOfMemory;
         errdefer self.allocator.free(copy);
@@ -77,18 +77,7 @@ pub const Stack = struct {
         var buffer: [8]u8 = undefined;
         const bytes = std.mem.asBytes(&value);
         @memcpy(&buffer, bytes);
-        try self.push(&buffer);
-    }
-
-    /// Push a byte array onto the stack
-    ///
-    /// # Arguments
-    /// - `value`: The byte array to be pushed onto the stack
-    ///
-    /// # Returns
-    /// - `StackError` if out of memory
-    pub fn pushByteArray(self: *Stack, value: []const u8) StackError!void {
-        try self.push(value);
+        try self.pushByteArray(&buffer);
     }
 
     /// Pop an integer from the stack
@@ -166,10 +155,10 @@ test "Stack basic operations" {
     defer stack.deinit();
 
     // Test push and len
-    try stack.push(&[_]u8{1});
+    try stack.pushByteArray(&[_]u8{1});
     try testing.expectEqual(@as(usize, 1), stack.len());
 
-    try stack.push(&[_]u8{ 2, 3 });
+    try stack.pushByteArray(&[_]u8{ 2, 3 });
     try testing.expectEqual(@as(usize, 2), stack.len());
 
     // Test peek
@@ -200,8 +189,8 @@ test "Stack memory management" {
         defer stack.deinit();
 
         // Push some items
-        try stack.push(&[_]u8{ 1, 2, 3 });
-        try stack.push(&[_]u8{ 4, 5 });
+        try stack.pushByteArray(&[_]u8{ 1, 2, 3 });
+        try stack.pushByteArray(&[_]u8{ 4, 5 });
 
         // Pop and ensure memory is handled correctly
         {
@@ -228,9 +217,9 @@ test "Stack push and peek multiple items" {
     defer stack.deinit();
 
     // Push multiple items
-    try stack.push(&[_]u8{1});
-    try stack.push(&[_]u8{2});
-    try stack.push(&[_]u8{3});
+    try stack.pushByteArray(&[_]u8{1});
+    try stack.pushByteArray(&[_]u8{2});
+    try stack.pushByteArray(&[_]u8{3});
 
     // Peek at different indices
     try testing.expectEqualSlices(u8, &[_]u8{3}, try stack.peek(0));
@@ -250,7 +239,7 @@ test "Stack push empty slice" {
     defer stack.deinit();
 
     // Push an empty slice
-    try stack.push(&[_]u8{});
+    try stack.pushByteArray(&[_]u8{});
 
     // Verify it was pushed correctly
     try testing.expectEqual(@as(usize, 1), stack.len());
@@ -271,7 +260,7 @@ test "Stack out of memory simulation" {
     stack.allocator = testing.failing_allocator;
 
     // Attempt to push, which should fail
-    try testing.expectError(StackError.OutOfMemory, stack.push(&[_]u8{1}));
+    try testing.expectError(StackError.OutOfMemory, stack.pushByteArray(&[_]u8{1}));
 
     // Verify the stack is still empty
     try testing.expectEqual(@as(usize, 0), stack.len());
@@ -331,19 +320,19 @@ test "Stack popBool" {
     defer stack.deinit();
 
     // Test popping true
-    try stack.push(&[_]u8{1});
+    try stack.pushByteArray(&[_]u8{1});
     try testing.expect(try stack.popBool());
 
     // Test popping false
-    try stack.push(&[_]u8{0});
+    try stack.pushByteArray(&[_]u8{0});
     try testing.expect(!(try stack.popBool()));
 
     // Test popping non-zero value as true
-    try stack.push(&[_]u8{255});
+    try stack.pushByteArray(&[_]u8{255});
     try testing.expect(try stack.popBool());
 
     // Test popping empty array as false
-    try stack.push(&[_]u8{});
+    try stack.pushByteArray(&[_]u8{});
     try testing.expect(!(try stack.popBool()));
 
     // Test popping from empty stack
