@@ -112,6 +112,12 @@ pub const Engine = struct {
             0x61 => try self.opNop(),
             0x69 => try self.opVerify(),
             0x6a => try self.opReturn(),
+            0x6d => try self.op2Drop(),
+            0x6e => try self.op2Dup(),
+            0x6f => try self.op3Dup(),
+            0x73 => self.opIfDup(),
+            0x74 => self.opDepth(),
+            0x75 => try self.opDrop(),
             0x76 => try self.opDup(),
             0x87 => try self.opEqual(),
             0x88 => try self.opEqualVerify(),
@@ -234,6 +240,9 @@ pub const Engine = struct {
         _ = self;
     }
 
+    /// OP_IF: If the top stack value is not False, the statements are executed. The top stack value is removed.
+    ///
+    /// # Returns
     /// OP_VERIFY: Verify the top stack value
     ///
     /// # Returns
@@ -253,6 +262,84 @@ pub const Engine = struct {
     fn opReturn(self: *Engine) !void {
         _ = self;
         return error.EarlyReturn;
+    }
+
+    /// OP_2DROP: Drops top 2 stack items
+    ///
+    /// # Returns
+    /// - "EngineError.StackUnderflow": if initial stack length < 2
+    fn op2Drop(self: *Engine) !void {
+        if (self.stack.len() < 2) {
+            return error.StackUnderflow;
+        }
+        try self.stack.pop();
+        try self.stack.pop();
+    }
+
+    /// OP_2DUP: Duplicates top 2 stack item
+    ///
+    /// # Returns
+    /// -  "EngineError.StackUnderflow": if initial stack length < 2
+    fn op2Dup(self: *Engine) !void {
+        if (self.stack.len() < 2) {
+            return error.StackUnderflow;
+        }
+        const second_item = try self.stack.peek(1);
+        const first_item = try self.stack.peek(0);
+        try self.stack.pushByteArray(second_item);
+        try self.stack.pushByteArray(first_item);
+    }
+
+    /// OP_3DUP: Duplicates top 3 stack item
+    ///
+    /// # Returns
+    /// -  "EngineError.StackUnderflow": if initial stack length < 3
+    fn op3Dup(self: *Engine) !void {
+        if (self.stack.len() < 3) {
+            return error.StackUnderflow;
+        }
+        const third_item = try self.stack.peek(2);
+        const second_item = try self.stack.peek(1);
+        const first_item = try self.stack.peek(0);
+        try self.stack.pushByteArray(third_item);
+        try self.stack.pushByteArray(second_item);
+        try self.stack.pushByteArray(first_item);
+    }
+
+    /// OP_DEPTH: Puts the number of stack items onto the stack.
+    ///
+    /// # Returns
+    /// -  "EngineError.StackUnderflow": if initial stack length == 0
+    fn opDepth(self: *Engine) !void {
+        if (self.stack.len() == 0) {
+            return error.StackUnderflow;
+        }
+        try self.stack.pushInt(try self.stack.len());
+    }
+
+    /// OP_IFDUP: If the top stack value is not 0, duplicate it.
+    ///
+    /// # Returns
+    /// -  "EngineError.StackUnderflow": if initial stack length < 1
+    fn opIfDup(self: *Engine) !void {
+        if (self.stack.len() < 1) {
+            return error.StackUnderflow;
+        }
+        const value = try self.stack.peek(0);
+        if (value != 0) {
+            try self.stack.pushByteArray(value);
+        }
+    }
+
+    /// OP_DROP: Drops top stack item
+    ///
+    /// # Returns
+    /// -  "EngineError.StackUnderflow": if initial stack length < 1
+    fn opDrop(self: *Engine) !void {
+        if (self.stack.len() < 3) {
+            return error.StackUnderflow;
+        }
+        try self.stack.pop();
     }
 
     /// OP_DUP: Duplicate the top stack item
