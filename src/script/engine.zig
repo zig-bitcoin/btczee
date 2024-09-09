@@ -4,6 +4,7 @@ const Stack = @import("stack.zig").Stack;
 const StackError = @import("stack.zig").StackError;
 const Script = @import("lib.zig").Script;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
+const arithmetic = @import("opcodes/arithmetic.zig");
 
 /// Errors that can occur during script execution
 pub const EngineError = error{
@@ -114,6 +115,26 @@ pub const Engine = struct {
             0x76 => try self.opDup(),
             0x87 => try self.opEqual(),
             0x88 => try self.opEqualVerify(),
+            0x8b => try arithmetic.op1Add(self),
+            0x8c => try arithmetic.op1Sub(self),
+            0x8f => try arithmetic.opNegate(self),
+            0x90 => try arithmetic.opAbs(self),
+            0x91 => try arithmetic.opNot(self),
+            0x92 => try arithmetic.op0NotEqual(self),
+            0x93 => try arithmetic.opAdd(self),
+            0x94 => try arithmetic.opSub(self),
+            0x9a => try arithmetic.opBoolAnd(self),
+            0x9b => try arithmetic.opBoolOr(self),
+            0x9c => try arithmetic.opNumEqual(self),
+            0x9d => try arithmetic.opNumEqualVerify(self),
+            0x9e => try arithmetic.opNumNotEqual(self),
+            0x9f => try arithmetic.opLessThan(self),
+            0xa0 => try arithmetic.opGreaterThan(self),
+            0xa1 => try arithmetic.opLessThanOrEqual(self),
+            0xa2 => try arithmetic.opGreaterThanOrEqual(self),
+            0xa3 => try arithmetic.opMin(self),
+            0xa4 => try arithmetic.opMax(self),
+            0xa5 => try arithmetic.opWithin(self),
             0xa9 => try self.opHash160(),
             0xac => try self.opCheckSig(),
             else => return error.UnknownOpcode,
@@ -133,7 +154,7 @@ pub const Engine = struct {
         if (self.pc + n > self.script.len()) {
             return error.ScriptTooShort;
         }
-        try self.stack.push(self.script.data[self.pc .. self.pc + n]);
+        try self.stack.pushByteArray(self.script.data[self.pc .. self.pc + n]);
         self.pc += n;
     }
 
@@ -163,7 +184,7 @@ pub const Engine = struct {
         if (self.pc + n > self.script.len()) {
             return error.ScriptTooShort;
         }
-        try self.stack.push(self.script.data[self.pc .. self.pc + n]);
+        try self.stack.pushByteArray(self.script.data[self.pc .. self.pc + n]);
         self.pc += n;
     }
 
@@ -180,7 +201,7 @@ pub const Engine = struct {
         if (self.pc + n > self.script.len()) {
             return error.ScriptTooShort;
         }
-        try self.stack.push(self.script.data[self.pc .. self.pc + n]);
+        try self.stack.pushByteArray(self.script.data[self.pc .. self.pc + n]);
         self.pc += n;
     }
 
@@ -189,7 +210,7 @@ pub const Engine = struct {
     /// # Returns
     /// - `EngineError`: If an error occurs during execution
     fn op1Negate(self: *Engine) !void {
-        try self.stack.push(&[_]u8{0x81});
+        try self.stack.pushByteArray(&[_]u8{0x81});
     }
 
     /// OP_1 to OP_16: Push the value (opcode - 0x50) onto the stack
@@ -201,7 +222,7 @@ pub const Engine = struct {
     /// - `EngineError`: If an error occurs during execution
     fn opN(self: *Engine, opcode: u8) !void {
         const n = opcode - 0x50;
-        try self.stack.push(&[_]u8{n});
+        try self.stack.pushByteArray(&[_]u8{n});
     }
 
     /// OP_NOP: Do nothing
@@ -240,7 +261,7 @@ pub const Engine = struct {
     /// - `EngineError`: If an error occurs during execution
     fn opDup(self: *Engine) !void {
         const value = try self.stack.peek(0);
-        try self.stack.push(value);
+        try self.stack.pushByteArray(value);
     }
 
     /// OP_EQUAL: Push 1 if the top two items are equal, 0 otherwise
@@ -255,7 +276,7 @@ pub const Engine = struct {
         defer self.allocator.free(a);
 
         const equal = std.mem.eql(u8, a, b);
-        try self.stack.push(if (equal) &[_]u8{1} else &[_]u8{0});
+        try self.stack.pushByteArray(if (equal) &[_]u8{1} else &[_]u8{0});
     }
 
     /// OP_EQUALVERIFY: OP_EQUAL followed by OP_VERIFY
@@ -276,7 +297,7 @@ pub const Engine = struct {
         // For now, just set the hash to a dummy value
         const hash: [20]u8 = [_]u8{0x00} ** 20;
         // TODO: Implement SHA256 and RIPEMD160
-        try self.stack.push(&hash);
+        try self.stack.pushByteArray(&hash);
     }
 
     /// OP_CHECKSIG: Verify a signature
@@ -290,7 +311,7 @@ pub const Engine = struct {
         defer self.allocator.free(sig);
         // TODO: Implement actual signature checking
         // Assume signature is valid for now
-        try self.stack.push(&[_]u8{1});
+        try self.stack.pushByteArray(&[_]u8{1});
     }
 };
 

@@ -1,5 +1,6 @@
 pub const engine = @import("engine.zig");
 pub const stack = @import("stack.zig");
+pub const arithmetic = @import("opcodes/arithmetic.zig");
 
 /// Maximum number of bytes pushable to the stack
 const MAX_SCRIPT_ELEMENT_SIZE = 520;
