@@ -272,8 +272,11 @@ pub const Engine = struct {
         if (self.stack.len() < 2) {
             return error.StackUnderflow;
         }
-        _ = try self.stack.pop();
-        _ = try self.stack.pop();
+        const a = try self.stack.pop();
+        const b = try self.stack.pop();
+
+        defer self.allocator.free(a);
+        defer self.allocator.free(b);
     }
 
     /// OP_2DUP: Duplicates top 2 stack item
@@ -342,7 +345,8 @@ pub const Engine = struct {
         if (self.stack.len() < 1) {
             return error.StackUnderflow;
         }
-        _ = try self.stack.pop();
+        const a = try self.stack.pop();
+        defer self.allocator.free(a);
     }
 
     /// OP_DUP: Duplicate the top stack item
@@ -560,6 +564,7 @@ test "Script execution - OP_1 OP_2 OP_DEPTH" {
     try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
     try std.testing.expectEqualSlices(u8, &[_]u8{2}, element1);
 }
+
 test "Script execution - OP_1 OP_2 OP_DROP" {
     const allocator = std.testing.allocator;
 
@@ -571,9 +576,10 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
     defer engine.deinit();
 
     try engine.execute();
+    try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
+
     const element0 = try engine.stack.peek(0);
 
     // Ensure the stack is empty after popping the result
-    try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
     try std.testing.expectEqualSlices(u8, &[_]u8{1}, element0);
 }
