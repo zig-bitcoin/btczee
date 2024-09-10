@@ -102,7 +102,7 @@ pub const Engine = struct {
     /// - `EngineError`: If an error occurs during execution
     fn executeOpcode(self: *Engine, opcode: u8) !void {
         self.log("Executing opcode: 0x{x:0>2}\n", .{opcode});
-        switch (opcode) {
+        try switch (opcode) {
             0x00...0x4b => try self.pushData(opcode),
             0x4c => try self.opPushData1(),
             0x4d => try self.opPushData2(),
@@ -144,7 +144,7 @@ pub const Engine = struct {
             0xa9 => try self.opHash160(),
             0xac => try self.opCheckSig(),
             else => return error.UnknownOpcode,
-        }
+        };
     }
 
     // Opcode implementations
