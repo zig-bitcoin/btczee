@@ -63,12 +63,10 @@ pub const VersionMessage = struct {
     pub fn serialize(self: VersionMessage, allocator: std.mem.Allocator) ![]u8 {
         // 4 + 8 + 8 + (2 * (8 + 16 + 2) + 8 + 4)
         const fixed_length = 84;
-        var user_agent_len: usize = undefined;
-        if (self.user_agent) |ua| {
-            user_agent_len = ua.len;
-        } else {
-            user_agent_len = 0;
-        }
+        const user_agent_len: usize = if (self.user_agent) |ua|
+            ua.len
+        else
+            0;
         const compact_user_agent_len = CompactSizeUint.new(user_agent_len);
         const compact_user_agent_len_len = compact_user_agent_len.hint_encoded_len();
         const relay_len: usize = if (self.relay != null) 1 else 0;
@@ -146,12 +144,10 @@ pub const VersionMessage = struct {
     pub fn hintSerializedLen(self: VersionMessage) usize {
         // 4 + 8 + 8 + (2 * (8 + 16 + 2) + 8 + 4)
         const fixed_length = 84;
-        var user_agent_len: usize = undefined;
-        if (self.user_agent) |ua| {
-            user_agent_len = ua.len;
-        } else {
-            user_agent_len = 0;
-        }
+        const user_agent_len: usize = if (self.user_agent) |ua|
+            ua.len
+        else
+            0;
         const compact_user_agent_len = CompactSizeUint.new(user_agent_len);
         const compact_user_agent_len_len = compact_user_agent_len.hint_encoded_len();
         const relay_len: usize = if (self.relay != null) 1 else 0;
