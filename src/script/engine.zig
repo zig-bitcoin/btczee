@@ -102,7 +102,7 @@ pub const Engine = struct {
     /// - `EngineError`: If an error occurs during execution
     fn executeOpcode(self: *Engine, opcode: u8) !void {
         self.log("Executing opcode: 0x{x:0>2}\n", .{opcode});
-        switch (opcode) {
+        try switch (opcode) {
             0x00...0x4b => try self.pushData(opcode),
             0x4c => try self.opPushData1(),
             0x4d => try self.opPushData2(),
@@ -119,6 +119,8 @@ pub const Engine = struct {
             0x74 => self.opDepth(),
             0x75 => try self.opDrop(),
             0x76 => try self.opDup(),
+            0x77 => try self.opNip(),
+            0x78 => try self.opOver(),
             0x87 => try self.opEqual(),
             0x88 => try self.opEqualVerify(),
             0x8b => try arithmetic.op1Add(self),
@@ -144,7 +146,7 @@ pub const Engine = struct {
             0xa9 => try self.opHash160(),
             0xac => try self.opCheckSig(),
             else => return error.UnknownOpcode,
-        }
+        };
     }
 
     // Opcode implementations
@@ -272,8 +274,8 @@ pub const Engine = struct {
         if (self.stack.len() < 2) {
             return error.StackUnderflow;
         }
-        try self.stack.pop();
-        try self.stack.pop();
+        _ = try self.stack.pop();
+        _ = try self.stack.pop();
     }
 
     /// OP_2DUP: Duplicates top 2 stack item
@@ -284,10 +286,11 @@ pub const Engine = struct {
         if (self.stack.len() < 2) {
             return error.StackUnderflow;
         }
-        const second_item = try self.stack.peek(1);
-        const first_item = try self.stack.peek(0);
-        try self.stack.pushByteArray(second_item);
+
+        const second_item = try self.stack.peek(0);
+        const first_item = try self.stack.peek(1);
         try self.stack.pushByteArray(first_item);
+        try self.stack.pushByteArray(second_item);
     }
 
     /// OP_3DUP: Duplicates top 3 stack item
@@ -314,10 +317,12 @@ pub const Engine = struct {
         if (self.stack.len() == 0) {
             return error.StackUnderflow;
         }
-        try self.stack.pushInt(try self.stack.len());
+        const stack_length = self.stack.len();
+        const u8_stack_length: u8 = @intCast(stack_length);
+        try self.stack.pushByteArray(&[_]u8{u8_stack_length});
     }
 
-    /// OP_IFDUP: If the top stack value is not 0, duplicate it.
+    /// OP_IFDUP: If the top stack value is not 0, duplicate itp
     ///
     /// # Returns
     /// -  "EngineError.StackUnderflow": if initial stack length < 1
@@ -326,7 +331,7 @@ pub const Engine = struct {
             return error.StackUnderflow;
         }
         const value = try self.stack.peek(0);
-        if (value != 0) {
+        if (value.len != 1 or value[0] != 0) {
             try self.stack.pushByteArray(value);
         }
     }
@@ -336,10 +341,10 @@ pub const Engine = struct {
     /// # Returns
     /// -  "EngineError.StackUnderflow": if initial stack length < 1
     fn opDrop(self: *Engine) !void {
-        if (self.stack.len() < 3) {
+        if (self.stack.len() < 1) {
             return error.StackUnderflow;
         }
-        try self.stack.pop();
+        _ = try self.stack.pop();
     }
 
     /// OP_DUP: Duplicate the top stack item
@@ -446,4 +451,131 @@ test "Script execution - OP_RETURN" {
         defer allocator.free(item);
         try std.testing.expectEqualSlices(u8, &[_]u8{1}, item);
     }
+}
+
+test "Script execution - OP_1 OP_1 OP_1 OP_2Drop" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_1 OP_EQUAL
+    const script_bytes = [_]u8{ 0x51, 0x51, 0x51, 0x6d };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    // Ensure the stack is empty after popping the result
+    try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
+}
+
+test "Script execution - OP_1 OP_2 OP_2Dup" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_1 OP_EQUAL
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x6e };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    const element0 = try engine.stack.peek(0);
+    const element1 = try engine.stack.peek(1);
+    const element2 = try engine.stack.peek(2);
+    const element3 = try engine.stack.peek(3);
+
+    // Ensure the stack is empty after popping the result
+    try std.testing.expectEqual(@as(usize, 4), engine.stack.len());
+    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
+    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element1);
+    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element2);
+    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element3);
+}
+
+test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_3Dup" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_1 OP_EQUAL
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x54, 0x6f };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    const element0 = try engine.stack.peek(0);
+    const element1 = try engine.stack.peek(1);
+    const element2 = try engine.stack.peek(2);
+    const element3 = try engine.stack.peek(3);
+    const element4 = try engine.stack.peek(4);
+    const element5 = try engine.stack.peek(5);
+    const element6 = try engine.stack.peek(6);
+
+    // Ensure the stack is empty after popping the result
+    try std.testing.expectEqual(@as(usize, 7), engine.stack.len());
+    try std.testing.expectEqualSlices(u8, &[_]u8{4}, element0);
+    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element1);
+    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element2);
+    try std.testing.expectEqualSlices(u8, &[_]u8{4}, element3);
+    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element4);
+    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element5);
+    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element6);
+}
+
+test "Script execution - OP_1 OP_2 OP_IFDUP" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_1 OP_EQUAL
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x73 };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    const element0 = try engine.stack.peek(0);
+    const element1 = try engine.stack.peek(1);
+
+    // Ensure the stack is empty after popping the result
+    try std.testing.expectEqual(@as(usize, 3), engine.stack.len());
+    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
+    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element1);
+}
+
+test "Script execution - OP_1 OP_2 OP_DEPTH" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_1 OP_EQUAL
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x74 };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    const element0 = try engine.stack.peek(0);
+    const element1 = try engine.stack.peek(1);
+
+    // Ensure the stack is empty after popping the result
+    try std.testing.expectEqual(@as(usize, 3), engine.stack.len());
+    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
+    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element1);
+}
+test "Script execution - OP_1 OP_2 OP_DROP" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_1 OP_EQUAL
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x75 };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    const element0 = try engine.stack.peek(0);
+
+    // Ensure the stack is empty after popping the result
+    try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
+    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element0);
 }
