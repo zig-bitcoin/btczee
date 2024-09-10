@@ -1,5 +1,13 @@
 const std = @import("std");
 
+const dns_seed = [:0]const u8;
+
+const DNS_SEEDS = [3]dns_seed{
+    "seed.bitcoin.sipa.be",
+    "seed.bitcoin.sprovoost.nl",
+    "seed.btc.petertodd.net",
+};
+
 /// Global configuration for the node
 ///
 /// This is loaded from the `bitcoin.conf` file
@@ -19,8 +27,6 @@ pub const Config = struct {
 
     /// Data directory
     datadir: [:0]const u8,
-
-    seednode: []const u8,
 
     /// Load the configuration from a file
     ///
@@ -46,7 +52,6 @@ pub const Config = struct {
             .p2p_port = 8333,
             .testnet = false,
             .datadir = ".bitcoin",
-            .seednode = "",
         };
 
         var buf: [1024]u8 = undefined;
@@ -67,6 +72,10 @@ pub const Config = struct {
         }
 
         return config;
+    }
+
+    pub inline fn dnsSeeds() [3]dns_seed {
+        return DNS_SEEDS;
     }
 
     pub fn deinit(self: *Config) void {
