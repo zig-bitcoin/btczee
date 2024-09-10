@@ -5,6 +5,7 @@ const std = @import("std");
 const net = std.net;
 const Config = @import("../config/config.zig").Config;
 const Peer = @import("peer.zig").Peer;
+const Logger = @import("../util/trace/log.zig").Logger;
 
 /// P2P network handler.
 pub const P2P = struct {
@@ -16,6 +17,7 @@ pub const P2P = struct {
     peers: std.ArrayList(*Peer),
     /// Listener.
     listener: ?net.Server,
+    logger: Logger,
 
     /// Initialize the P2P network handler.
     /// # Arguments
@@ -23,12 +25,13 @@ pub const P2P = struct {
     /// - `config`: Configuration.
     /// # Returns
     /// - `P2P`: P2P network handler.
-    pub fn init(allocator: std.mem.Allocator, config: *const Config) !P2P {
+    pub fn init(allocator: std.mem.Allocator, config: *const Config, logger: Logger) !P2P {
         return P2P{
             .allocator = allocator,
             .config = config,
             .peers = std.ArrayList(*Peer).init(allocator),
             .listener = null,
+            .logger = logger,
         };
     }
 
@@ -43,7 +46,7 @@ pub const P2P = struct {
 
     /// Start the P2P network handler.
     pub fn start(self: *P2P) !void {
-        std.log.info("Starting P2P network on port {}", .{self.config.p2p_port});
+        self.logger.infof("Starting P2P network on port {}", .{self.config.p2p_port});
 
         // TODO: Implement the P2P network handler
         // Initialize the listener
@@ -67,7 +70,7 @@ pub const P2P = struct {
     fn acceptConnections(self: *P2P) !void {
         while (true) {
             const connection = self.listener.?.accept() catch |err| {
-                std.log.err("Failed to accept connection: {}", .{err});
+                self.logger.errf("Failed to accept connection: {}", .{err});
                 continue;
             };
 
@@ -83,21 +86,21 @@ pub const P2P = struct {
     /// - `connection`: Connection.
     fn handleConnection(self: *P2P, connection: net.Server.Connection) void {
         const peer = Peer.init(self.allocator, connection) catch |err| {
-            std.log.err("Failed to initialize peer: {}", .{err});
+            self.logger.errf("Failed to initialize peer: {}", .{err});
             connection.stream.close();
             return;
         };
 
         // Add the peer to the list of peers
         self.peers.append(peer) catch |err| {
-            std.log.err("Failed to add peer: {}", .{err});
+            self.logger.errf("Failed to add peer: {}", .{err});
             peer.deinit();
             return;
         };
 
         // Start the peer in a new thread
         peer.start() catch |err| {
-            std.log.err("Peer encountered an error: {}", .{err});
+            self.logger.errf("Peer encountered an error: {}", .{err});
             _ = self.peers.swapRemove(self.peers.items.len - 1);
             peer.deinit();
         };

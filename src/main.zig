@@ -11,24 +11,40 @@
 
 //==== Imports ====//
 const std = @import("std");
+const logger = @import("util/trace/log.zig");
+
 const Config = @import("config/config.zig").Config;
 const Mempool = @import("core/mempool.zig").Mempool;
 const Storage = @import("storage/storage.zig").Storage;
 const P2P = @import("network/p2p.zig").P2P;
 const RPC = @import("network/rpc.zig").RPC;
 const Node = @import("node/node.zig").Node;
-const ArgParser = @import("util/ArgParser.zig");
+const ArgParser = @import("util/cmd/ArgParser.zig");
+
+// We set this so that std.log knows not to log .debug level messages
+// which libraries we import will use
+pub const std_options: std.Options = .{
+    // Set the log level to info
+    .log_level = .info,
+};
 
 //==== Main Entry Point ====//
 pub fn main() !void {
     // Initialize the allocator
     var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
-    const gpa = gpa_state.allocator();
+    const allocator = gpa_state.allocator();
     defer _ = gpa_state.deinit();
 
+    // Set up logger
+    var our_logger = logger.Logger.init(allocator, .debug);
+    defer our_logger.deinit();
+    our_logger.spawn();
+
+    logger.default_logger.* = our_logger;
+
     // Parse command-line arguments
-    const args = try std.process.argsAlloc(gpa);
-    defer std.process.argsFree(gpa, args);
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
 
     // Set up buffered stdout
     var stdout_buffered = std.io.bufferedWriter(std.io.getStdOut().writer());
@@ -36,7 +52,7 @@ pub fn main() !void {
 
     // Run the main program logic
     try mainFull(.{
-        .allocator = gpa,
+        .allocator = allocator,
         .args = args[1..],
         .stdout = stdout.any(),
     });
@@ -155,12 +171,12 @@ fn runNodeCommand(program: *Program) !void {
     defer mempool.deinit();
     var storage = try Storage.init(&config);
     defer storage.deinit();
-    var p2p = try P2P.init(program.allocator, &config);
+    var p2p = try P2P.init(program.allocator, &config, logger.default_logger.*);
     defer p2p.deinit();
-    var rpc = try RPC.init(program.allocator, &config, &mempool, &storage);
+    var rpc = try RPC.init(program.allocator, &config, &mempool, &storage, logger.default_logger.*);
     defer rpc.deinit();
 
-    var node = try Node.init(&mempool, &storage, &p2p, &rpc);
+    var node = try Node.init(logger.default_logger.*, &mempool, &storage, &p2p, &rpc);
     defer node.deinit();
 
     // Start the node
