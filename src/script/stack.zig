@@ -4,14 +4,10 @@ const testing = std.testing;
 
 /// Errors that can occur during stack operations
 pub const StackError = error{
-    /// Occurs when trying to pop or peek from an empty stack
     StackUnderflow,
-    /// Occurs when memory allocation fails
     OutOfMemory,
-    // Occurs when the value is invalid
     InvalidValue,
-    // Occurs when a verify operation fails
-    VerifyFailed
+    VerifyFailed,
 };
 
 /// Stack for script execution

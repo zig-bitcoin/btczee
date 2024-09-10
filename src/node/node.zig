@@ -6,6 +6,7 @@ const Mempool = @import("../core/mempool.zig").Mempool;
 const Storage = @import("../storage/storage.zig").Storage;
 const P2P = @import("../network/p2p.zig").P2P;
 const RPC = @import("../network/rpc.zig").RPC;
+const Logger = @import("../util/trace/log.zig").Logger;
 
 /// Node is a struct that contains all the components of a Bitcoin full node.
 pub const Node = struct {
@@ -22,6 +23,7 @@ pub const Node = struct {
     started: std.Thread.Condition,
     /// Mutex to synchronize access to the node.
     mutex: std.Thread.Mutex,
+    logger: Logger,
 
     /// Initialize the node.
     ///
@@ -30,8 +32,9 @@ pub const Node = struct {
     /// - `storage`: Blockchain storage.
     /// - `p2p`: P2P network handler.
     /// - `rpc`: RPC server.
-    pub fn init(mempool: *Mempool, storage: *Storage, p2p: *P2P, rpc: *RPC) !Node {
+    pub fn init(logger: Logger, mempool: *Mempool, storage: *Storage, p2p: *P2P, rpc: *RPC) !Node {
         return Node{
+            .logger = logger,
             .mempool = mempool,
             .storage = storage,
             .p2p = p2p,
@@ -56,7 +59,7 @@ pub const Node = struct {
     /// - `p2p`: P2P network handler.
     /// - `rpc`: RPC server.
     pub fn start(self: *Node) !void {
-        std.log.info("Starting btczee node...", .{});
+        self.logger.info("Starting btczee node...");
         self.mutex.lock();
         defer self.mutex.unlock();
 
@@ -71,11 +74,11 @@ pub const Node = struct {
         // Main event loop
         while (!self.stopped) {
             self.mutex.unlock();
-            std.log.debug("Waiting for blocks...", .{});
+            self.logger.debug("Waiting for blocks...");
             std.time.sleep(std.time.ns_per_s);
             self.mutex.lock();
         }
-        std.log.info("Node stopped", .{});
+        self.logger.info("Node stopped");
     }
 
     /// Stop the node.
@@ -83,9 +86,9 @@ pub const Node = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        std.log.info("Stopping node...", .{});
+        self.logger.info("Stopping node...");
         self.stopped = true;
-        std.log.info("Node stop signal sent", .{});
+        self.logger.info("Node stop signal sent");
     }
 
     /// Wait for the node to start.

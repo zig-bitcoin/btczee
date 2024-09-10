@@ -153,6 +153,10 @@ You can find the roadmap of the project in the [docs/roadmap.md](./docs/roadmap.
 - [Zig Standard Library](https://github.com/ziglang/zig/tree/master/lib/std)
 - [Ziglings](https://codeberg.org/ziglings/exercises/)
 
+## Acknowledgements
+
+- [Syndica sig client in Zig](https://github.com/Syndica/sig), we are using a copy of their `time` and `trace` modules. Right now, they are not usable as external dependencies, we hope it will be possible in the future, and if so, we will switch to using their libraries directly.
+
 ## Contributors ✨
 
 Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
