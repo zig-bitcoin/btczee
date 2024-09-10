@@ -102,6 +102,31 @@ pub fn build(b: *std.Build) !void {
         run_step.dependOn(&run_cmd.step);
     }
 
+    // **************************************************************
+    // *              CHECK FOR FAST FEEDBACK LOOP                  *
+    // **************************************************************
+    // Tip taken from: `https://kristoff.it/blog/improving-your-zls-experience/`
+    {
+        const exe_check = b.addExecutable(.{
+            .name = "btczee",
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        // Add dependency modules to the executable.
+        for (deps) |mod| exe_check.root_module.addImport(
+            mod.name,
+            mod.module,
+        );
+        // This step is used to check if btczee compiles, it helps to provide a faster feedback loop when developing.
+        const check = b.step("check", "Check if btczee compiles");
+        check.dependOn(&exe_check.step);
+    }
+
+    // **************************************************************
+    // *              UNIT TESTS                                    *
+    // **************************************************************
+
     const lib_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/lib.zig"),
         .target = target,
@@ -125,6 +150,10 @@ pub fn build(b: *std.Build) !void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lib_unit_tests.step);
     test_step.dependOn(&run_exe_unit_tests.step);
+
+    // **************************************************************
+    // *              BENCHMARKS                                    *
+    // **************************************************************
 
     // Add benchmark step
     const bench = b.addExecutable(.{
@@ -154,6 +183,9 @@ pub fn build(b: *std.Build) !void {
     const bench_step = b.step("bench", "Run benchmarks");
     bench_step.dependOn(&run_bench.step);
 
+    // **************************************************************
+    // *              DOCUMENTATION                                  *
+    // **************************************************************
     // Add documentation generation step
     const install_docs = b.addInstallDirectory(.{
         .source_dir = lib.getEmittedDocs(),
