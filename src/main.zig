@@ -176,7 +176,7 @@ fn runNodeCommand(program: *Program) !void {
     var rpc = try RPC.init(program.allocator, &config, &mempool, &storage, logger.default_logger.*);
     defer rpc.deinit();
 
-    var node = try Node.init(logger.default_logger.*, &mempool, &storage, &p2p, &rpc);
+    var node = try Node.init(program.allocator, logger.default_logger.*, &mempool, &storage, &p2p, &rpc);
     defer node.deinit();
 
     // Start the node
