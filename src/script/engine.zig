@@ -1,10 +1,14 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const ConditionalStack = @import("cond_stack.zig").ConditionalStack;
+const ConditionalStackError = @import("cond_stack.zig").ConditionalStackError;
+const FlowError = @import("opcodes/flow.zig").FlowError;
 const Stack = @import("stack.zig").Stack;
 const StackError = @import("stack.zig").StackError;
 const Script = @import("lib.zig").Script;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
 const arithmetic = @import("opcodes/arithmetic.zig");
+const flow = @import("opcodes/flow.zig");
 
 /// Errors that can occur during script execution
 pub const EngineError = error{
@@ -16,7 +20,9 @@ pub const EngineError = error{
     EarlyReturn,
     /// Encountered an unknown opcode
     UnknownOpcode,
-} || StackError;
+    /// Reserved opcode encountered
+    ReservedOpcode,
+} || StackError || ConditionalStackError || FlowError;
 
 /// Engine is the virtual machine that executes Bitcoin scripts
 pub const Engine = struct {
@@ -32,6 +38,7 @@ pub const Engine = struct {
     flags: ScriptFlags,
     /// Memory allocator
     allocator: Allocator,
+    cond_stack: ConditionalStack,
 
     /// Initialize a new Engine
     ///
@@ -50,6 +57,7 @@ pub const Engine = struct {
             .pc = 0,
             .flags = flags,
             .allocator = allocator,
+            .cond_stack = ConditionalStack.init(allocator),
         };
     }
 
@@ -57,6 +65,7 @@ pub const Engine = struct {
     pub fn deinit(self: *Engine) void {
         self.stack.deinit();
         self.alt_stack.deinit();
+        self.cond_stack.deinit();
     }
 
     /// Log debug information
@@ -103,13 +112,19 @@ pub const Engine = struct {
     fn executeOpcode(self: *Engine, opcode: u8) !void {
         self.log("Executing opcode: 0x{x:0>2}\n", .{opcode});
         try switch (opcode) {
-            0x00...0x4b => try self.pushData(opcode),
-            0x4c => try self.opPushData1(),
-            0x4d => try self.opPushData2(),
-            0x4e => try self.opPushData4(),
+            0x00 => try self.opFalse(),
+            0x01...0x4b => try self.pushData(opcode),
+            0x4c...0x4e => try opPushDataX(self, opcode),
             0x4f => try self.op1Negate(),
+            0x50 => try self.opReserved(opcode),
             0x51...0x60 => try self.opN(opcode),
             0x61 => try self.opNop(),
+            0x62 => try self.opReserved(opcode),
+            0x63 => try flow.opIf(self),
+            0x64 => try flow.opNotIf(self),
+            0x65...0x66 => try self.opReserved(opcode),
+            0x67 => try flow.opElse(self),
+            0x68 => try flow.opEndIf(self),
             0x69 => try self.opVerify(),
             0x6a => try self.opReturn(),
             0x6d => try self.op2Drop(),
@@ -149,6 +164,12 @@ pub const Engine = struct {
 
     // Opcode implementations
 
+    /// OP_FALSE: Pushes an empty array to the data stack to represent false.
+    pub fn opFalse(self: *Engine) !void {
+        const empty_array: []const u8 = &.{};
+        try self.stack.pushByteArray(empty_array);
+    }
+
     /// Push data onto the stack
     ///
     /// # Arguments
@@ -164,51 +185,15 @@ pub const Engine = struct {
         self.pc += n;
     }
 
-    /// OP_PUSHDATA1: Push the next byte as N, then push the next N bytes
-    ///
-    /// # Returns
-    /// - `EngineError`: If an error occurs during execution
-    fn opPushData1(self: *Engine) !void {
-        if (self.pc + 1 > self.script.len()) {
+    /// Generalized function to handle OP_PUSHDATA operations with variable length prefixes.
+    /// Pushes the next `n_bytes` as a length, then pushes that many bytes as an array.
+    fn opPushDataX(self: *Engine, n_bytes: usize) !void {
+        if (self.pc + n_bytes > self.script.len()) {
             return error.ScriptTooShort;
         }
         const n = self.script.data[self.pc];
-        self.pc += 1;
+        self.pc += n_bytes;
         try self.pushData(n);
-    }
-
-    /// OP_PUSHDATA2: Push the next 2 bytes as N, then push the next N bytes
-    ///
-    /// # Returns
-    /// - `EngineError`: If an error occurs during execution
-    fn opPushData2(self: *Engine) !void {
-        if (self.pc + 2 > self.script.len()) {
-            return error.ScriptTooShort;
-        }
-        const n = std.mem.readInt(u16, self.script.data[self.pc..][0..2], .little);
-        self.pc += 2;
-        if (self.pc + n > self.script.len()) {
-            return error.ScriptTooShort;
-        }
-        try self.stack.pushByteArray(self.script.data[self.pc .. self.pc + n]);
-        self.pc += n;
-    }
-
-    /// OP_PUSHDATA4: Push the next 4 bytes as N, then push the next N bytes
-    ///
-    /// # Returns
-    /// - `EngineError`: If an error occurs during execution
-    fn opPushData4(self: *Engine) !void {
-        if (self.pc + 4 > self.script.len()) {
-            return error.ScriptTooShort;
-        }
-        const n = std.mem.readInt(u32, self.script.data[self.pc..][0..4], .little);
-        self.pc += 4;
-        if (self.pc + n > self.script.len()) {
-            return error.ScriptTooShort;
-        }
-        try self.stack.pushByteArray(self.script.data[self.pc .. self.pc + n]);
-        self.pc += n;
     }
 
     /// OP_1NEGATE: Push the value -1 onto the stack
@@ -217,6 +202,15 @@ pub const Engine = struct {
     /// - `EngineError`: If an error occurs during execution
     fn op1Negate(self: *Engine) !void {
         try self.stack.pushByteArray(&[_]u8{0x81});
+    }
+
+    /// OP_RESERVED: Reserved opcode
+    pub fn opReserved(self: *Engine, opcode: u8) !void {
+        if ((opcode == 0x50) or (opcode == 0x62)) {
+            const msg = try std.fmt.allocPrint(self.allocator, "attempt to execute reserved opcode {}", .{opcode});
+            defer self.allocator.free(msg);
+            return error.ReservedOpcode;
+        }
     }
 
     /// OP_1 to OP_16: Push the value (opcode - 0x50) onto the stack
@@ -240,9 +234,6 @@ pub const Engine = struct {
         _ = self;
     }
 
-    /// OP_IF: If the top stack value is not False, the statements are executed. The top stack value is removed.
-    ///
-    /// # Returns
     /// OP_VERIFY: Verify the top stack value
     ///
     /// # Returns
@@ -409,6 +400,29 @@ pub const Engine = struct {
     }
 };
 
+test "Script execution - OP_FALSE" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_FALSE
+    const script_bytes = [_]u8{0x00};
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.opFalse();
+
+    // Check if the stack has one item (should be an empty array)
+    try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
+
+    // Check the item on the stack (should be an empty array)
+    {
+        const item = try engine.stack.pop();
+        defer allocator.free(item);
+        try std.testing.expectEqualSlices(u8, &[_]u8{}, item);
+    }
+}
+
 test "Script execution - OP_1 OP_1 OP_EQUAL" {
     const allocator = std.testing.allocator;
 
@@ -453,6 +467,20 @@ test "Script execution - OP_RETURN" {
         defer allocator.free(item);
         try std.testing.expectEqualSlices(u8, &[_]u8{1}, item);
     }
+}
+
+test "Script execution - OP_RESERVED" {
+    const allocator = std.testing.allocator;
+    const script_bytes = [_]u8{0x00};
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, ScriptFlags{});
+    defer engine.deinit();
+
+    const reserved_opcode: u8 = 0x50;
+
+    // Expect the ReservedOpcode error when executing the reserved opcode
+    try std.testing.expectError(error.ReservedOpcode, engine.opReserved(reserved_opcode));
 }
 
 test "Script execution - OP_1 OP_1 OP_1 OP_2Drop" {
