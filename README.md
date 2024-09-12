@@ -172,6 +172,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/tdelabro"><img src="https://avatars.githubusercontent.com/u/34384633?v=4?s=100" width="100px;" alt="Timothée Delabrouille"/><br /><sub><b>Timothée Delabrouille</b></sub></a><br /><a href="https://github.com/zig-bitcoin/btczee/commits?author=tdelabro" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://okhaimie.com/"><img src="https://avatars.githubusercontent.com/u/57156589?v=4?s=100" width="100px;" alt="okhai"/><br /><sub><b>okhai</b></sub></a><br /><a href="https://github.com/zig-bitcoin/btczee/commits?author=okhaimie-dev" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/supreme2580"><img src="https://avatars.githubusercontent.com/u/100731397?v=4?s=100" width="100px;" alt="Supreme Labs"/><br /><sub><b>Supreme Labs</b></sub></a><br /><a href="https://github.com/zig-bitcoin/btczee/commits?author=supreme2580" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://varun-doshi.vercel.app/"><img src="https://avatars.githubusercontent.com/u/61531351?v=4?s=100" width="100px;" alt="Varun Doshi"/><br /><sub><b>Varun Doshi</b></sub></a><br /><a href="https://github.com/zig-bitcoin/btczee/commits?author=varun-doshi" title="Code">💻</a></td>
     </tr>
   </tbody>
   <tfoot>

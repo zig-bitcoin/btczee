@@ -36,7 +36,7 @@ pub const Storage = struct {
     }
 
     /// Return a Transaction handle
-    pub fn init_transaction(self: Storage) !Transaction {
+    pub fn initTransaction(self: Storage) !Transaction {
         const txn = try lmdb.Transaction.init(self.env, .{ .mode = .ReadWrite });
         return Transaction{ .txn = txn };
     }
@@ -52,7 +52,7 @@ pub const Transaction = struct {
     }
 
     /// Serialize and store a block in database
-    pub fn store_block(allocator: std.mem.Allocator, txn: Transaction, block: *Block) !void {
+    pub fn storeBlock(allocator: std.mem.Allocator, txn: Transaction, block: *Block) !void {
         const blocks = try txn.txn.database("blocks", .{ .create = true });
         try blocks.set(&block.hash, try block.serizalize(allocator));
     }
