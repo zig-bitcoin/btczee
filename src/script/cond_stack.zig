@@ -3,13 +3,13 @@ const testing = std.testing;
 const Allocator = std.mem.Allocator;
 
 /// Errors that can occur during stack operations
-pub const ConditionalStackError = error {
+pub const ConditionalStackError = error{
     EmptyConditionalStack,
     InvalidCondition,
 };
 
 pub const ConditionalStack = struct {
-const Self = @This();
+    const Self = @This();
 
     stack: std.ArrayList(u8),
     allocator: Allocator,
