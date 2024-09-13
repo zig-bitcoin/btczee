@@ -9,32 +9,34 @@ pub const ConditionalStackError = error {
 };
 
 pub const ConditionalStack = struct {
+const Self = @This();
+
     stack: std.ArrayList(u8),
     allocator: Allocator,
 
-    pub fn init(allocator: Allocator) ConditionalStack {
+    pub fn init(allocator: Allocator) Self {
         return .{
             .stack = std.ArrayList(u8).init(allocator),
             .allocator = allocator,
         };
     }
 
-    pub fn deinit(self: *ConditionalStack) void {
+    pub fn deinit(self: *Self) void {
         self.stack.deinit();
     }
 
-    pub fn push(self: *ConditionalStack, value: u8) !void {
+    pub fn push(self: *Self, value: u8) !void {
         try self.stack.append(value);
     }
 
-    pub fn pop(self: *ConditionalStack) !void {
+    pub fn pop(self: *Self) !void {
         if (self.stack.items.len == 0) {
             return ConditionalStackError.EmptyConditionalStack;
         }
         _ = self.stack.pop();
     }
 
-    pub fn branchExecuting(self: *ConditionalStack) bool {
+    pub fn branchExecuting(self: *Self) bool {
         if (self.stack.items.len == 0) {
             return true;
         } else {
@@ -42,11 +44,11 @@ pub const ConditionalStack = struct {
         }
     }
 
-    pub fn len(self: *ConditionalStack) usize {
+    pub fn len(self: *Self) usize {
         return self.stack.items.len;
     }
 
-    pub fn swapCondition(self: *ConditionalStack) !void {
+    pub fn swapCondition(self: *Self) !void {
         if (self.stack.items.len == 0) {
             return ConditionalStackError.EmptyConditionalStack;
         }
