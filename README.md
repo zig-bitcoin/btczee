@@ -159,7 +159,7 @@ You can find the roadmap of the project in the [docs/roadmap.md](./docs/roadmap.
 
 ## Supported Opcodes
 
-106/107 opcodes supported (99.07%).
+47/107 opcodes supported (43.92%).
 
 ```mermaid
 %%{init: {"pie": {"textPosition": 0.75}, "themeVariables": {"pieOuterStrokeWidth": "5px"}} }%%
