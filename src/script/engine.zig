@@ -119,6 +119,7 @@ pub const Engine = struct {
             0x74 => self.opDepth(),
             0x75 => try self.opDrop(),
             0x76 => try self.opDup(),
+            0x79 => try self.opPick(),
             0x87 => try self.opEqual(),
             0x88 => try self.opEqualVerify(),
             0x8b => try arithmetic.op1Add(self),
@@ -407,6 +408,17 @@ pub const Engine = struct {
         // Assume signature is valid for now
         try self.stack.pushByteArray(&[_]u8{1});
     }
+
+    fn pickN(self: *Engine, n: i64) !void {
+        const value = try self.stack.peek(@intCast(n));
+        try self.stack.pushByteArray(value);
+    }
+
+    /// OP_PICK: Copy the Nth item in the stack to the top
+    fn opPick(self: *Engine) !void {
+        const n = try self.stack.popInt();
+        try self.pickN(n);
+    }
 };
 
 test "Script execution - OP_1 OP_1 OP_EQUAL" {
@@ -582,4 +594,23 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
 
     // Ensure the stack is empty after popping the result
     try std.testing.expectEqualSlices(u8, &[_]u8{1}, element0);
+}
+
+test "Script execution - OP_PICK" {
+    const allocator = std.testing.allocator;
+
+    const script_bytes = [_]u8{0x00};
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    try engine.pickN(0);
+
+    const element0 = try engine.stack.peek(0);
+    const element1 = try engine.stack.peek(1);
+
+    try std.testing.expectEqualSlices(u8, element0, element1);
 }
