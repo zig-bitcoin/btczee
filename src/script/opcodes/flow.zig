@@ -28,6 +28,7 @@ pub fn opIf(engine: *Engine) !void {
     try engine.cond_stack.push(cond_val);
 }
 
+/// OP_NOTIF: Executes the following statements if the top stack value is 0
 pub fn opNotIf(engine: *Engine) !void {
     var cond_val: u8 = 1; // true (inverted)
     if (engine.cond_stack.branchExecuting()) {
@@ -41,6 +42,7 @@ pub fn opNotIf(engine: *Engine) !void {
     try engine.cond_stack.push(cond_val);
 }
 
+/// OP_ELSE: Executes the following statements if the previous OP_IF or OP_NOTIF was not executed
 pub fn opElse(engine: *Engine) !void {
     if (engine.cond_stack.len() == 0) {
         return FlowError.UnbalancedConditional;
@@ -49,6 +51,7 @@ pub fn opElse(engine: *Engine) !void {
     try engine.cond_stack.swapCondition();
 }
 
+/// OP_ENDIF: Ends an OP_IF, OP_NOTIF, or OP_ELSE block
 pub fn opEndIf(engine: *Engine) !void {
     if (engine.cond_stack.len() == 0) {
         return FlowError.UnbalancedConditional;
