@@ -365,16 +365,12 @@ pub const Engine = struct {
 
     /// OP_NIP: Removes the second-to-top stack item
     ///
-    /// # Returns
-    /// /// - "EngineError.StackUnderflow": if initial stack length < 2
+    /// - will return an error if initial stack length < 2
     fn opNip(self: *Engine) !void {
-        if (self.stack.len() < 2) {
-            return error.StackUnderflow;
-        }
         const top_value = try self.stack.pop();
         const second_to_top_value = try self.stack.pop();
-        try self.stack.pushByteArray(top_value);
-        defer self.allocator.free(top_value);
+        try self.stack.pushBytesRaw(top_value);
+        // defer self.allocator.free(top_value);
         defer self.allocator.free(second_to_top_value);
     }
 
@@ -383,9 +379,6 @@ pub const Engine = struct {
     /// /// # Returns
     /// - "EngineError.StackUnderflow": if initial stack length < 2
     fn opOver(self: *Engine) !void {
-        if (self.stack.len() < 2) {
-            return error.StackUnderflow;
-        }
         const value = try self.stack.peek(1);
         try self.stack.pushByteArray(value);
     }
@@ -395,15 +388,11 @@ pub const Engine = struct {
     /// /// # Returns
     /// - "EngineError.StackUnderflow": if initial stack length < 2
     fn opSwap(self: *Engine) !void {
-        if (self.stack.len() < 2) {
-            return error.StackUnderflow;
-        }
         const top_value = try self.stack.pop();
         const second_to_top_value = try self.stack.pop();
-        try self.stack.pushByteArray(top_value);
-        try self.stack.pushByteArray(second_to_top_value);
-        defer self.allocator.free(top_value);
-        defer self.allocator.free(second_to_top_value);
+
+        try self.stack.pushBytesRaw(top_value);
+        try self.stack.pushBytesRaw(second_to_top_value);
     }
 
     /// OP_TUCK: The item at the top of the stack is copied and inserted before the second-to-top item.
@@ -411,16 +400,12 @@ pub const Engine = struct {
     /// /// # Returns
     /// - "EngineError.StackUnderflow": if initial stack length < 2
     fn opTuck(self: *Engine) !void {
-        if (self.stack.len() < 2) {
-            return error.StackUnderflow;
-        }
         const top_value = try self.stack.pop();
         const second_to_top_value = try self.stack.pop();
-        try self.stack.pushByteArray(second_to_top_value);
-        try self.stack.pushByteArray(top_value);
-        try self.stack.pushByteArray(second_to_top_value);
-        defer self.allocator.free(top_value);
-        defer self.allocator.free(second_to_top_value);
+
+        try self.stack.pushByteArray(second_to_top_value); //this must be pushBytesArray because we need the variable again
+        try self.stack.pushBytesRaw(top_value);
+        try self.stack.pushBytesRaw(second_to_top_value);
     }
 
     /// OP_SIZE:Pushes the string length of the top element of the stack
@@ -428,15 +413,12 @@ pub const Engine = struct {
     /// /// # Returns
     /// - "EngineError.StackUnderflow": if initial stack length < 2
     fn opSize(self: *Engine) !void {
-        if (self.stack.len() == 0) {
-            return error.StackUnderflow;
-        }
         const top_value = try self.stack.pop();
         const len = top_value.len;
         const result: i64 = @intCast(len);
-        try self.stack.pushByteArray(top_value);
+
+        try self.stack.pushBytesRaw(top_value);
         try self.stack.pushInt(result);
-        defer self.allocator.free(top_value);
     }
 
     /// OP_EQUAL: Push 1 if the top two items are equal, 0 otherwise
