@@ -119,6 +119,7 @@ pub const Engine = struct {
             0x74 => self.opDepth(),
             0x75 => try self.opDrop(),
             0x76 => try self.opDup(),
+            0x79 => try self.opPick(),
             0x87 => try self.opEqual(),
             0x88 => try self.opEqualVerify(),
             0x8b => try arithmetic.op1Add(self),
@@ -407,6 +408,23 @@ pub const Engine = struct {
         // Assume signature is valid for now
         try self.stack.pushByteArray(&[_]u8{1});
     }
+
+    fn pickN(self: *Engine, idx: i64) !void {
+        if (idx < 0) {
+            return error.StackUnderflow;
+        }
+        const value = try self.stack.peek(@intCast(idx));
+        try self.stack.pushByteArray(value);
+    }
+
+    /// OP_PICK: The item n back in the stack is copied to the top.
+    /// 
+    /// # Returns
+    /// -  "EngineError.StackUnderflow": if n < 0
+    fn opPick(self: *Engine) !void {
+        const n = try self.stack.popInt();
+        try self.pickN(n);
+    }
 };
 
 test "Script execution - OP_1 OP_1 OP_EQUAL" {
@@ -582,4 +600,27 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
 
     // Ensure the stack is empty after popping the result
     try std.testing.expectEqualSlices(u8, &[_]u8{1}, element0);
+}
+
+test "Script execution - OP_PICK" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_1 OP_EQUAL
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x52, 0x79 };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    const element0 = try engine.stack.peek(0);
+    const element1 = try engine.stack.peek(1);
+    const element2 = try engine.stack.peek(2);
+    const element3 = try engine.stack.peek(3);
+
+    try std.testing.expectEqual(@as(usize, 4), engine.stack.len());
+    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element0);
+    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element1);
+    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element2);
+    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element3);
 }

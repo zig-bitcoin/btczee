@@ -87,7 +87,7 @@ pub const Stack = struct {
 
         if (value.len > 8) return StackError.InvalidValue;
 
-        var buffer: [8]u8 = undefined;
+        var buffer: [8]u8 = [_]u8{0, 0, 0, 0, 0, 0, 0, 0};
         std.mem.copyBackwards(u8, buffer[0..value.len], value);
         return std.mem.bytesToValue(i64, &buffer);
     }
