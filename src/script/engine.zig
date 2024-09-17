@@ -675,7 +675,7 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
 test "Script execution - OP_PICK" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_1 OP_PICK
+    // Simple script: OP_1 OP_2 OP_3 OP_2 OP_PICK
     const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x52, 0x79 };
     const script = Script.init(&script_bytes);
 
