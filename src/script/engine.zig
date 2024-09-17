@@ -119,6 +119,7 @@ pub const Engine = struct {
             0x74 => self.opDepth(),
             0x75 => try self.opDrop(),
             0x76 => try self.opDup(),
+            0x7a => try self.opRoll(),
             0x87 => try self.opEqual(),
             0x88 => try self.opEqualVerify(),
             0x8b => try arithmetic.op1Add(self),
@@ -357,6 +358,20 @@ pub const Engine = struct {
         const value = try self.stack.peek(0);
         try self.stack.pushByteArray(value);
     }
+    
+    /// OP_ROLL: The item idx back in the stack is moved to the top.
+    ///
+    /// # Returns
+    /// - `EngineError`: If an error occurs during execution
+    fn opRoll(self: *Engine) !void {
+        const idx = try self.stack.popInt();
+        if (idx < 0) {
+            return error.StackUnderflow;
+        }
+        const value = try self.stack.nipN(@intCast(idx));
+        defer self.allocator.free(value);
+        try self.stack.pushByteArray(value);
+    }
 
     /// OP_EQUAL: Push 1 if the top two items are equal, 0 otherwise
     ///
@@ -408,6 +423,27 @@ pub const Engine = struct {
         try self.stack.pushByteArray(&[_]u8{1});
     }
 };
+
+test "Script execution - OP_ROLL" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_1 OP_EQUAL
+    const script_bytes = [_]u8{ 0x54, 0x53, 0x52, 0x51, 0x7a };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    const element0 = try engine.stack.peek(0);
+    const element1 = try engine.stack.peek(1);
+    const element2 = try engine.stack.peek(2);
+
+    try std.testing.expectEqual(@as(usize, 3), engine.stack.len());
+    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element0);
+    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element1);
+    try std.testing.expectEqualSlices(u8, &[_]u8{4}, element2);
+}
 
 test "Script execution - OP_1 OP_1 OP_EQUAL" {
     const allocator = std.testing.allocator;

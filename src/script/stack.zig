@@ -87,7 +87,7 @@ pub const Stack = struct {
 
         if (value.len > 8) return StackError.InvalidValue;
 
-        var buffer: [8]u8 = undefined;
+        var buffer: [8]u8 = [_]u8{0, 0, 0, 0, 0, 0, 0, 0};
         std.mem.copyBackwards(u8, buffer[0..value.len], value);
         return std.mem.bytesToValue(i64, &buffer);
     }
@@ -142,6 +142,27 @@ pub const Stack = struct {
     /// - `usize`: The current number of items in the stack
     pub fn len(self: Stack) usize {
         return self.items.items.len;
+    }
+
+    pub fn nipN(self: *Stack, idx: usize) StackError![]u8 {
+        if (idx >= self.len()) {
+            return StackError.StackUnderflow;
+        }
+
+        // Create a copy of the input item
+        const value = try self.allocator.dupe(u8, try self.peek(idx));
+
+        var i: usize = 0;
+        while (i < idx) : (i += 1) {
+            const next_value = try self.peek(idx - i - 1);
+            const entry = self.items.items[self.len() - idx + i - 1];
+            self.allocator.free(entry);
+            self.items.items[self.len() - idx + i - 1] = try self.allocator.dupe(u8, next_value);
+        }
+        const last_entry = self.items.popOrNull();
+        self.allocator.free(last_entry.?);
+        
+        return value;
     }
 };
 
