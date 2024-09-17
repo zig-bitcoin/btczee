@@ -582,3 +582,17 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
     // Ensure the stack is empty after popping the result
     try std.testing.expectEqualSlices(u8, &[_]u8{1}, element0);
 }
+
+test "Script execution - OP_DISABLED" {
+    const allocator = std.testing.allocator;
+
+    // Simple script to run a disabled opcode
+    const script_bytes = [_]u8{0x95};
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    // Expect an error when running a disabled opcode
+    try std.testing.expectError(error.DisabledOpcode, engine.opDisabled());
+}
