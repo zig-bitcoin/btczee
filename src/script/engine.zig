@@ -509,7 +509,7 @@ test "Script execution - OP_1 OP_1 OP_EQUAL" {
     }
 
     // Ensure the stack is empty after popping the result
-    try std.testing.expectEqual(@as(usize, 0), engine.stack.len());
+    try std.testing.expectEqual(0, engine.stack.len());
 }
 
 test "Script execution - OP_RETURN" {
@@ -525,7 +525,7 @@ test "Script execution - OP_RETURN" {
     try std.testing.expectError(error.EarlyReturn, engine.execute());
 
     // Check if the stack has one item (OP_1 should have been executed)
-    try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
+    try std.testing.expectEqual(1, engine.stack.len());
 
     // Check the item on the stack (should be 1)
     {
@@ -548,7 +548,7 @@ test "Script execution - OP_1 OP_1 OP_1 OP_2Drop" {
     try engine.execute();
 
     // Ensure the stack is empty after popping the result
-    try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
+    try std.testing.expectEqual(1, engine.stack.len());
 }
 
 test "Script execution - OP_1 OP_2 OP_2Dup" {
@@ -562,17 +562,17 @@ test "Script execution - OP_1 OP_2 OP_2Dup" {
     defer engine.deinit();
 
     try engine.execute();
-    const element0 = try engine.stack.peek(0);
-    const element1 = try engine.stack.peek(1);
-    const element2 = try engine.stack.peek(2);
-    const element3 = try engine.stack.peek(3);
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+    const element2 = try engine.stack.peekInt(2);
+    const element3 = try engine.stack.peekInt(3);
 
     // Ensure the stack is empty after popping the result
-    try std.testing.expectEqual(@as(usize, 4), engine.stack.len());
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element1);
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element2);
-    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element3);
+    try std.testing.expectEqual(4, engine.stack.len());
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(1, element1);
+    try std.testing.expectEqual(2, element2);
+    try std.testing.expectEqual(1, element3);
 }
 
 test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_3Dup" {
@@ -586,23 +586,23 @@ test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_3Dup" {
     defer engine.deinit();
 
     try engine.execute();
-    const element0 = try engine.stack.peek(0);
-    const element1 = try engine.stack.peek(1);
-    const element2 = try engine.stack.peek(2);
-    const element3 = try engine.stack.peek(3);
-    const element4 = try engine.stack.peek(4);
-    const element5 = try engine.stack.peek(5);
-    const element6 = try engine.stack.peek(6);
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+    const element2 = try engine.stack.peekInt(2);
+    const element3 = try engine.stack.peekInt(3);
+    const element4 = try engine.stack.peekInt(4);
+    const element5 = try engine.stack.peekInt(5);
+    const element6 = try engine.stack.peekInt(6);
 
     // Ensure the stack is empty after popping the result
-    try std.testing.expectEqual(@as(usize, 7), engine.stack.len());
-    try std.testing.expectEqualSlices(u8, &[_]u8{4}, element0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element1);
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element2);
-    try std.testing.expectEqualSlices(u8, &[_]u8{4}, element3);
-    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element4);
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element5);
-    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element6);
+    try std.testing.expectEqual(7, engine.stack.len());
+    try std.testing.expectEqual(4, element0);
+    try std.testing.expectEqual(3, element1);
+    try std.testing.expectEqual(2, element2);
+    try std.testing.expectEqual(4, element3);
+    try std.testing.expectEqual(3, element4);
+    try std.testing.expectEqual(2, element5);
+    try std.testing.expectEqual(1, element6);
 }
 
 test "Script execution - OP_1 OP_2 OP_IFDUP" {
@@ -616,12 +616,12 @@ test "Script execution - OP_1 OP_2 OP_IFDUP" {
     defer engine.deinit();
 
     try engine.execute();
-    const element0 = try engine.stack.peek(0);
-    const element1 = try engine.stack.peek(1);
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
 
-    try std.testing.expectEqual(@as(usize, 3), engine.stack.len());
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element1);
+    try std.testing.expectEqual(3, engine.stack.len());
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(2, element1);
 }
 
 test "Script execution - OP_1 OP_2 OP_DEPTH" {
@@ -635,12 +635,12 @@ test "Script execution - OP_1 OP_2 OP_DEPTH" {
     defer engine.deinit();
 
     try engine.execute();
-    const element0 = try engine.stack.peek(0);
-    const element1 = try engine.stack.peek(1);
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
 
-    try std.testing.expectEqual(@as(usize, 3), engine.stack.len());
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element1);
+    try std.testing.expectEqual(3, engine.stack.len());
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(2, element1);
 }
 
 test "Script execution - OP_1 OP_2 OP_DROP" {
@@ -654,11 +654,11 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
     defer engine.deinit();
 
     try engine.execute();
-    try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
+    try std.testing.expectEqual(1, engine.stack.len());
 
-    const element0 = try engine.stack.peek(0);
+    const element0 = try engine.stack.peekInt(0);
 
-    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element0);
+    try std.testing.expectEqual(1, element0);
 }
 
 test "Script execution - OP_DISABLED" {
@@ -700,14 +700,14 @@ test "Script execution OP_1 OP_2 OP_3 OP_NIP" {
     defer engine.deinit();
 
     try engine.execute();
-    try std.testing.expectEqual(@as(usize, 2), engine.stack.len());
+    try std.testing.expectEqual(2, engine.stack.len());
 
-    const element0 = try engine.stack.peek(0);
-    const element1 = try engine.stack.peek(1);
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
 
     // Ensure the stack is empty after popping the result
-    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element1);
+    try std.testing.expectEqual(3, element0);
+    try std.testing.expectEqual(1, element1);
 }
 
 test "Script execution OP_1 OP_2 OP_3 OP_OVER" {
@@ -721,13 +721,13 @@ test "Script execution OP_1 OP_2 OP_3 OP_OVER" {
     defer engine.deinit();
 
     try engine.execute();
-    try std.testing.expectEqual(@as(usize, 4), engine.stack.len());
+    try std.testing.expectEqual(4, engine.stack.len());
 
-    const element0 = try engine.stack.peek(0);
-    const element1 = try engine.stack.peek(1);
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
 
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element1);
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(3, element1);
 }
 
 test "Script execution OP_1 OP_2 OP_3 OP_SWAP" {
@@ -741,13 +741,13 @@ test "Script execution OP_1 OP_2 OP_3 OP_SWAP" {
     defer engine.deinit();
 
     try engine.execute();
-    try std.testing.expectEqual(@as(usize, 3), engine.stack.len());
+    try std.testing.expectEqual(3, engine.stack.len());
 
-    const element0 = try engine.stack.peek(0);
-    const element1 = try engine.stack.peek(1);
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
 
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element1);
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(3, element1);
 }
 
 test "Script execution OP_1 OP_2 OP_3 OP_TUCK" {
@@ -761,15 +761,15 @@ test "Script execution OP_1 OP_2 OP_3 OP_TUCK" {
     defer engine.deinit();
 
     try engine.execute();
-    try std.testing.expectEqual(@as(usize, 4), engine.stack.len());
+    try std.testing.expectEqual(4, engine.stack.len());
 
-    const element0 = try engine.stack.peek(0);
-    const element1 = try engine.stack.peek(1);
-    const element2 = try engine.stack.peek(2);
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+    const element2 = try engine.stack.peekInt(2);
 
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element1);
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element2);
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(3, element1);
+    try std.testing.expectEqual(2, element2);
 }
 
 test "Script execution OP_1 OP_2 OP_3 OP_SIZE" {
@@ -783,12 +783,11 @@ test "Script execution OP_1 OP_2 OP_3 OP_SIZE" {
     defer engine.deinit();
 
     try engine.execute();
-    try std.testing.expectEqual(@as(usize, 4), engine.stack.len());
+    try std.testing.expectEqual(4, engine.stack.len());
 
-    const element0 = &[_]i64{try engine.stack.popInt()};
-    const element1 = try engine.stack.peek(0);
-    const checker = &[_]i64{1};
+    const element0 = try engine.stack.popInt();
+    const element1 = try engine.stack.peekInt(0);
 
-    try std.testing.expectEqualSlices(i64, checker, element0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element1);
+    try std.testing.expectEqual(1, element0);
+    try std.testing.expectEqual(3, element1);
 }
