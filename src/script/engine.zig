@@ -409,21 +409,17 @@ pub const Engine = struct {
         try self.stack.pushByteArray(&[_]u8{1});
     }
 
-    fn pickN(self: *Engine, idx: i64) !void {
-        if (idx < 0) {
-            return error.StackUnderflow;
-        }
-        const value = try self.stack.peek(@intCast(idx));
-        try self.stack.pushByteArray(value);
-    }
-
     /// OP_PICK: The item n back in the stack is copied to the top.
     /// 
     /// # Returns
     /// -  "EngineError.StackUnderflow": if n < 0
     fn opPick(self: *Engine) !void {
         const n = try self.stack.popInt();
-        try self.pickN(n);
+        if (n < 0) {
+            return error.StackUnderflow;
+        }
+        const value = try self.stack.peek(@intCast(n));
+        try self.stack.pushByteArray(value);
     }
 };
 
