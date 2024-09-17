@@ -80,28 +80,6 @@ pub const ConditionalStack = struct {
     pub fn len(self: *Self) usize {
         return self.stack.items.len;
     }
-
-    /// Swap the condition at the top of the stack
-    ///
-    /// This function swaps 0 to 1 and 1 to 0.
-    /// It leaves 2 unchanged and returns an error for other values.
-    ///
-    /// Returns:
-    ///     ConditionalStackError.EmptyConditionalStack if the stack is empty
-    ///     ConditionalStackError.InvalidCondition if the top value is not 0, 1, or 2
-    pub fn swapCondition(self: *Self) !void {
-        if (self.stack.items.len == 0) {
-            return ConditionalStackError.EmptyConditionalStack;
-        }
-
-        const cond_idx = self.stack.items.len - 1;
-        switch (self.stack.items[cond_idx]) {
-            0 => self.stack.items[cond_idx] = 1,
-            1 => self.stack.items[cond_idx] = 0,
-            2 => self.stack.items[cond_idx] = 2,
-            else => return ConditionalStackError.InvalidCondition,
-        }
-    }
 };
 
 test "ConditionalStack - initialization and deinitialization" {
@@ -151,30 +129,6 @@ test "ConditionalStack - branchExecuting" {
     try testing.expect(!cond_stack.branchExecuting());
 }
 
-test "ConditionalStack - swapCondition" {
-    const allocator = testing.allocator;
-    var cond_stack = ConditionalStack.init(allocator);
-    defer cond_stack.deinit();
-
-    try testing.expectError(ConditionalStackError.EmptyConditionalStack, cond_stack.swapCondition());
-
-    try cond_stack.push(0);
-    try cond_stack.swapCondition();
-    try testing.expectEqual(@as(u8, 1), cond_stack.stack.items[0]);
-
-    try cond_stack.swapCondition();
-    try testing.expectEqual(@as(u8, 0), cond_stack.stack.items[0]);
-
-    _ = try cond_stack.pop();
-    try cond_stack.push(2);
-    try cond_stack.swapCondition();
-    try testing.expectEqual(@as(u8, 2), cond_stack.stack.items[0]);
-
-    _ = try cond_stack.pop();
-    try cond_stack.push(3);
-    try testing.expectError(ConditionalStackError.InvalidCondition, cond_stack.swapCondition());
-}
-
 test "ConditionalStack - multiple operations" {
     const allocator = testing.allocator;
     var cond_stack = ConditionalStack.init(allocator);
@@ -190,9 +144,6 @@ test "ConditionalStack - multiple operations" {
     _ = try cond_stack.pop();  // Use _ to explicitly discard the return value
     try testing.expectEqual(@as(usize, 2), cond_stack.len());
     try testing.expect(!cond_stack.branchExecuting());
-
-    try cond_stack.swapCondition();
-    try testing.expect(cond_stack.branchExecuting());
 
     _ = try cond_stack.pop();  // Use _ to explicitly discard the return value
     try testing.expectEqual(@as(usize, 1), cond_stack.len());

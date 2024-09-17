@@ -120,7 +120,7 @@ pub const Engine = struct {
             0x50 => try self.opReserved(opcode),
             0x51...0x60 => try self.opN(opcode),
             0x61 => try self.opNop(),
-            0x62 => try self.opReserved(opcode),
+            0x62 => try self.opVer(),
             0x63 => try flow.opIf(self),
             0x64 => try flow.opNotIf(self),
             0x65...0x66 => try self.opReserved(opcode),
@@ -137,6 +137,7 @@ pub const Engine = struct {
             0x76 => try self.opDup(),
             0x87 => try self.opEqual(),
             0x88 => try self.opEqualVerify(),
+            0x89...0x8a => try self.opReserved(opcode),
             0x8b => try arithmetic.op1Add(self),
             0x8c => try arithmetic.op1Sub(self),
             0x8f => try arithmetic.opNegate(self),
@@ -166,7 +167,7 @@ pub const Engine = struct {
     // Opcode implementations
 
     /// OP_FALSE: Pushes an empty array to the data stack to represent false.
-    pub fn opFalse(self: *Engine) !void {
+    fn opFalse(self: *Engine) !void {
         const empty_array: []const u8 = &.{};
         try self.stack.pushByteArray(empty_array);
     }
@@ -242,12 +243,14 @@ pub const Engine = struct {
     }
 
     /// OP_RESERVED: Reserved opcode
-    pub fn opReserved(self: *Engine, opcode: u8) !void {
-        if ((opcode == 0x50) or (opcode == 0x62)) {
-            const msg = try std.fmt.allocPrint(self.allocator, "attempt to execute reserved opcode {}", .{opcode});
-            defer self.allocator.free(msg);
-            return error.ReservedOpcode;
-        }
+    fn opReserved(self: *Engine, opcode: u8) !void {
+        const msg = try std.fmt.allocPrint(self.allocator, "attempt to execute reserved opcode {}", .{opcode});
+        defer self.allocator.free(msg);
+        return error.ReservedOpcode;
+    }
+
+    fn opVer(self: *Engine) !void {
+      try self.opReserved(0x62);
     }
 
     /// OP_1 to OP_16: Push the value (opcode - 0x50) onto the stack
