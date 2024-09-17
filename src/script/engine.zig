@@ -62,11 +62,12 @@ pub const Engine = struct {
         self.log("Executing script: {s}\n", .{std.fmt.fmtSliceHexLower(self.script.data)});
 
         while (self.pc < self.script.len()) {
-            const opcode = self.script.data[self.pc];
-            self.log("\nPC: {d}, Opcode: 0x{x:0>2}\n", .{ self.pc, opcode });
+            const opcodeByte = self.script.data[self.pc];
+            self.log("\nPC: {d}, Opcode: 0x{x:0>2}\n", .{ self.pc, opcodeByte });
             self.logStack();
 
             self.pc += 1;
+            const opcode: Opcode = try Opcode.fromByte(opcodeByte);
             try self.executeOpcode(opcode);
         }
 
@@ -83,7 +84,7 @@ pub const Engine = struct {
     }
 
     fn executeOpcode(self: *Engine, opcode: Opcode) !void {
-        self.log("Executing opcode: 0x{x:0>2}\n", .{opcode});
+        self.log("Executing opcode: 0x{x:0>2}\n", .{opcode.toBytes()});
 
         // Check if the opcode is a push data opcode
         if (getPushDataLength(opcode)) |length| {
@@ -220,8 +221,8 @@ pub const Engine = struct {
     ///
     /// # Returns
     /// - `EngineError`: If an error occurs during execution
-    fn opN(self: *Engine, opcode: u8) !void {
-        const n = opcode - 0x50;
+    fn opN(self: *Engine, opcode: Opcode) !void {
+        const n = opcode.toBytes() - 0x50;
         try self.stack.pushByteArray(&[_]u8{n});
     }
 

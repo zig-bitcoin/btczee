@@ -134,6 +134,10 @@ pub const Opcode = enum(u8) {
     OP_PUBKEY = 0xfe,
     OP_INVALIDOPCODE = 0xff,
 
+    pub fn toBytes(self: Opcode) u8 {
+        return @intFromEnum(self);
+    }
+
     pub fn toString(self: Opcode) []const u8 {
         return switch (self) {
             .OP_0, .OP_FALSE => "OP_0",
@@ -308,5 +312,6 @@ pub fn opcodeFromString(name: []const u8) ?Opcode {
 
 // Helper function to get push data length
 pub fn getPushDataLength(opcode: Opcode) ?u8 {
-    return if (opcode > 0x00 and opcode <= 0x4b) opcode else null;
+    const opcodeByte = opcode.toBytes();
+    return if (opcodeByte > 0x00 and opcodeByte <= 0x4b) opcodeByte else null;
 }
