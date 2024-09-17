@@ -280,18 +280,20 @@ pub const Engine = struct {
 
     /// OP_TOALTSTACK: Puts the value onto the top of the alt stack, and removes it from the main stack.
     ///
+    /// # Returns
+    /// - `EngineError`: If an error occurs during execution
     fn opToAltStack(self: *Engine) !void {
         const value = try self.stack.pop();
-        defer self.allocator.free(value);
-        try self.alt_stack.pushByteArray(value);
+        try self.alt_stack.pushElement(value);
     }
     
     /// OP_FROMALTSTACK: Puts the value onto the top of the main stack, and removes it from the alt stack.
     ///
+    /// # Returns
+    /// - `EngineError`: If an error occurs during execution
     fn opFromAltStack(self: *Engine) !void {
         const value = try self.alt_stack.pop();
-        defer self.allocator.free(value);
-        try self.stack.pushByteArray(value);
+        try self.stack.pushElement(value);
     }
 
     /// OP_2DROP: Drops top 2 stack items
@@ -556,7 +558,7 @@ test "Script execution - OP_RETURN" {
 test "Script execution - OP_TOALTSTACK OP_FROMALTSTACK" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_1 OP_EQUAL
+    // Simple script: OP_1 OP_TOALTSTACK OP_FROMALTSTACK
     const script_bytes = [_]u8{ 0x51, 0x6b, 0x6c };
     const script = Script.init(&script_bytes);
 
