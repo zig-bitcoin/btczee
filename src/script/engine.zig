@@ -112,6 +112,8 @@ pub const Engine = struct {
             0x61 => try self.opNop(),
             0x69 => try self.opVerify(),
             0x6a => try self.opReturn(),
+            0x6b => try self.opToAltStack(),
+            0x6c => try self.opFromAltStack(),
             0x6d => try self.op2Drop(),
             0x6e => try self.op2Dup(),
             0x6f => try self.op3Dup(),
@@ -262,6 +264,22 @@ pub const Engine = struct {
     fn opReturn(self: *Engine) !void {
         _ = self;
         return error.EarlyReturn;
+    }
+
+    /// OP_TOALTSTACK: Puts the value onto the top of the alt stack, and removes it from the main stack.
+    ///
+    fn opToAltStack(self: *Engine) !void {
+        const value = try self.stack.pop();
+        defer self.allocator.free(value);
+        try self.alt_stack.pushByteArray(value);
+    }
+    
+    /// OP_FROMALTSTACK: Puts the value onto the top of the main stack, and removes it from the alt stack.
+    ///
+    fn opFromAltStack(self: *Engine) !void {
+        const value = try self.alt_stack.pop();
+        defer self.allocator.free(value);
+        try self.stack.pushByteArray(value);
     }
 
     /// OP_2DROP: Drops top 2 stack items
@@ -453,6 +471,22 @@ test "Script execution - OP_RETURN" {
         defer allocator.free(item);
         try std.testing.expectEqualSlices(u8, &[_]u8{1}, item);
     }
+}
+
+test "Script execution - OP_TOALTSTACK OP_FROMALTSTACK" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_1 OP_EQUAL
+    const script_bytes = [_]u8{ 0x51, 0x6b, 0x6c };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
+    try std.testing.expectEqual(@as(usize, 0), engine.alt_stack.len());
 }
 
 test "Script execution - OP_1 OP_1 OP_1 OP_2Drop" {
