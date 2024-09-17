@@ -2,7 +2,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ConditionalStack = @import("cond_stack.zig").ConditionalStack;
 const ConditionalStackError = @import("cond_stack.zig").ConditionalStackError;
-const FlowError = @import("opcodes/flow.zig").FlowError;
 const Stack = @import("stack.zig").Stack;
 const StackError = @import("stack.zig").StackError;
 const Script = @import("lib.zig").Script;
@@ -22,7 +21,7 @@ pub const EngineError = error{
     UnknownOpcode,
     /// Reserved opcode encountered
     ReservedOpcode,
-} || StackError || ConditionalStackError || FlowError;
+} || StackError || ConditionalStackError;
 
 /// Engine is the virtual machine that executes Bitcoin scripts
 pub const Engine = struct {
@@ -114,7 +113,9 @@ pub const Engine = struct {
         try switch (opcode) {
             0x00 => try self.opFalse(),
             0x01...0x4b => try self.pushData(opcode),
-            0x4c...0x4e => try opPushDataX(self, opcode),
+            0x4c => try self.opPushData1(),
+            0x4d => try self.opPushData2(),
+            0x4e => try self.opPushData4(),
             0x4f => try self.op1Negate(),
             0x50 => try self.opReserved(opcode),
             0x51...0x60 => try self.opN(opcode),
@@ -185,15 +186,51 @@ pub const Engine = struct {
         self.pc += n;
     }
 
-    /// Generalized function to handle OP_PUSHDATA operations with variable length prefixes.
-    /// Pushes the next `n_bytes` as a length, then pushes that many bytes as an array.
-    fn opPushDataX(self: *Engine, n_bytes: usize) !void {
-        if (self.pc + n_bytes > self.script.len()) {
+    /// OP_PUSHDATA1: Push the next byte as N, then push the next N bytes
+    ///
+    /// # Returns
+    /// - `EngineError`: If an error occurs during execution
+    fn opPushData1(self: *Engine) !void {
+        if (self.pc + 1 > self.script.len()) {
             return error.ScriptTooShort;
         }
         const n = self.script.data[self.pc];
-        self.pc += n_bytes;
+        self.pc += 1;
         try self.pushData(n);
+    }
+
+    /// OP_PUSHDATA2: Push the next 2 bytes as N, then push the next N bytes
+    ///
+    /// # Returns
+    /// - `EngineError`: If an error occurs during execution
+    fn opPushData2(self: *Engine) !void {
+        if (self.pc + 2 > self.script.len()) {
+            return error.ScriptTooShort;
+        }
+        const n = std.mem.readInt(u16, self.script.data[self.pc..][0..2], .little);
+        self.pc += 2;
+        if (self.pc + n > self.script.len()) {
+            return error.ScriptTooShort;
+        }
+        try self.stack.pushByteArray(self.script.data[self.pc .. self.pc + n]);
+        self.pc += n;
+    }
+
+    /// OP_PUSHDATA4: Push the next 4 bytes as N, then push the next N bytes
+    ///
+    /// # Returns
+    /// - `EngineError`: If an error occurs during execution
+    fn opPushData4(self: *Engine) !void {
+        if (self.pc + 4 > self.script.len()) {
+            return error.ScriptTooShort;
+        }
+        const n = std.mem.readInt(u32, self.script.data[self.pc..][0..4], .little);
+        self.pc += 4;
+        if (self.pc + n > self.script.len()) {
+            return error.ScriptTooShort;
+        }
+        try self.stack.pushByteArray(self.script.data[self.pc .. self.pc + n]);
+        self.pc += n;
     }
 
     /// OP_1NEGATE: Push the value -1 onto the stack

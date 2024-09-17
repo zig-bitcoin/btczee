@@ -3,28 +3,25 @@ const testing = std.testing;
 const Engine = @import("../engine.zig").Engine;
 const Script = @import("../lib.zig").Script;
 const ScriptFlags = @import("../lib.zig").ScriptFlags;
-const StackError = @import("../stack.zig").StackError;
 const ConditionalStackError = @import("../cond_stack.zig").ConditionalStackError;
 
-pub const FlowError = error{
-    UnbalancedConditional,
-};
-
-/// OP_1ADD: Add 1 to the top stack item
+/// OP_IF: Executes the following statements if the top stack value is not false
 pub fn opIf(engine: *Engine) !void {
-    var cond_val: u8 = 0; // false
+    var cond_val: u8 = 0; // Initialize as false
     if (engine.cond_stack.branchExecuting()) {
         if (engine.stack.len() == 0) {
-            cond_val = 0; // treat empty stack as false
+            cond_val = 0; // Treat empty stack as false
         } else {
-            const ok = try engine.stack.popBool();
-            if (ok) {
-                cond_val = 1; // true
+            const is_truthy = try engine.stack.popBool();
+            if (is_truthy) {
+                cond_val = 1; // Set to true if top stack value is truthy
             }
         }
     } else {
-        cond_val = 2; // skip
+        cond_val = 2; // Set to skip if current branch is not executing
     }
+    // Push the condition value onto the conditional stack
+    // 0: false, 1: true, 2: skip
     try engine.cond_stack.push(cond_val);
 }
 
@@ -32,8 +29,8 @@ pub fn opIf(engine: *Engine) !void {
 pub fn opNotIf(engine: *Engine) !void {
     var cond_val: u8 = 1; // true (inverted)
     if (engine.cond_stack.branchExecuting()) {
-        const ok = try engine.stack.popBool();
-        if (ok) {
+        const is_truthy = try engine.stack.popBool();
+        if (is_truthy) {
             cond_val = 0; // false (inverted)
         }
     } else {
@@ -44,20 +41,12 @@ pub fn opNotIf(engine: *Engine) !void {
 
 /// OP_ELSE: Executes the following statements if the previous OP_IF or OP_NOTIF was not executed
 pub fn opElse(engine: *Engine) !void {
-    if (engine.cond_stack.len() == 0) {
-        return FlowError.UnbalancedConditional;
-    }
-
     try engine.cond_stack.swapCondition();
 }
 
 /// OP_ENDIF: Ends an OP_IF, OP_NOTIF, or OP_ELSE block
 pub fn opEndIf(engine: *Engine) !void {
-    if (engine.cond_stack.len() == 0) {
-        return FlowError.UnbalancedConditional;
-    }
-
-    try engine.cond_stack.pop();
+    _ = try engine.cond_stack.pop();
 }
 
 // Add tests for opIf
@@ -144,7 +133,7 @@ test "OP_ELSE" {
         var engine = Engine.init(allocator, script, ScriptFlags{});
         defer engine.deinit();
 
-        try std.testing.expectError(FlowError.UnbalancedConditional, opElse(&engine));
+        try std.testing.expectError(ConditionalStackError.EmptyConditionalStack, opElse(&engine));
     }
 }
 
@@ -174,6 +163,6 @@ test "OP_ENDIF" {
         var engine = Engine.init(allocator, script, ScriptFlags{});
         defer engine.deinit();
 
-        try std.testing.expectError(FlowError.UnbalancedConditional, opEndIf(&engine));
+        try std.testing.expectError(ConditionalStackError.EmptyConditionalStack, opEndIf(&engine));
     }
 }
