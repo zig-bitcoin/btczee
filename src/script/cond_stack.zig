@@ -6,6 +6,8 @@ const Allocator = std.mem.Allocator;
 pub const ConditionalStackError = error{
     EmptyConditionalStack,
     InvalidCondition,
+    DisabledOpcode,
+    UnbalancedConditional,
 };
 
 /// ConditionalStack represents a stack of conditional values used in script execution
