@@ -503,7 +503,7 @@ pub const Engine = struct {
 test "Script execution - OP_ROLL" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_1 OP_ROLL
+    // Simple script: OP_4 OP_3 OP_2 OP_1 OP_ROLL
     const script_bytes = [_]u8{ 0x54, 0x53, 0x52, 0x51, 0x7a };
     const script = Script.init(&script_bytes);
 
