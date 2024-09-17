@@ -1,13 +1,13 @@
 const std = @import("std");
 const net = std.net;
-const protocol = @import("protocol.zig");
+const protocol = @import("./protocol/lib.zig");
 
 /// Represents a peer connection in the Bitcoin network
 pub const Peer = struct {
     allocator: std.mem.Allocator,
     stream: net.Stream,
     address: net.Address,
-    version: ?protocol.VersionMessage,
+    version: ?protocol.messages.VersionMessage,
     last_seen: i64,
     is_outbound: bool,
 
