@@ -5,6 +5,7 @@ const StackError = @import("stack.zig").StackError;
 const Script = @import("lib.zig").Script;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
 const arithmetic = @import("opcodes/arithmetic.zig");
+const Opcode = @import("opcodes/constant.zig").Opcode;
 
 /// Errors that can occur during script execution
 pub const EngineError = error{
@@ -93,56 +94,50 @@ pub const Engine = struct {
         }
     }
 
-    /// Execute a single opcode
-    ///
-    /// # Arguments
-    /// - `opcode`: The opcode to execute
-    ///
-    /// # Returns
-    /// - `EngineError`: If an error occurs during execution
     fn executeOpcode(self: *Engine, opcode: u8) !void {
         self.log("Executing opcode: 0x{x:0>2}\n", .{opcode});
+
         try switch (opcode) {
-            0x00...0x4b => try self.pushData(opcode),
-            0x4c => try self.opPushData1(),
-            0x4d => try self.opPushData2(),
-            0x4e => try self.opPushData4(),
-            0x4f => try self.op1Negate(),
-            0x51...0x60 => try self.opN(opcode),
-            0x61 => try self.opNop(),
-            0x69 => try self.opVerify(),
-            0x6a => try self.opReturn(),
-            0x6d => try self.op2Drop(),
-            0x6e => try self.op2Dup(),
-            0x6f => try self.op3Dup(),
-            0x73 => self.opIfDup(),
-            0x74 => self.opDepth(),
-            0x75 => try self.opDrop(),
-            0x76 => try self.opDup(),
-            0x87 => try self.opEqual(),
-            0x88 => try self.opEqualVerify(),
-            0x8b => try arithmetic.op1Add(self),
-            0x8c => try arithmetic.op1Sub(self),
-            0x8f => try arithmetic.opNegate(self),
-            0x90 => try arithmetic.opAbs(self),
-            0x91 => try arithmetic.opNot(self),
-            0x92 => try arithmetic.op0NotEqual(self),
-            0x93 => try arithmetic.opAdd(self),
-            0x94 => try arithmetic.opSub(self),
-            0x9a => try arithmetic.opBoolAnd(self),
-            0x9b => try arithmetic.opBoolOr(self),
-            0x9c => try arithmetic.opNumEqual(self),
-            0x9d => try arithmetic.opNumEqualVerify(self),
-            0x9e => try arithmetic.opNumNotEqual(self),
-            0x9f => try arithmetic.opLessThan(self),
-            0xa0 => try arithmetic.opGreaterThan(self),
-            0xa1 => try arithmetic.opLessThanOrEqual(self),
-            0xa2 => try arithmetic.opGreaterThanOrEqual(self),
-            0xa3 => try arithmetic.opMin(self),
-            0xa4 => try arithmetic.opMax(self),
-            0xa5 => try arithmetic.opWithin(self),
-            0xa9 => try self.opHash160(),
-            0xac => try self.opCheckSig(),
+            Opcode.OP_0...Opcode.OP_PUSHBYTES_75 => try self.pushData(opcode),
+            Opcode.OP_PUSHDATA1 => try self.opPushData1(),
+            Opcode.OP_PUSHDATA2 => try self.opPushData2(),
+            Opcode.OP_PUSHDATA4 => try self.opPushData4(),
+            Opcode.OP_1NEGATE => try self.op1Negate(),
+            Opcode.OP_1...Opcode.OP_16 => try self.opN(opcode),
+            Opcode.OP_NOP => try self.opNop(),
+            Opcode.OP_VERIFY => try self.opVerify(),
+            Opcode.OP_RETURN => try self.opReturn(),
+            Opcode.OP_2DROP => try self.op2Drop(),
+            Opcode.OP_2DUP => try self.op2Dup(),
+            Opcode.OP_3DUP => try self.op3Dup(),
+            Opcode.OP_IFDUP => self.opIfDup(),
+            Opcode.OP_DEPTH => self.opDepth(),
+            Opcode.OP_DROP => try self.opDrop(),
+            Opcode.OP_DUP => try self.opDup(),
+            Opcode.OP_EQUAL => try self.opEqual(),
+            Opcode.OP_EQUALVERIFY => try self.opEqualVerify(),
+            Opcode.OP_1ADD => try arithmetic.op1Add(self),
+            Opcode.OP_1SUB => try arithmetic.op1Sub(self),
+            Opcode.OP_NEGATE => try arithmetic.opNegate(self),
+            Opcode.OP_ABS => try arithmetic.opAbs(self),
+            Opcode.OP_NOT => try arithmetic.opNot(self),
+            Opcode.OP_0NOTEQUAL => try arithmetic.op0NotEqual(self),
+            Opcode.OP_ADD => try arithmetic.opAdd(self),
+            Opcode.OP_SUB => try arithmetic.opSub(self),
+            Opcode.OP_BOOLAND => try arithmetic.opBoolAnd(self),
+            Opcode.OP_BOOLOR => try arithmetic.opBoolOr(self),
+            Opcode.OP_NUMEQUAL => try arithmetic.opNumEqual(self),
+            Opcode.OP_NUMEQUALVERIFY => try arithmetic.opNumEqualVerify(self),
+            Opcode.OP_NUMNOTEQUAL => try arithmetic.opNumNotEqual(self),
+            Opcode.OP_LESSTHAN => try arithmetic.opLessThan(self),
+            Opcode.OP_GREATERTHAN => try arithmetic.opGreaterThan(self),
+            Opcode.OP_LESSTHANOREQUAL => try arithmetic.opLessThanOrEqual(self),
+            Opcode.OP_GREATERTHANOREQUAL => try arithmetic.opGreaterThanOrEqual(self),
+            Opcode.OP_MIN => try arithmetic.opMin(self),
+            Opcode.OP_MAX => try arithmetic.opMax(self),
+            Opcode.OP_WITHIN => try arithmetic.opWithin(self),
+            Opcode.OP_HASH160 => try self.opHash160(),
+            Opcode.OP_CHECKSIG => try self.opCheckSig(),
             else => return error.UnknownOpcode,
         };
     }
