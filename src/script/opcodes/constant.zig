@@ -255,7 +255,10 @@ pub const Opcode = enum(u8) {
 
     pub fn isDisabled(self: Opcode) bool {
         return switch (self) {
-            .OP_VER, .OP_VERIF, .OP_VERNOTIF, .OP_2MUL, .OP_2DIV => true,
+            .OP_CAT, .OP_SPLIT, .OP_BIN2NUM, .OP_NUM2BIN => true,
+            .OP_INVERT, .OP_AND, .OP_OR, .OP_XOR => true,
+            .OP_2MUL, .OP_2DIV => true,
+            .OP_MUL, .OP_DIV, .OP_MOD, .OP_LSHIFT, .OP_RSHIFT => true,
             else => false,
         };
     }

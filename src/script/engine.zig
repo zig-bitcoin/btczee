@@ -85,9 +85,15 @@ pub const Engine = struct {
     fn executeOpcode(self: *Engine, opcode: Opcode) !void {
         self.log("Executing opcode: 0x{x:0>2}\n", .{opcode});
 
+        // Check if the opcode is a push data opcode
         if (getPushDataLength(opcode)) |length| {
             try self.pushData(length);
             return;
+        }
+
+        // check if disabled opcode
+        if (opcode.isDisabled()) {
+            return self.opDisabled();
         }
 
         try switch (opcode) {
@@ -131,7 +137,7 @@ pub const Engine = struct {
             Opcode.OP_WITHIN => try arithmetic.opWithin(self),
             Opcode.OP_HASH160 => try self.opHash160(),
             Opcode.OP_CHECKSIG => try self.opCheckSig(),
-            else => return error.UnknownOpcode,
+            else => return EngineError.UnknownOpcode,
         };
     }
 
@@ -394,6 +400,11 @@ pub const Engine = struct {
         // TODO: Implement actual signature checking
         // Assume signature is valid for now
         try self.stack.pushByteArray(&[_]u8{1});
+    }
+
+    fn opDisabled(self: *Engine) !void {
+        std.debug.print("Attempt to execute disabled opcode: 0x{x:0>2}\n", .{self.script.data[self.pc]});
+        return error.DisabledOpcode;
     }
 };
 

@@ -73,4 +73,6 @@ pub const EngineError = error{
     EarlyReturn,
     /// Encountered an unknown opcode
     UnknownOpcode,
+    /// Encountered a disabled opcode
+    DisabledOpcode,
 } || StackError;
