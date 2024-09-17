@@ -149,6 +149,7 @@ pub const Engine = struct {
             0xa5 => try arithmetic.opWithin(self),
             0xa9 => try self.opHash160(),
             0xac => try self.opCheckSig(),
+            0xbb...0xff => try self.opInvalid(),
             else => return error.UnknownOpcode,
         };
     }
@@ -418,6 +419,11 @@ pub const Engine = struct {
         std.debug.print("Attempt to execute disabled opcode: 0x{x:0>2}\n", .{self.script.data[self.pc]});
         return error.DisabledOpcode;
     }
+
+    fn opInvalid(self: *Engine) !void {
+        std.debug.print("Attempt to execute invalid opcode: 0x{x:0>2}\n", .{self.script.data[self.pc]});
+        return error.UnknownOpcode;
+    }
 };
 
 test "Script execution - OP_1 OP_1 OP_EQUAL" {
@@ -607,4 +613,18 @@ test "Script execution - OP_DISABLED" {
 
     // Expect an error when running a disabled opcode
     try std.testing.expectError(error.DisabledOpcode, engine.opDisabled());
+}
+
+test "Script execution - OP_INVALID" {
+    const allocator = std.testing.allocator;
+
+    // Simple script to run an invalid opcode
+    const script_bytes = [_]u8{0xff};
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    // Expect an error when running an invalid opcode
+    try std.testing.expectError(error.UnknownOpcode, engine.opInvalid());
 }
