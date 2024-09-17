@@ -365,16 +365,16 @@ pub const Engine = struct {
         try self.stack.pushByteArray(value);
     }
     
-    /// OP_ROLL: The item idx back in the stack is moved to the top.
+    /// OP_ROLL: The item n back in the stack is moved to the top.
     ///
     /// # Returns
     /// - `EngineError`: If an error occurs during execution
     fn opRoll(self: *Engine) !void {
-        const idx = try self.stack.popInt();
-        if (idx < 0) {
+        const n = try self.stack.popInt();
+        if (n < 0) {
             return error.StackUnderflow;
         }
-        const value = try self.stack.nipN(@intCast(idx));
+        const value = try self.stack.nipN(@intCast(n));
         defer self.allocator.free(value);
         try self.stack.pushByteArray(value);
     }
