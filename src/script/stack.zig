@@ -76,6 +76,20 @@ pub const Stack = struct {
         try self.pushByteArray(&buffer);
     }
 
+    /// Push an item onto the stack(does not create copy of item)
+    ///
+    /// # Arguments
+    /// - `item`: Slice of bytes to be pushed onto the stack
+    ///
+    /// # Returns
+    /// - `StackError` if out of memory
+    pub fn pushElement(self: *Stack, item: []u8) StackError!void {
+        // Append the item directly to the stack
+        self.items.append(item) catch {
+            return StackError.OutOfMemory;
+        };
+    }
+
     /// Pop an integer from the stack
     ///
     /// # Returns

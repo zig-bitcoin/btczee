@@ -121,6 +121,11 @@ pub const Engine = struct {
             0x74 => self.opDepth(),
             0x75 => try self.opDrop(),
             0x76 => try self.opDup(),
+            0x77 => self.opNip(),
+            0x78 => self.opOver(),
+            0x7c => self.opSwap(),
+            0x7d => self.opTuck(),
+            0x82 => self.opSize(),
             0x7e...0x81 => try self.opDisabled(),
             0x83...0x86 => try self.opDisabled(),
             0x8d...0x8e => try self.opDisabled(),
@@ -366,6 +371,64 @@ pub const Engine = struct {
         try self.stack.pushByteArray(value);
     }
 
+    /// OP_NIP: Removes the second-to-top stack item
+    ///
+    /// - will return an error if initial stack length < 2
+    fn opNip(self: *Engine) !void {
+        const top_value = try self.stack.pop();
+        const second_to_top_value = try self.stack.pop();
+        try self.stack.pushElement(top_value);
+        // defer self.allocator.free(top_value);
+        defer self.allocator.free(second_to_top_value);
+    }
+
+    /// OP_OVER: Copies the second-to-top stack item to the top
+    ///
+    /// /// # Returns
+    /// - "EngineError.StackUnderflow": if initial stack length < 2
+    fn opOver(self: *Engine) !void {
+        const value = try self.stack.peek(1);
+        try self.stack.pushByteArray(value);
+    }
+
+    /// OP_SWAP: The top two items on the stack are swapped.
+    ///
+    /// /// # Returns
+    /// - "EngineError.StackUnderflow": if initial stack length < 2
+    fn opSwap(self: *Engine) !void {
+        const top_value = try self.stack.pop();
+        const second_to_top_value = try self.stack.pop();
+
+        try self.stack.pushElement(top_value);
+        try self.stack.pushElement(second_to_top_value);
+    }
+
+    /// OP_TUCK: The item at the top of the stack is copied and inserted before the second-to-top item.
+    ///
+    /// /// # Returns
+    /// - "EngineError.StackUnderflow": if initial stack length < 2
+    fn opTuck(self: *Engine) !void {
+        const top_value = try self.stack.pop();
+        const second_to_top_value = try self.stack.pop();
+
+        try self.stack.pushByteArray(second_to_top_value); //this must be pushBytesArray because we need the variable again
+        try self.stack.pushElement(top_value);
+        try self.stack.pushElement(second_to_top_value);
+    }
+
+    /// OP_SIZE:Pushes the string length of the top element of the stack
+    ///
+    /// /// # Returns
+    /// - "EngineError.StackUnderflow": if initial stack length < 2
+    fn opSize(self: *Engine) !void {
+        const top_value = try self.stack.pop();
+        const len = top_value.len;
+        const result: i64 = @intCast(len);
+
+        try self.stack.pushElement(top_value);
+        try self.stack.pushInt(result);
+    }
+
     /// OP_EQUAL: Push 1 if the top two items are equal, 0 otherwise
     ///
     /// # Returns
@@ -556,7 +619,7 @@ test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_3Dup" {
 test "Script execution - OP_1 OP_2 OP_IFDUP" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_1 OP_EQUAL
+    // Simple script: OOP_1 OP_2 OP_IFDUP
     const script_bytes = [_]u8{ 0x51, 0x52, 0x73 };
     const script = Script.init(&script_bytes);
 
@@ -567,7 +630,6 @@ test "Script execution - OP_1 OP_2 OP_IFDUP" {
     const element0 = try engine.stack.peek(0);
     const element1 = try engine.stack.peek(1);
 
-    // Ensure the stack is empty after popping the result
     try std.testing.expectEqual(@as(usize, 3), engine.stack.len());
     try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
     try std.testing.expectEqualSlices(u8, &[_]u8{2}, element1);
@@ -576,7 +638,7 @@ test "Script execution - OP_1 OP_2 OP_IFDUP" {
 test "Script execution - OP_1 OP_2 OP_DEPTH" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_1 OP_EQUAL
+    // Simple script: OP_1 OP_2 OP_DEPTH
     const script_bytes = [_]u8{ 0x51, 0x52, 0x74 };
     const script = Script.init(&script_bytes);
 
@@ -587,7 +649,6 @@ test "Script execution - OP_1 OP_2 OP_DEPTH" {
     const element0 = try engine.stack.peek(0);
     const element1 = try engine.stack.peek(1);
 
-    // Ensure the stack is empty after popping the result
     try std.testing.expectEqual(@as(usize, 3), engine.stack.len());
     try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
     try std.testing.expectEqualSlices(u8, &[_]u8{2}, element1);
@@ -596,7 +657,7 @@ test "Script execution - OP_1 OP_2 OP_DEPTH" {
 test "Script execution - OP_1 OP_2 OP_DROP" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_1 OP_EQUAL
+    // Simple script: OP_1 OP_2 OP_DROP
     const script_bytes = [_]u8{ 0x51, 0x52, 0x75 };
     const script = Script.init(&script_bytes);
 
@@ -608,7 +669,6 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
 
     const element0 = try engine.stack.peek(0);
 
-    // Ensure the stack is empty after popping the result
     try std.testing.expectEqualSlices(u8, &[_]u8{1}, element0);
 }
 
@@ -661,4 +721,108 @@ test "Script execution - OP_INVALID" {
 
     // Expect an error when running an invalid opcode
     try std.testing.expectError(error.UnknownOpcode, engine.opInvalid());
+}
+
+test "Script execution OP_1 OP_2 OP_3 OP_NIP" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_2 OP_3 OP_NIP
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x77 };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    try std.testing.expectEqual(@as(usize, 2), engine.stack.len());
+
+    const element0 = try engine.stack.peek(0);
+    const element1 = try engine.stack.peek(1);
+
+    // Ensure the stack is empty after popping the result
+    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element0);
+    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element1);
+}
+
+test "Script execution OP_1 OP_2 OP_3 OP_OVER" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_2 OP_3 OP_OVER
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x78 };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    try std.testing.expectEqual(@as(usize, 4), engine.stack.len());
+
+    const element0 = try engine.stack.peek(0);
+    const element1 = try engine.stack.peek(1);
+
+    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
+    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element1);
+}
+
+test "Script execution OP_1 OP_2 OP_3 OP_SWAP" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_2 OP_3 OP_SWAP
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x7c };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    try std.testing.expectEqual(@as(usize, 3), engine.stack.len());
+
+    const element0 = try engine.stack.peek(0);
+    const element1 = try engine.stack.peek(1);
+
+    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
+    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element1);
+}
+
+test "Script execution OP_1 OP_2 OP_3 OP_TUCK" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_2 OP_3 OP_TUCK
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x7d };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    try std.testing.expectEqual(@as(usize, 4), engine.stack.len());
+
+    const element0 = try engine.stack.peek(0);
+    const element1 = try engine.stack.peek(1);
+    const element2 = try engine.stack.peek(2);
+
+    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
+    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element1);
+    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element2);
+}
+
+test "Script execution OP_1 OP_2 OP_3 OP_SIZE" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_1 OP_EQUAL
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x82 };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    try std.testing.expectEqual(@as(usize, 4), engine.stack.len());
+
+    const element0 = &[_]i64{try engine.stack.popInt()};
+    const element1 = try engine.stack.peek(0);
+    const checker = &[_]i64{1};
+
+    try std.testing.expectEqualSlices(i64, checker, element0);
+    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element1);
 }
