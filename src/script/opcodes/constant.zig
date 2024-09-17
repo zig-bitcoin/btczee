@@ -1,16 +1,15 @@
 const std = @import("std");
+const EngineError = @import("../lib.zig").EngineError;
 
 pub const Opcode = enum(u8) {
     // Constants
     OP_0 = 0x00,
-    OP_FALSE = 0x00,
     OP_PUSHDATA1 = 0x4c,
     OP_PUSHDATA2 = 0x4d,
     OP_PUSHDATA4 = 0x4e,
     OP_1NEGATE = 0x4f,
     OP_RESERVED = 0x50,
     OP_1 = 0x51,
-    OP_TRUE = 0x51,
     OP_2 = 0x52,
     OP_3 = 0x53,
     OP_4 = 0x54,
@@ -120,9 +119,7 @@ pub const Opcode = enum(u8) {
 
     // Reserved NOP codes
     OP_NOP1 = 0xb0,
-    OP_CHECKLOCKTIMEVERIFY = 0xb1,
     OP_NOP2 = 0xb1,
-    OP_CHECKSEQUENCEVERIFY = 0xb2,
     OP_NOP3 = 0xb2,
     OP_NOP4 = 0xb3,
     OP_NOP5 = 0xb4,
@@ -286,7 +283,7 @@ pub const Opcode = enum(u8) {
 
     pub fn fromByte(byte: u8) !Opcode {
         return std.meta.intToEnum(Opcode, byte) catch {
-            return error.InvalidOpcode;
+            return EngineError.UnknownOpcode;
         };
     }
 };
@@ -304,4 +301,9 @@ pub fn opcodeFromString(name: []const u8) ?Opcode {
         }
     }
     return null;
+}
+
+// Helper function to get push data length
+pub fn getPushDataLength(opcode: u8) ?u8 {
+    return if (opcode > 0x00 and opcode <= 0x4b) opcode else null;
 }

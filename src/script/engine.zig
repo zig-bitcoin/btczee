@@ -1,24 +1,12 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Stack = @import("stack.zig").Stack;
-const StackError = @import("stack.zig").StackError;
 const Script = @import("lib.zig").Script;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
 const arithmetic = @import("opcodes/arithmetic.zig");
 const Opcode = @import("opcodes/constant.zig").Opcode;
-
-/// Errors that can occur during script execution
-pub const EngineError = error{
-    /// Script ended unexpectedly
-    ScriptTooShort,
-    /// OP_VERIFY failed
-    VerifyFailed,
-    /// OP_RETURN encountered
-    EarlyReturn,
-    /// Encountered an unknown opcode
-    UnknownOpcode,
-} || StackError;
-
+const getPushDataLength = @import("opcodes/constant.zig").getPushDataLength;
+const EngineError = @import("lib.zig").EngineError;
 /// Engine is the virtual machine that executes Bitcoin scripts
 pub const Engine = struct {
     /// The script being executed
@@ -97,13 +85,19 @@ pub const Engine = struct {
     fn executeOpcode(self: *Engine, opcode: u8) !void {
         self.log("Executing opcode: 0x{x:0>2}\n", .{opcode});
 
-        try switch (opcode) {
-            Opcode.OP_0...Opcode.OP_PUSHBYTES_75 => try self.pushData(opcode),
+        if (getPushDataLength(opcode)) |length| {
+            try self.pushData(length);
+            return;
+        }
+
+        const opcodeEnum = try Opcode.fromByte(opcode);
+        try switch (opcodeEnum) {
+            Opcode.OP_0 => try self.pushData(0),
             Opcode.OP_PUSHDATA1 => try self.opPushData1(),
             Opcode.OP_PUSHDATA2 => try self.opPushData2(),
             Opcode.OP_PUSHDATA4 => try self.opPushData4(),
             Opcode.OP_1NEGATE => try self.op1Negate(),
-            Opcode.OP_1...Opcode.OP_16 => try self.opN(opcode),
+            .OP_1, .OP_2, .OP_3, .OP_4, .OP_5, .OP_6, .OP_7, .OP_8, .OP_9, .OP_10, .OP_11, .OP_12, .OP_13, .OP_14, .OP_15, .OP_16 => try self.opN(opcode),
             Opcode.OP_NOP => try self.opNop(),
             Opcode.OP_VERIFY => try self.opVerify(),
             Opcode.OP_RETURN => try self.opReturn(),
