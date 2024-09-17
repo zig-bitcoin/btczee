@@ -102,7 +102,7 @@ pub const Stack = struct {
         if (value.len > 8) return StackError.InvalidValue;
 
         var buffer: [8]u8 = [_]u8{0, 0, 0, 0, 0, 0, 0, 0};
-        std.mem.copyBackwards(u8, buffer[0..value.len], value);
+        @memcpy(buffer[0..value.len], value);
         return std.mem.bytesToValue(i64, &buffer);
     }
 
@@ -173,8 +173,8 @@ pub const Stack = struct {
             self.allocator.free(entry);
             self.items.items[self.len() - idx + i - 1] = try self.allocator.dupe(u8, next_value);
         }
-        const last_entry = self.items.popOrNull();
-        self.allocator.free(last_entry.?);
+        const last_entry = self.items.popOrNull() orelse return StackError.StackUnderflow;
+        self.allocator.free(last_entry);
         
         return value;
     }

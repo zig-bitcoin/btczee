@@ -377,12 +377,8 @@ pub const Engine = struct {
     /// - `EngineError`: If an error occurs during execution
     fn opRoll(self: *Engine) !void {
         const n = try self.stack.popInt();
-        if (n < 0) {
-            return error.StackUnderflow;
-        }
         const value = try self.stack.nipN(@intCast(n));
-        defer self.allocator.free(value);
-        try self.stack.pushByteArray(value);
+        try self.stack.pushElement(value);
     }
 
     /// OP_NIP: Removes the second-to-top stack item
@@ -507,7 +503,7 @@ pub const Engine = struct {
 test "Script execution - OP_ROLL" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_1 OP_EQUAL
+    // Simple script: OP_1 OP_1 OP_ROLL
     const script_bytes = [_]u8{ 0x54, 0x53, 0x52, 0x51, 0x7a };
     const script = Script.init(&script_bytes);
 
