@@ -419,12 +419,9 @@ pub const Engine = struct {
     /// OP_PICK: The item idx back in the stack is copied to the top.
     /// 
     /// # Returns
-    /// -  "EngineError.StackUnderflow": if idx < 0
+    /// - `EngineError`: If an error occurs during execution
     fn opPick(self: *Engine) !void {
         const idx = try self.stack.popInt();
-        if (idx < 0) {
-            return error.StackUnderflow;
-        }
         const value = try self.stack.peek(@intCast(idx));
         try self.stack.pushByteArray(value);
     }
@@ -618,7 +615,7 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
 test "Script execution - OP_PICK" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_1 OP_EQUAL
+    // Simple script: OP_1 OP_1 OP_PICK
     const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x52, 0x79 };
     const script = Script.init(&script_bytes);
 
