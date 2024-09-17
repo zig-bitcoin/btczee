@@ -83,10 +83,9 @@ pub const Stack = struct {
     ///
     /// # Returns
     /// - `StackError` if out of memory
-    pub fn pushBytesRaw(self: *Stack, item: []u8) StackError!void {
+    pub fn pushElement(self: *Stack, item: []u8) StackError!void {
         // Append the item directly to the stack
         self.items.append(item) catch {
-            self.allocator.free(item);
             return StackError.OutOfMemory;
         };
     }

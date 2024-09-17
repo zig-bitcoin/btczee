@@ -126,7 +126,8 @@ pub const Engine = struct {
             0x7c => self.opSwap(),
             0x7d => self.opTuck(),
             0x82 => self.opSize(),
-            0x7e...0x86 => try self.opDisabled(),
+            0x7e...0x81 => try self.opDisabled(),
+            0x83...0x86 => try self.opDisabled(),
             0x8d...0x8e => try self.opDisabled(),
             0x87 => try self.opEqual(),
             0x88 => try self.opEqualVerify(),
@@ -374,7 +375,7 @@ pub const Engine = struct {
     fn opNip(self: *Engine) !void {
         const top_value = try self.stack.pop();
         const second_to_top_value = try self.stack.pop();
-        try self.stack.pushBytesRaw(top_value);
+        try self.stack.pushElement(top_value);
         // defer self.allocator.free(top_value);
         defer self.allocator.free(second_to_top_value);
     }
@@ -396,8 +397,8 @@ pub const Engine = struct {
         const top_value = try self.stack.pop();
         const second_to_top_value = try self.stack.pop();
 
-        try self.stack.pushBytesRaw(top_value);
-        try self.stack.pushBytesRaw(second_to_top_value);
+        try self.stack.pushElement(top_value);
+        try self.stack.pushElement(second_to_top_value);
     }
 
     /// OP_TUCK: The item at the top of the stack is copied and inserted before the second-to-top item.
@@ -409,8 +410,8 @@ pub const Engine = struct {
         const second_to_top_value = try self.stack.pop();
 
         try self.stack.pushByteArray(second_to_top_value); //this must be pushBytesArray because we need the variable again
-        try self.stack.pushBytesRaw(top_value);
-        try self.stack.pushBytesRaw(second_to_top_value);
+        try self.stack.pushElement(top_value);
+        try self.stack.pushElement(second_to_top_value);
     }
 
     /// OP_SIZE:Pushes the string length of the top element of the stack
@@ -422,7 +423,7 @@ pub const Engine = struct {
         const len = top_value.len;
         const result: i64 = @intCast(len);
 
-        try self.stack.pushBytesRaw(top_value);
+        try self.stack.pushElement(top_value);
         try self.stack.pushInt(result);
     }
 
