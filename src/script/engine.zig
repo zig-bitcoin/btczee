@@ -82,7 +82,7 @@ pub const Engine = struct {
         }
     }
 
-    fn executeOpcode(self: *Engine, opcode: u8) !void {
+    fn executeOpcode(self: *Engine, opcode: Opcode) !void {
         self.log("Executing opcode: 0x{x:0>2}\n", .{opcode});
 
         if (getPushDataLength(opcode)) |length| {
@@ -90,8 +90,7 @@ pub const Engine = struct {
             return;
         }
 
-        const opcodeEnum = try Opcode.fromByte(opcode);
-        try switch (opcodeEnum) {
+        try switch (opcode) {
             Opcode.OP_0 => try self.pushData(0),
             Opcode.OP_PUSHDATA1 => try self.opPushData1(),
             Opcode.OP_PUSHDATA2 => try self.opPushData2(),

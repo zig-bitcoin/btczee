@@ -304,6 +304,6 @@ pub fn opcodeFromString(name: []const u8) ?Opcode {
 }
 
 // Helper function to get push data length
-pub fn getPushDataLength(opcode: u8) ?u8 {
+pub fn getPushDataLength(opcode: Opcode) ?u8 {
     return if (opcode > 0x00 and opcode <= 0x4b) opcode else null;
 }
