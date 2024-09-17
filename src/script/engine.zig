@@ -16,6 +16,8 @@ pub const EngineError = error{
     EarlyReturn,
     /// Encountered an unknown opcode
     UnknownOpcode,
+    /// Encountered a disabled opcode
+    DisabledOpcode,
 } || StackError;
 
 /// Engine is the virtual machine that executes Bitcoin scripts
@@ -124,6 +126,8 @@ pub const Engine = struct {
             0x7c => self.opSwap(),
             0x7d => self.opTuck(),
             0x82 => self.opSize(),
+            0x7e...0x86 => try self.opDisabled(),
+            0x8d...0x8e => try self.opDisabled(),
             0x87 => try self.opEqual(),
             0x88 => try self.opEqualVerify(),
             0x8b => try arithmetic.op1Add(self),
@@ -134,6 +138,7 @@ pub const Engine = struct {
             0x92 => try arithmetic.op0NotEqual(self),
             0x93 => try arithmetic.opAdd(self),
             0x94 => try arithmetic.opSub(self),
+            0x95...0x99 => try self.opDisabled(),
             0x9a => try arithmetic.opBoolAnd(self),
             0x9b => try arithmetic.opBoolOr(self),
             0x9c => try arithmetic.opNumEqual(self),
@@ -470,6 +475,11 @@ pub const Engine = struct {
         // Assume signature is valid for now
         try self.stack.pushByteArray(&[_]u8{1});
     }
+
+    fn opDisabled(self: *Engine) !void {
+        std.debug.print("Attempt to execute disabled opcode: 0x{x:0>2}\n", .{self.script.data[self.pc]});
+        return error.DisabledOpcode;
+    }
 };
 
 test "Script execution - OP_1 OP_1 OP_EQUAL" {
@@ -642,6 +652,20 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
     const element0 = try engine.stack.peek(0);
 
     try std.testing.expectEqualSlices(u8, &[_]u8{1}, element0);
+}
+
+test "Script execution - OP_DISABLED" {
+    const allocator = std.testing.allocator;
+
+    // Simple script to run a disabled opcode
+    const script_bytes = [_]u8{0x95};
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    // Expect an error when running a disabled opcode
+    try std.testing.expectError(error.DisabledOpcode, engine.opDisabled());
 }
 
 test "Script execution OP_1 OP_2 OP_3 OP_NIP" {
