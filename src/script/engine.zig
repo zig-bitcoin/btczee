@@ -487,15 +487,29 @@ pub const Engine = struct {
     }
 };
 
-test "Script execution - OP_1 OP_SHA1" {
-    const allocator = std.testing.allocator;
-    // Simple script: OP_1 OP_SHA1
-    const script_bytes = [_]u8{ 0x01, 0xa7 };
-    const script = Script.init(&script_bytes);
-    var engine = Engine.init(allocator, script, .{});
-    defer engine.deinit();
-    try engine.execute();
-    try std.testing.expectEqual(1, engine.stack.len());
+test "sha1 vectors" {
+    const test_cases = [_]struct {
+        input: []const u8,
+        expected: []const u8,
+    }{
+        .{ .input = "hello", .expected = "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d" },
+        .{ .input = "blockchain", .expected = "56fde8f4392113e0f19e0430f14502e06968669f" },
+        .{ .input = "abc", .expected = "a9993e364706816aba3e25717850c26c9cd0d89d" },
+        .{ .input = "bitcoin", .expected = "ed1b8d80793e70c0608e8a8508a8dd80f6aa56f9" },
+    };
+
+    for (test_cases) |case| {
+        errdefer {
+            std.log.err("test case failed, case = {s}", .{std.json.fmt(case, .{})});
+        }
+        var expected_output: [sha1.digest_length]u8 = undefined;
+        _ = try std.fmt.hexToBytes(&expected_output, case.expected);
+
+        var actual_output: [sha1.digest_length]u8 = undefined;
+
+        sha1.hash(case.input, &actual_output, .{});
+        try std.testing.expectEqualSlices(u8, &expected_output, &actual_output);
+    }
 }
 
 test "Script execution - OP_RETURN" {
