@@ -5,7 +5,7 @@ const Script = @import("lib.zig").Script;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
 const arithmetic = @import("opcodes/arithmetic.zig");
 const Opcode = @import("opcodes/constant.zig").Opcode;
-const getPushDataLength = @import("opcodes/constant.zig").getPushDataLength;
+const isUnnamedPushNDataOpcode = @import("opcodes/constant.zig").isUnnamedPushNDataOpcode;
 const EngineError = @import("lib.zig").EngineError;
 /// Engine is the virtual machine that executes Bitcoin scripts
 pub const Engine = struct {
@@ -87,7 +87,7 @@ pub const Engine = struct {
         self.log("Executing opcode: 0x{x:0>2}\n", .{opcode.toBytes()});
 
         // Check if the opcode is a push data opcode
-        if (getPushDataLength(opcode)) |length| {
+        if (isUnnamedPushNDataOpcode(opcode)) |length| {
             try self.pushData(length);
             return;
         }

@@ -310,8 +310,14 @@ pub fn opcodeFromString(name: []const u8) ?Opcode {
     return null;
 }
 
-// Helper function to get push data length
-pub fn getPushDataLength(opcode: Opcode) ?u8 {
+// Checks if the opcode is an unnamed PUSH(N) data opcode (Opcodes 1-75 / 0x01-0x4B)
+/// These opcodes push the next N bytes onto the stack
+/// See: https://wiki.bitcoinsv.io/index.php/Pushdata_Opcodes
+///
+/// Returns:
+/// - The opcode byte value (1-75) if it's an unnamed PUSH(N) data opcode
+/// - null if it's not an unnamed PUSH(N) data opcode
+pub fn isUnnamedPushNDataOpcode(opcode: Opcode) ?u8 {
     const opcodeByte = opcode.toBytes();
     return if (opcodeByte > 0x00 and opcodeByte <= 0x4b) opcodeByte else null;
 }
