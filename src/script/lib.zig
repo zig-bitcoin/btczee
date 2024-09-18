@@ -1,6 +1,7 @@
 pub const engine = @import("engine.zig");
 pub const stack = @import("stack.zig");
 pub const arithmetic = @import("opcodes/arithmetic.zig");
+const StackError = @import("stack.zig").StackError;
 
 /// Maximum number of bytes pushable to the stack
 const MAX_SCRIPT_ELEMENT_SIZE = 520;
@@ -61,3 +62,17 @@ pub const Script = struct {
         return self.len() == 0;
     }
 };
+
+/// Errors that can occur during script execution
+pub const EngineError = error{
+    /// Script ended unexpectedly
+    ScriptTooShort,
+    /// OP_VERIFY failed
+    VerifyFailed,
+    /// OP_RETURN encountered
+    EarlyReturn,
+    /// Encountered an unknown opcode
+    UnknownOpcode,
+    /// Encountered a disabled opcode
+    DisabledOpcode,
+} || StackError;
