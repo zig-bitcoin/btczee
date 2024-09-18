@@ -672,13 +672,13 @@ test "Script execution - OP_PICK" {
     defer engine.deinit();
 
     try engine.execute();
-    try std.testing.expectEqual(@as(usize, 4), engine.stack.len());
+    try std.testing.expectEqual(4, engine.stack.len());
 
     const element0 = try engine.stack.peekInt(0);
     const element1 = try engine.stack.peekInt(1);
     const element2 = try engine.stack.peekInt(2);
     const element3 = try engine.stack.peekInt(3);
-    
+
     try std.testing.expectEqual(1, element0);
     try std.testing.expectEqual(3, element1);
     try std.testing.expectEqual(2, element2);
