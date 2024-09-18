@@ -138,6 +138,11 @@ pub const Engine = struct {
             Opcode.OP_WITHIN => try arithmetic.opWithin(self),
             Opcode.OP_HASH160 => try self.opHash160(),
             Opcode.OP_CHECKSIG => try self.opCheckSig(),
+            Opcode.OP_NIP => try self.opNip(),
+            Opcode.OP_OVER => try self.opOver(),
+            Opcode.OP_SWAP => try self.opSwap(),
+            Opcode.OP_TUCK => try self.opTuck(),
+            Opcode.OP_SIZE => try self.opSize(),
             else => try self.opInvalid(),
         };
     }
