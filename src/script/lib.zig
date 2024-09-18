@@ -2,6 +2,7 @@ pub const engine = @import("engine.zig");
 pub const stack = @import("stack.zig");
 pub const arithmetic = @import("opcodes/arithmetic.zig");
 const StackError = @import("stack.zig").StackError;
+const ConditionalStackError = @import("cond_stack.zig").ConditionalStackError;
 
 pub const ScriptNum = i64;
 
@@ -77,4 +78,6 @@ pub const EngineError = error{
     UnknownOpcode,
     /// Encountered a disabled opcode
     DisabledOpcode,
-} || StackError;
+    /// Encountered a reserved opcode
+    ReservedOpcode
+} || StackError || ConditionalStackError;

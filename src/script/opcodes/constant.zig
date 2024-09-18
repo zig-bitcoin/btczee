@@ -103,11 +103,11 @@ pub const Opcode = enum(u8) {
 
     // Flow control
     OP_NOP = 0x61,
-    OP_VER = 0x62, // disabled
+    OP_VER = 0x62, // reserved
     OP_IF = 0x63,
     OP_NOTIF = 0x64,
-    OP_VERIF = 0x65, // disabled
-    OP_VERNOTIF = 0x66, // disabled
+    OP_VERIF = 0x65, // reserved
+    OP_VERNOTIF = 0x66, // reserved
     OP_ELSE = 0x67,
     OP_ENDIF = 0x68,
     OP_VERIFY = 0x69,
@@ -148,8 +148,8 @@ pub const Opcode = enum(u8) {
     OP_XOR = 0x86,
     OP_EQUAL = 0x87,
     OP_EQUALVERIFY = 0x88,
-    OP_RESERVED1 = 0x89,
-    OP_RESERVED2 = 0x8a,
+    OP_RESERVED1 = 0x89, // reserved
+    OP_RESERVED2 = 0x8a, // reserved
 
     // Arithmetic
     OP_1ADD = 0x8b,

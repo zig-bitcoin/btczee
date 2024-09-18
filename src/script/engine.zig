@@ -7,6 +7,7 @@ const Script = @import("lib.zig").Script;
 const ScriptNum = @import("lib.zig").ScriptNum;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
 const arithmetic = @import("opcodes/arithmetic.zig");
+const flow_control = @import("opcodes/flow_control.zig");
 const Opcode = @import("opcodes/constant.zig").Opcode;
 const isUnnamedPushNDataOpcode = @import("opcodes/constant.zig").isUnnamedPushNDataOpcode;
 const EngineError = @import("lib.zig").EngineError;
@@ -109,8 +110,14 @@ pub const Engine = struct {
             Opcode.OP_PUSHDATA2 => try self.opPushData2(),
             Opcode.OP_PUSHDATA4 => try self.opPushData4(),
             Opcode.OP_1NEGATE => try self.op1Negate(),
+            Opcode.OP_RESERVED => try self.opReserved(@intFromEnum(opcode)),
             .OP_1, .OP_2, .OP_3, .OP_4, .OP_5, .OP_6, .OP_7, .OP_8, .OP_9, .OP_10, .OP_11, .OP_12, .OP_13, .OP_14, .OP_15, .OP_16 => try self.opN(opcode),
             Opcode.OP_NOP => try self.opNop(),
+            Opcode.OP_VER => try self.opVer(),
+            Opcode.OP_IF => try flow_control.opIf(self),
+            Opcode.OP_NOTIF => try flow_control.opNotIf(self),
+            Opcode.OP_ELSE => try flow_control.opElse(self),
+            Opcode.OP_ENDIF => try flow_control.opEndIf(self),
             Opcode.OP_VERIFY => try self.opVerify(),
             Opcode.OP_RETURN => try self.opReturn(),
             Opcode.OP_2DROP => try self.op2Drop(),
@@ -232,8 +239,9 @@ pub const Engine = struct {
 
     /// OP_RESERVED: Reserved opcode
     fn opReserved(self: *Engine, opcode: u8) !void {
-        const msg = try std.fmt.allocPrint(self.allocator, "attempt to execute reserved opcode {}\n", .{opcode});
-        defer self.allocator.free(msg);
+        _ = self;
+        // Use std.debug.print to log the message directly
+        std.debug.print("Attempt to execute reserved opcode: 0x{x}\n", .{opcode});
         return error.ReservedOpcode;
     }
 
