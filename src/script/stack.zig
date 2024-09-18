@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const ScriptNum = @import("lib.zig").ScriptNum;
 const testing = std.testing;
 const native_endian = @import("builtin").target.cpu.arch.endian();
 
@@ -70,7 +71,7 @@ pub const Stack = struct {
     ///
     /// # Returns
     /// - `StackError` if out of memory
-    pub fn pushInt(self: *Stack, value: i64) StackError!void {
+    pub fn pushInt(self: *Stack, value: ScriptNum) StackError!void {
         try self.pushByteArray(std.mem.asBytes(&value));
     }
 
@@ -91,15 +92,15 @@ pub const Stack = struct {
     /// Pop an integer from the stack
     ///
     /// # Returns
-    /// - `i64`: The popped integer value
+    /// - `ScriptNum`: The popped integer value
     /// - `StackError` if the stack is empty or the value is invalid
-    pub fn popInt(self: *Stack) StackError!i64 {
+    pub fn popInt(self: *Stack) StackError!ScriptNum {
         const value = try self.pop();
         defer self.allocator.free(value);
 
         if (value.len > 8) return StackError.InvalidValue;
 
-        return std.mem.readVarInt(i64, value, native_endian);
+        return std.mem.readVarInt(ScriptNum, value, native_endian);
     }
 
     /// Pop a boolean value from the stack
@@ -301,11 +302,11 @@ test "Stack pushInt and popInt" {
     try testing.expectEqual(0, try stack.popInt());
 
     // Test pushing and popping large integers
-    try stack.pushInt(std.math.maxInt(i64));
-    try testing.expectEqual(std.math.maxInt(i64), try stack.popInt());
+    try stack.pushInt(std.math.maxInt(ScriptNum));
+    try testing.expectEqual(std.math.maxInt(ScriptNum), try stack.popInt());
 
-    try stack.pushInt(std.math.minInt(i64));
-    try testing.expectEqual(std.math.minInt(i64), try stack.popInt());
+    try stack.pushInt(std.math.minInt(ScriptNum));
+    try testing.expectEqual(std.math.minInt(ScriptNum), try stack.popInt());
 
     // Test popping from empty stack
     try testing.expectError(StackError.StackUnderflow, stack.popInt());

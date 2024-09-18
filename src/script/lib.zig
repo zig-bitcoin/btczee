@@ -3,6 +3,8 @@ pub const stack = @import("stack.zig");
 pub const arithmetic = @import("opcodes/arithmetic.zig");
 const StackError = @import("stack.zig").StackError;
 
+pub const ScriptNum = i64;
+
 /// Maximum number of bytes pushable to the stack
 const MAX_SCRIPT_ELEMENT_SIZE = 520;
 
