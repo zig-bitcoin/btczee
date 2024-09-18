@@ -481,33 +481,20 @@ pub const Engine = struct {
 
     fn opSha1(self: *Engine) !void {
         const data = try self.stack.pop();
-
-        // Use a stack-allocated buffer for the SHA-1 hash output
         var hash: [sha1.digest_length]u8 = undefined;
-
-        // Perform the SHA-1 hash
         sha1.hash(data, &hash, .{});
-
-        std.debug.print("SHA-1 hash: {s}\n", .{std.fmt.fmtSliceHexLower(&hash)});
-
-        // Convert the array to a slice and push it onto the stack
         try self.stack.pushByteArray(&hash);
     }
 };
 
 test "Script execution - OP_1 OP_SHA1" {
     const allocator = std.testing.allocator;
-
-    // Simple script: OP_1 OP_2
+    // Simple script: OP_1 OP_SHA1
     const script_bytes = [_]u8{ 0x01, 0xa7 };
     const script = Script.init(&script_bytes);
-
     var engine = Engine.init(allocator, script, .{});
     defer engine.deinit();
-
     try engine.execute();
-
-    // Ensure the stack is empty after popping the result
     try std.testing.expectEqual(1, engine.stack.len());
 }
 
