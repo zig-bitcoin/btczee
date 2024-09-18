@@ -2,6 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Stack = @import("stack.zig").Stack;
 const Script = @import("lib.zig").Script;
+const ScriptNum = @import("lib.zig").ScriptNum;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
 const arithmetic = @import("opcodes/arithmetic.zig");
 const Opcode = @import("opcodes/constant.zig").Opcode;
@@ -410,7 +411,7 @@ pub const Engine = struct {
     fn opSize(self: *Engine) !void {
         const top_value = try self.stack.pop();
         const len = top_value.len;
-        const result: i64 = @intCast(len);
+        const result: ScriptNum = @intCast(len);
 
         try self.stack.pushElement(top_value);
         try self.stack.pushInt(result);
