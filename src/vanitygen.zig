@@ -94,25 +94,17 @@ pub const VanityMode = enum {
 };
 
 fn threadSearcher(
-    gpa: std.mem.Allocator,
     str: []const u8,
     secp: secp256k1.Secp256k1,
     vanity_mode: VanityMode,
     case_sensitive: bool,
     sender: *mpmc.UnboundedChannel(KeysAndAddress).Sender,
     found: *std.atomic.Value(bool),
-    threads_finished: *std.atomic.Value(usize),
 ) void {
-    _ = threads_finished; // autofix
-    _ = found; // autofix
-    _ = gpa; // autofix
-    // defer {
-    //     _ = threads_finished.fetchAdd(1, .monotonic);
-    //     std.log.warn("thread finished", .{});
-    // }
-
+    defer std.log.debug("thread stopped", .{});
     _ = case_sensitive; // autofix
     while (true) {
+        if (found.load(.acquire)) return;
 
         // Generate the key pair and address using generate_from_biguint
         const keys_and_address = KeysAndAddress.generateRandom(
@@ -127,14 +119,14 @@ fn threadSearcher(
                 // case sensitive TODO
                 break :v std.mem.indexOf(u8, keys_and_address.comp_address.constSlice(), str) != null;
             },
-            else => unreachable,
+            else => @panic("asaa"),
         };
 
         // send to sender
 
         if (f) {
             @branchHint(.cold);
-            sender.send(keys_and_address) catch return;
+            return sender.send(keys_and_address) catch return;
         }
     }
 }
@@ -152,45 +144,50 @@ fn findVanityAddress(
     case_sensitive: bool,
     vanity_mode: VanityMode,
     secp: secp256k1.Secp256k1,
-) !ref.Arc(KeysAndAddress) {
+) !KeysAndAddress {
     var chan = mpmc.UnboundedChannel(KeysAndAddress).init(gpa);
+    defer chan.deinit();
     var sender = try chan.sender();
     defer sender.deinit();
+
     var receiver = try chan.receiver();
+    defer receiver.deinit();
 
     var found = std.atomic.Value(bool).init(false);
 
-    var finished_threads = std.atomic.Value(usize).init(0);
-
     const started = std.time.milliTimestamp();
 
+    var wg = std.Thread.WaitGroup{};
+
     for (0..threads) |_| {
-        _ = try std.Thread.spawn(.{
-            .allocator = gpa,
-        }, threadSearcher, .{
-            gpa,
+        wg.spawnManager(threadSearcher, .{
             str,
             secp,
             vanity_mode,
             case_sensitive,
             &sender,
             &found,
-            &finished_threads,
         });
     }
 
-    const key = receiver.recv();
+    const key = receiver.recv() orelse unreachable;
+    defer key.release();
+
+    found.store(true, .seq_cst);
+
+    wg.wait();
 
     std.log.info("\n\nfound in {d} sec\n\n", .{@as(f32, @floatFromInt(std.time.milliTimestamp() - started)) / 1000.0});
+    // std.log.debug("all threads despawned {any}", .{wg.isDone()});
 
-    return key.?;
+    return key.value.*;
 }
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{
         .thread_safe = true,
     }){};
-    // defer std.debug.assert(gpa.deinit() == .ok or 1 == 1);
+    defer std.debug.assert(gpa.deinit() == .ok);
 
     // fba.threadSafeAllocator()
     var secp = secp256k1.Secp256k1.genNew();
@@ -241,12 +238,11 @@ pub fn main() !void {
 
     std.log.info("Searching key pair which their address has the string: '{s}' (case sensitive = {any}) with {d} threads. Mode = {any}.", .{ expected_str, case_sensitive, threads, vanity_mode });
 
-    const key = try findVanityAddress(gpa.allocator(), "ab", threads, case_sensitive, vanity_mode, secp);
-    defer key.release();
+    const key = try findVanityAddress(gpa.allocator(), expected_str, threads, case_sensitive, vanity_mode, secp);
 
-    std.log.warn("private_key(hex): {s}\npublic_key(compressed): {s}\naddress(compressed): {s}", .{
-        key.value.private_key.toString(),
-        key.value.public_key.toString(),
-        key.value.comp_address.constSlice(),
+    std.log.info("private_key(hex): {s}\npublic_key(compressed): {s}\naddress(compressed): {s}", .{
+        key.private_key.toString(),
+        key.public_key.toString(),
+        key.comp_address.constSlice(),
     });
 }

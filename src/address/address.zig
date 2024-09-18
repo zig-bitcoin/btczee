@@ -102,14 +102,14 @@ pub const Address = union(enum) {
                 // std.log.debug("prefixed {any}", .{prefixed});
                 var res = try std.BoundedArray(u8, 50).init(0);
 
-                res.resize(encoder.encodeCheck(&res.buffer, &buf, &prefixed)) catch unreachable;
+                res.resize(encoder.encodeCheck(&res.buffer, &buf, &prefixed)) catch @panic("123");
 
                 return res;
             },
             // TODO: implement another types of address
-            else => unreachable,
+            else => @panic("q1"),
         }
 
-        unreachable;
+        @panic("q2");
     }
 };
