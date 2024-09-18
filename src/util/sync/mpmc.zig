@@ -87,7 +87,7 @@ pub fn UnboundedChannel(comptime T: type) type {
                     new_stack |= (stack & ~PTR_MASK);
 
                     // Push to the stack with a release barrier for the consumer to see the proper list links.
-                    stack = self.stack.tryCompareAndSwap(
+                    stack = self.stack.cmpxchgStrong(
                         stack,
                         new_stack,
                         .release,
@@ -148,7 +148,7 @@ pub fn UnboundedChannel(comptime T: type) type {
 
                     // Acquire barrier on getting the consumer to see cache/Node updates done by previous consumers
                     // and to ensure our cache/Node updates in pop() happen after that of previous consumers.
-                    stack = self.stack.tryCompareAndSwap(
+                    stack = self.stack.cmpxchgStrong(
                         stack,
                         new_stack,
                         .acquire,
