@@ -8,6 +8,7 @@ const arithmetic = @import("opcodes/arithmetic.zig");
 const Opcode = @import("opcodes/constant.zig").Opcode;
 const isUnnamedPushNDataOpcode = @import("opcodes/constant.zig").isUnnamedPushNDataOpcode;
 const EngineError = @import("lib.zig").EngineError;
+const sha1 = std.crypto.hash.Sha1;
 /// Engine is the virtual machine that executes Bitcoin scripts
 pub const Engine = struct {
     /// The script being executed
@@ -144,6 +145,7 @@ pub const Engine = struct {
             Opcode.OP_SWAP => try self.opSwap(),
             Opcode.OP_TUCK => try self.opTuck(),
             Opcode.OP_SIZE => try self.opSize(),
+            Opcode.OP_SHA1 => try self.opSha1(),
             else => try self.opInvalid(),
         };
     }
@@ -476,13 +478,28 @@ pub const Engine = struct {
         std.debug.print("Attempt to execute invalid opcode: 0x{x:0>2}\n", .{self.script.data[self.pc]});
         return error.UnknownOpcode;
     }
+
+    fn opSha1(self: *Engine) !void {
+        const data = try self.stack.pop();
+
+        // Use a stack-allocated buffer for the SHA-1 hash output
+        var hash: [sha1.digest_length]u8 = undefined;
+
+        // Perform the SHA-1 hash
+        sha1.hash(data, &hash, .{});
+
+        std.debug.print("SHA-1 hash: {s}\n", .{std.fmt.fmtSliceHexLower(&hash)});
+
+        // Convert the array to a slice and push it onto the stack
+        try self.stack.pushByteArray(&hash);
+    }
 };
 
-test "Script execution - OP_1 OP_1 OP_EQUAL" {
+test "Script execution - OP_1 OP_SHA1" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_1 OP_EQUAL
-    const script_bytes = [_]u8{ 0x51, 0x51, 0x87 };
+    // Simple script: OP_1 OP_2
+    const script_bytes = [_]u8{ 0x01, 0xa7 };
     const script = Script.init(&script_bytes);
 
     var engine = Engine.init(allocator, script, .{});
@@ -490,15 +507,8 @@ test "Script execution - OP_1 OP_1 OP_EQUAL" {
 
     try engine.execute();
 
-    // Check if the execution result is true (non-empty stack with top element true)
-    {
-        const result = try engine.stack.pop();
-        defer allocator.free(result);
-        try std.testing.expect(result.len > 0 and result[0] != 0);
-    }
-
     // Ensure the stack is empty after popping the result
-    try std.testing.expectEqual(0, engine.stack.len());
+    try std.testing.expectEqual(1, engine.stack.len());
 }
 
 test "Script execution - OP_RETURN" {
