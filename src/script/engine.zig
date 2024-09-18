@@ -3,26 +3,13 @@ const Allocator = std.mem.Allocator;
 const ConditionalStack = @import("cond_stack.zig").ConditionalStack;
 const ConditionalStackError = @import("cond_stack.zig").ConditionalStackError;
 const Stack = @import("stack.zig").Stack;
-const StackError = @import("stack.zig").StackError;
 const Script = @import("lib.zig").Script;
+const ScriptNum = @import("lib.zig").ScriptNum;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
 const arithmetic = @import("opcodes/arithmetic.zig");
-const flow = @import("opcodes/flow.zig");
-
-/// Errors that can occur during script execution
-pub const EngineError = error{
-    /// Script ended unexpectedly
-    ScriptTooShort,
-    /// OP_VERIFY failed
-    VerifyFailed,
-    /// OP_RETURN encountered
-    EarlyReturn,
-    /// Encountered an unknown opcode
-    UnknownOpcode,
-    /// Reserved opcode encountered
-    ReservedOpcode,
-} || StackError || ConditionalStackError;
-
+const Opcode = @import("opcodes/constant.zig").Opcode;
+const isUnnamedPushNDataOpcode = @import("opcodes/constant.zig").isUnnamedPushNDataOpcode;
+const EngineError = @import("lib.zig").EngineError;
 /// Engine is the virtual machine that executes Bitcoin scripts
 pub const Engine = struct {
     /// The script being executed
@@ -81,11 +68,12 @@ pub const Engine = struct {
         self.log("Executing script: {s}\n", .{std.fmt.fmtSliceHexLower(self.script.data)});
 
         while (self.pc < self.script.len()) {
-            const opcode = self.script.data[self.pc];
-            self.log("\nPC: {d}, Opcode: 0x{x:0>2}\n", .{ self.pc, opcode });
+            const opcodeByte = self.script.data[self.pc];
+            self.log("\nPC: {d}, Opcode: 0x{x:0>2}\n", .{ self.pc, opcodeByte });
             self.logStack();
 
             self.pc += 1;
+            const opcode: Opcode = try Opcode.fromByte(opcodeByte);
             try self.executeOpcode(opcode);
         }
 
@@ -101,68 +89,67 @@ pub const Engine = struct {
         }
     }
 
-    /// Execute a single opcode
-    ///
-    /// # Arguments
-    /// - `opcode`: The opcode to execute
-    ///
-    /// # Returns
-    /// - `EngineError`: If an error occurs during execution
-    fn executeOpcode(self: *Engine, opcode: u8) !void {
-        self.log("Executing opcode: 0x{x:0>2}\n", .{opcode});
+    fn executeOpcode(self: *Engine, opcode: Opcode) !void {
+        self.log("Executing opcode: 0x{x:0>2}\n", .{opcode.toBytes()});
+
+        // Check if the opcode is a push data opcode
+        if (isUnnamedPushNDataOpcode(opcode)) |length| {
+            try self.pushData(length);
+            return;
+        }
+
+        // check if disabled opcode
+        if (opcode.isDisabled()) {
+            return self.opDisabled();
+        }
+
         try switch (opcode) {
-            0x00 => try self.opFalse(),
-            0x01...0x4b => try self.pushData(opcode),
-            0x4c => try self.opPushData1(),
-            0x4d => try self.opPushData2(),
-            0x4e => try self.opPushData4(),
-            0x4f => try self.op1Negate(),
-            0x50 => try self.opReserved(opcode),
-            0x51...0x60 => try self.opN(opcode),
-            0x61 => try self.opNop(),
-            0x62 => try self.opVer(),
-            0x63 => try flow.opIf(self),
-            0x64 => try flow.opNotIf(self),
-            0x67 => try flow.opElse(self),
-            0x68 => try flow.opEndIf(self),
-            0x69 => try self.opVerify(),
-            0x6a => try self.opReturn(),
-            0x6d => try self.op2Drop(),
-            0x6e => try self.op2Dup(),
-            0x6f => try self.op3Dup(),
-            0x73 => self.opIfDup(),
-            0x74 => self.opDepth(),
-            0x75 => try self.opDrop(),
-            0x76 => try self.opDup(),
-            0x7e...0x81 => try self.opDisabled(),
-            0x83...0x86 => try self.opDisabled(),
-            0x8d...0x8e => try self.opDisabled(),
-            0x87 => try self.opEqual(),
-            0x88 => try self.opEqualVerify(),
-            0x8b => try arithmetic.op1Add(self),
-            0x8c => try arithmetic.op1Sub(self),
-            0x8f => try arithmetic.opNegate(self),
-            0x90 => try arithmetic.opAbs(self),
-            0x91 => try arithmetic.opNot(self),
-            0x92 => try arithmetic.op0NotEqual(self),
-            0x93 => try arithmetic.opAdd(self),
-            0x94 => try arithmetic.opSub(self),
-            0x95...0x99 => try self.opDisabled(),
-            0x9a => try arithmetic.opBoolAnd(self),
-            0x9b => try arithmetic.opBoolOr(self),
-            0x9c => try arithmetic.opNumEqual(self),
-            0x9d => try arithmetic.opNumEqualVerify(self),
-            0x9e => try arithmetic.opNumNotEqual(self),
-            0x9f => try arithmetic.opLessThan(self),
-            0xa0 => try arithmetic.opGreaterThan(self),
-            0xa1 => try arithmetic.opLessThanOrEqual(self),
-            0xa2 => try arithmetic.opGreaterThanOrEqual(self),
-            0xa3 => try arithmetic.opMin(self),
-            0xa4 => try arithmetic.opMax(self),
-            0xa5 => try arithmetic.opWithin(self),
-            0xa9 => try self.opHash160(),
-            0xac => try self.opCheckSig(),
-            else => return error.UnknownOpcode,
+            Opcode.OP_0 => try self.pushData(0),
+            Opcode.OP_PUSHDATA1 => try self.opPushData1(),
+            Opcode.OP_PUSHDATA2 => try self.opPushData2(),
+            Opcode.OP_PUSHDATA4 => try self.opPushData4(),
+            Opcode.OP_1NEGATE => try self.op1Negate(),
+            .OP_1, .OP_2, .OP_3, .OP_4, .OP_5, .OP_6, .OP_7, .OP_8, .OP_9, .OP_10, .OP_11, .OP_12, .OP_13, .OP_14, .OP_15, .OP_16 => try self.opN(opcode),
+            Opcode.OP_NOP => try self.opNop(),
+            Opcode.OP_VERIFY => try self.opVerify(),
+            Opcode.OP_RETURN => try self.opReturn(),
+            Opcode.OP_2DROP => try self.op2Drop(),
+            Opcode.OP_2DUP => try self.op2Dup(),
+            Opcode.OP_3DUP => try self.op3Dup(),
+            Opcode.OP_IFDUP => self.opIfDup(),
+            Opcode.OP_DEPTH => self.opDepth(),
+            Opcode.OP_DROP => try self.opDrop(),
+            Opcode.OP_DUP => try self.opDup(),
+            Opcode.OP_EQUAL => try self.opEqual(),
+            Opcode.OP_EQUALVERIFY => try self.opEqualVerify(),
+            Opcode.OP_1ADD => try arithmetic.op1Add(self),
+            Opcode.OP_1SUB => try arithmetic.op1Sub(self),
+            Opcode.OP_NEGATE => try arithmetic.opNegate(self),
+            Opcode.OP_ABS => try arithmetic.opAbs(self),
+            Opcode.OP_NOT => try arithmetic.opNot(self),
+            Opcode.OP_0NOTEQUAL => try arithmetic.op0NotEqual(self),
+            Opcode.OP_ADD => try arithmetic.opAdd(self),
+            Opcode.OP_SUB => try arithmetic.opSub(self),
+            Opcode.OP_BOOLAND => try arithmetic.opBoolAnd(self),
+            Opcode.OP_BOOLOR => try arithmetic.opBoolOr(self),
+            Opcode.OP_NUMEQUAL => try arithmetic.opNumEqual(self),
+            Opcode.OP_NUMEQUALVERIFY => try arithmetic.opNumEqualVerify(self),
+            Opcode.OP_NUMNOTEQUAL => try arithmetic.opNumNotEqual(self),
+            Opcode.OP_LESSTHAN => try arithmetic.opLessThan(self),
+            Opcode.OP_GREATERTHAN => try arithmetic.opGreaterThan(self),
+            Opcode.OP_LESSTHANOREQUAL => try arithmetic.opLessThanOrEqual(self),
+            Opcode.OP_GREATERTHANOREQUAL => try arithmetic.opGreaterThanOrEqual(self),
+            Opcode.OP_MIN => try arithmetic.opMin(self),
+            Opcode.OP_MAX => try arithmetic.opMax(self),
+            Opcode.OP_WITHIN => try arithmetic.opWithin(self),
+            Opcode.OP_HASH160 => try self.opHash160(),
+            Opcode.OP_CHECKSIG => try self.opCheckSig(),
+            Opcode.OP_NIP => try self.opNip(),
+            Opcode.OP_OVER => try self.opOver(),
+            Opcode.OP_SWAP => try self.opSwap(),
+            Opcode.OP_TUCK => try self.opTuck(),
+            Opcode.OP_SIZE => try self.opSize(),
+            else => try self.opInvalid(),
         };
     }
 
@@ -262,8 +249,8 @@ pub const Engine = struct {
     ///
     /// # Returns
     /// - `EngineError`: If an error occurs during execution
-    fn opN(self: *Engine, opcode: u8) !void {
-        const n = opcode - 0x50;
+    fn opN(self: *Engine, opcode: Opcode) !void {
+        const n = opcode.toBytes() - 0x50;
         try self.stack.pushByteArray(&[_]u8{n});
     }
 
@@ -391,6 +378,64 @@ pub const Engine = struct {
         try self.stack.pushByteArray(value);
     }
 
+    /// OP_NIP: Removes the second-to-top stack item
+    ///
+    /// - will return an error if initial stack length < 2
+    fn opNip(self: *Engine) !void {
+        const top_value = try self.stack.pop();
+        const second_to_top_value = try self.stack.pop();
+        try self.stack.pushElement(top_value);
+        // defer self.allocator.free(top_value);
+        defer self.allocator.free(second_to_top_value);
+    }
+
+    /// OP_OVER: Copies the second-to-top stack item to the top
+    ///
+    /// /// # Returns
+    /// - "EngineError.StackUnderflow": if initial stack length < 2
+    fn opOver(self: *Engine) !void {
+        const value = try self.stack.peek(1);
+        try self.stack.pushByteArray(value);
+    }
+
+    /// OP_SWAP: The top two items on the stack are swapped.
+    ///
+    /// /// # Returns
+    /// - "EngineError.StackUnderflow": if initial stack length < 2
+    fn opSwap(self: *Engine) !void {
+        const top_value = try self.stack.pop();
+        const second_to_top_value = try self.stack.pop();
+
+        try self.stack.pushElement(top_value);
+        try self.stack.pushElement(second_to_top_value);
+    }
+
+    /// OP_TUCK: The item at the top of the stack is copied and inserted before the second-to-top item.
+    ///
+    /// /// # Returns
+    /// - "EngineError.StackUnderflow": if initial stack length < 2
+    fn opTuck(self: *Engine) !void {
+        const top_value = try self.stack.pop();
+        const second_to_top_value = try self.stack.pop();
+
+        try self.stack.pushByteArray(second_to_top_value); //this must be pushBytesArray because we need the variable again
+        try self.stack.pushElement(top_value);
+        try self.stack.pushElement(second_to_top_value);
+    }
+
+    /// OP_SIZE:Pushes the string length of the top element of the stack
+    ///
+    /// /// # Returns
+    /// - "EngineError.StackUnderflow": if initial stack length < 2
+    fn opSize(self: *Engine) !void {
+        const top_value = try self.stack.pop();
+        const len = top_value.len;
+        const result: ScriptNum = @intCast(len);
+
+        try self.stack.pushElement(top_value);
+        try self.stack.pushInt(result);
+    }
+
     /// OP_EQUAL: Push 1 if the top two items are equal, 0 otherwise
     ///
     /// # Returns
@@ -445,6 +490,11 @@ pub const Engine = struct {
         std.debug.print("Attempt to execute disabled opcode: 0x{x:0>2}\n", .{self.script.data[self.pc]});
         return error.DisabledOpcode;
     }
+
+    fn opInvalid(self: *Engine) !void {
+        std.debug.print("Attempt to execute invalid opcode: 0x{x:0>2}\n", .{self.script.data[self.pc]});
+        return error.UnknownOpcode;
+    }
 };
 
 test "Script execution - OP_FALSE" {
@@ -490,7 +540,7 @@ test "Script execution - OP_1 OP_1 OP_EQUAL" {
     }
 
     // Ensure the stack is empty after popping the result
-    try std.testing.expectEqual(@as(usize, 0), engine.stack.len());
+    try std.testing.expectEqual(0, engine.stack.len());
 }
 
 test "Script execution - OP_RETURN" {
@@ -506,7 +556,7 @@ test "Script execution - OP_RETURN" {
     try std.testing.expectError(error.EarlyReturn, engine.execute());
 
     // Check if the stack has one item (OP_1 should have been executed)
-    try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
+    try std.testing.expectEqual(1, engine.stack.len());
 
     // Check the item on the stack (should be 1)
     {
@@ -543,7 +593,7 @@ test "Script execution - OP_1 OP_1 OP_1 OP_2Drop" {
     try engine.execute();
 
     // Ensure the stack is empty after popping the result
-    try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
+    try std.testing.expectEqual(1, engine.stack.len());
 }
 
 test "Script execution - OP_1 OP_2 OP_2Dup" {
@@ -557,17 +607,17 @@ test "Script execution - OP_1 OP_2 OP_2Dup" {
     defer engine.deinit();
 
     try engine.execute();
-    const element0 = try engine.stack.peek(0);
-    const element1 = try engine.stack.peek(1);
-    const element2 = try engine.stack.peek(2);
-    const element3 = try engine.stack.peek(3);
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+    const element2 = try engine.stack.peekInt(2);
+    const element3 = try engine.stack.peekInt(3);
 
     // Ensure the stack is empty after popping the result
-    try std.testing.expectEqual(@as(usize, 4), engine.stack.len());
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element1);
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element2);
-    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element3);
+    try std.testing.expectEqual(4, engine.stack.len());
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(1, element1);
+    try std.testing.expectEqual(2, element2);
+    try std.testing.expectEqual(1, element3);
 }
 
 test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_3Dup" {
@@ -581,29 +631,29 @@ test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_3Dup" {
     defer engine.deinit();
 
     try engine.execute();
-    const element0 = try engine.stack.peek(0);
-    const element1 = try engine.stack.peek(1);
-    const element2 = try engine.stack.peek(2);
-    const element3 = try engine.stack.peek(3);
-    const element4 = try engine.stack.peek(4);
-    const element5 = try engine.stack.peek(5);
-    const element6 = try engine.stack.peek(6);
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+    const element2 = try engine.stack.peekInt(2);
+    const element3 = try engine.stack.peekInt(3);
+    const element4 = try engine.stack.peekInt(4);
+    const element5 = try engine.stack.peekInt(5);
+    const element6 = try engine.stack.peekInt(6);
 
     // Ensure the stack is empty after popping the result
-    try std.testing.expectEqual(@as(usize, 7), engine.stack.len());
-    try std.testing.expectEqualSlices(u8, &[_]u8{4}, element0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element1);
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element2);
-    try std.testing.expectEqualSlices(u8, &[_]u8{4}, element3);
-    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element4);
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element5);
-    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element6);
+    try std.testing.expectEqual(7, engine.stack.len());
+    try std.testing.expectEqual(4, element0);
+    try std.testing.expectEqual(3, element1);
+    try std.testing.expectEqual(2, element2);
+    try std.testing.expectEqual(4, element3);
+    try std.testing.expectEqual(3, element4);
+    try std.testing.expectEqual(2, element5);
+    try std.testing.expectEqual(1, element6);
 }
 
 test "Script execution - OP_1 OP_2 OP_IFDUP" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_1 OP_EQUAL
+    // Simple script: OOP_1 OP_2 OP_IFDUP
     const script_bytes = [_]u8{ 0x51, 0x52, 0x73 };
     const script = Script.init(&script_bytes);
 
@@ -611,19 +661,18 @@ test "Script execution - OP_1 OP_2 OP_IFDUP" {
     defer engine.deinit();
 
     try engine.execute();
-    const element0 = try engine.stack.peek(0);
-    const element1 = try engine.stack.peek(1);
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
 
-    // Ensure the stack is empty after popping the result
-    try std.testing.expectEqual(@as(usize, 3), engine.stack.len());
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element1);
+    try std.testing.expectEqual(3, engine.stack.len());
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(2, element1);
 }
 
 test "Script execution - OP_1 OP_2 OP_DEPTH" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_1 OP_EQUAL
+    // Simple script: OP_1 OP_2 OP_DEPTH
     const script_bytes = [_]u8{ 0x51, 0x52, 0x74 };
     const script = Script.init(&script_bytes);
 
@@ -631,19 +680,18 @@ test "Script execution - OP_1 OP_2 OP_DEPTH" {
     defer engine.deinit();
 
     try engine.execute();
-    const element0 = try engine.stack.peek(0);
-    const element1 = try engine.stack.peek(1);
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
 
-    // Ensure the stack is empty after popping the result
-    try std.testing.expectEqual(@as(usize, 3), engine.stack.len());
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element1);
+    try std.testing.expectEqual(3, engine.stack.len());
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(2, element1);
 }
 
 test "Script execution - OP_1 OP_2 OP_DROP" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_1 OP_EQUAL
+    // Simple script: OP_1 OP_2 OP_DROP
     const script_bytes = [_]u8{ 0x51, 0x52, 0x75 };
     const script = Script.init(&script_bytes);
 
@@ -651,12 +699,11 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
     defer engine.deinit();
 
     try engine.execute();
-    try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
+    try std.testing.expectEqual(1, engine.stack.len());
 
-    const element0 = try engine.stack.peek(0);
+    const element0 = try engine.stack.peekInt(0);
 
-    // Ensure the stack is empty after popping the result
-    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element0);
+    try std.testing.expectEqual(1, element0);
 }
 
 test "Script execution - OP_DISABLED" {
@@ -671,4 +718,121 @@ test "Script execution - OP_DISABLED" {
 
     // Expect an error when running a disabled opcode
     try std.testing.expectError(error.DisabledOpcode, engine.opDisabled());
+}
+
+test "Script execution - OP_INVALID" {
+    const allocator = std.testing.allocator;
+
+    // Simple script to run an invalid opcode
+    const script_bytes = [_]u8{0xff};
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    // Expect an error when running an invalid opcode
+    try std.testing.expectError(error.UnknownOpcode, engine.opInvalid());
+}
+
+test "Script execution OP_1 OP_2 OP_3 OP_NIP" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_2 OP_3 OP_NIP
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x77 };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    try std.testing.expectEqual(2, engine.stack.len());
+
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+
+    // Ensure the stack is empty after popping the result
+    try std.testing.expectEqual(3, element0);
+    try std.testing.expectEqual(1, element1);
+}
+
+test "Script execution OP_1 OP_2 OP_3 OP_OVER" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_2 OP_3 OP_OVER
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x78 };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    try std.testing.expectEqual(4, engine.stack.len());
+
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(3, element1);
+}
+
+test "Script execution OP_1 OP_2 OP_3 OP_SWAP" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_2 OP_3 OP_SWAP
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x7c };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    try std.testing.expectEqual(3, engine.stack.len());
+
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(3, element1);
+}
+
+test "Script execution OP_1 OP_2 OP_3 OP_TUCK" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_2 OP_3 OP_TUCK
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x7d };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    try std.testing.expectEqual(4, engine.stack.len());
+
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+    const element2 = try engine.stack.peekInt(2);
+
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(3, element1);
+    try std.testing.expectEqual(2, element2);
+}
+
+test "Script execution OP_1 OP_2 OP_3 OP_SIZE" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_1 OP_EQUAL
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x82 };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    try std.testing.expectEqual(4, engine.stack.len());
+
+    const element0 = try engine.stack.popInt();
+    const element1 = try engine.stack.peekInt(0);
+
+    try std.testing.expectEqual(1, element0);
+    try std.testing.expectEqual(3, element1);
 }
