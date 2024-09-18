@@ -13,7 +13,7 @@ const ConditionalStackError = @import("../cond_stack.zig").ConditionalStackError
 /// Pushes the resulting condition (0: false, 1: true, 2: skip) onto the conditional stack
 pub fn opIf(engine: *Engine) !void {
     var cond_val: u8 = 0; // Initialize as false
-    if (engine.cond_stack.branchExecuting()) {
+    if (engine.cond_stack.isBranchExecuting()) {
         if (engine.stack.len() == 0) {
             cond_val = 0; // Treat empty stack as false
         } else {
@@ -37,7 +37,7 @@ pub fn opIf(engine: *Engine) !void {
 /// Pushes the resulting condition (0: false, 1: true, 2: skip) onto the conditional stack
 pub fn opNotIf(engine: *Engine) !void {
     var cond_val: u8 = 1; // true (inverted)
-    if (engine.cond_stack.branchExecuting()) {
+    if (engine.cond_stack.isBranchExecuting()) {
         const is_truthy = try engine.stack.popBool();
         if (is_truthy) {
             cond_val = 0; // false (inverted)
@@ -90,7 +90,7 @@ test "OP_IF - true condition" {
     try engine.execute();
 
     try std.testing.expectEqual(@as(usize, 1), engine.cond_stack.len());
-    try std.testing.expect(engine.cond_stack.branchExecuting());
+    try std.testing.expect(engine.cond_stack.isBranchExecuting());
 }
 
 // Test OP_IF with a false condition (OP_0)
@@ -107,7 +107,7 @@ test "OP_IF - false condition" {
     try engine.execute();
 
     try testing.expectEqual(@as(usize, 1), engine.cond_stack.len());
-    try testing.expect(!engine.cond_stack.branchExecuting());
+    try testing.expect(!engine.cond_stack.isBranchExecuting());
 }
 
 // Test OP_NOTIF with a true condition (OP_1)
@@ -124,7 +124,7 @@ test "OP_NOTIF - true condition" {
     try engine.execute();
 
     try std.testing.expectEqual(@as(usize, 1), engine.cond_stack.len());
-    try std.testing.expect(!engine.cond_stack.branchExecuting());
+    try std.testing.expect(!engine.cond_stack.isBranchExecuting());
 }
 
 // Test OP_NOTIF with a false condition (OP_0)
@@ -141,7 +141,7 @@ test "OP_NOTIF - false condition" {
     try engine.execute();
 
     try std.testing.expectEqual(@as(usize, 1), engine.cond_stack.len());
-    try std.testing.expect(engine.cond_stack.branchExecuting());
+    try std.testing.expect(engine.cond_stack.isBranchExecuting());
 }
 
 test "OP_ELSE" {

@@ -157,8 +157,7 @@ pub const Engine = struct {
 
     /// OP_FALSE: Pushes an empty array to the data stack to represent false.
     fn opFalse(self: *Engine) !void {
-        const empty_array: []const u8 = &.{};
-        try self.stack.pushByteArray(empty_array);
+        try self.stack.pushByteArray(&.{});
     }
 
     /// Push data onto the stack
@@ -233,7 +232,7 @@ pub const Engine = struct {
 
     /// OP_RESERVED: Reserved opcode
     fn opReserved(self: *Engine, opcode: u8) !void {
-        const msg = try std.fmt.allocPrint(self.allocator, "attempt to execute reserved opcode {}", .{opcode});
+        const msg = try std.fmt.allocPrint(self.allocator, "attempt to execute reserved opcode {}\n", .{opcode});
         defer self.allocator.free(msg);
         return error.ReservedOpcode;
     }

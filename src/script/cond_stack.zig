@@ -67,7 +67,7 @@ pub const ConditionalStack = struct {
     ///
     /// Returns:
     ///     true if the stack is empty or the top value is 1, false otherwise
-    pub fn branchExecuting(self: *Self) bool {
+    pub fn isBranchExecuting(self: *Self) bool {
         if (self.stack.items.len == 0) {
             return true;
         } else {
@@ -114,21 +114,21 @@ test "ConditionalStack - push and pop" {
     try testing.expectError(ConditionalStackError.EmptyConditionalStack, cond_stack.pop());
 }
 
-test "ConditionalStack - branchExecuting" {
+test "ConditionalStack - isBranchExecuting" {
     const allocator = testing.allocator;
     var cond_stack = ConditionalStack.init(allocator);
     defer cond_stack.deinit();
 
-    try testing.expect(cond_stack.branchExecuting());
+    try testing.expect(cond_stack.isBranchExecuting());
 
     try cond_stack.push(1);
-    try testing.expect(cond_stack.branchExecuting());
+    try testing.expect(cond_stack.isBranchExecuting());
 
     try cond_stack.push(0);
-    try testing.expect(!cond_stack.branchExecuting());
+    try testing.expect(!cond_stack.isBranchExecuting());
 
     try cond_stack.push(2);
-    try testing.expect(!cond_stack.branchExecuting());
+    try testing.expect(!cond_stack.isBranchExecuting());
 }
 
 test "ConditionalStack - multiple operations" {
@@ -141,13 +141,13 @@ test "ConditionalStack - multiple operations" {
     try cond_stack.push(2);
 
     try testing.expectEqual(@as(usize, 3), cond_stack.len());
-    try testing.expect(!cond_stack.branchExecuting());
+    try testing.expect(!cond_stack.isBranchExecuting());
 
     _ = try cond_stack.pop();  // Use _ to explicitly discard the return value
     try testing.expectEqual(@as(usize, 2), cond_stack.len());
-    try testing.expect(!cond_stack.branchExecuting());
+    try testing.expect(!cond_stack.isBranchExecuting());
 
     _ = try cond_stack.pop();  // Use _ to explicitly discard the return value
     try testing.expectEqual(@as(usize, 1), cond_stack.len());
-    try testing.expect(cond_stack.branchExecuting());
+    try testing.expect(cond_stack.isBranchExecuting());
 }
