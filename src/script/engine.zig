@@ -487,6 +487,7 @@ pub const Engine = struct {
     }
 };
 
+// Testing SHA1 against known vectors
 test "sha1 vectors" {
     const test_cases = [_]struct {
         input: []const u8,
