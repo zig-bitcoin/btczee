@@ -7,172 +7,167 @@ const ScriptFlags = @import("../lib.zig").ScriptFlags;
 const StackError = @import("../stack.zig").StackError;
 
 /// OP_1ADD: Add 1 to the top stack item
-pub fn op1Add(self: *Engine) !void {
-    const value = try self.stack.popInt();
-    const result = @addWithOverflow(value, 1);
-    try self.stack.pushInt(result[0]);
+pub fn op1Add(engine: *Engine) !void {
+    const value = try engine.stack.popScriptNum();
+    const result = value.addOne();
+    try engine.stack.pushScriptNum(result);
 }
 
 /// OP_1SUB: Subtract 1 from the top stack item
-pub fn op1Sub(self: *Engine) !void {
-    const value = try self.stack.popInt();
-    const result = @subWithOverflow(value, 1);
-    try self.stack.pushInt(result[0]);
+pub fn op1Sub(engine: *Engine) !void {
+    const value = try engine.stack.popScriptNum();
+    const result = value.subOne();
+    try engine.stack.pushScriptNum(result);
 }
 
 /// OP_NEGATE: Negate the top stack item
-pub fn opNegate(self: *Engine) !void {
-    const value = try self.stack.popInt();
-    const result = if (value == std.math.minInt(ScriptNum))
-        std.math.minInt(ScriptNum)
-    else
-        -value;
-    try self.stack.pushInt(result);
+pub fn opNegate(engine: *Engine) !void {
+    const value = try engine.stack.popScriptNum();
+    const result = value.negate();
+    try engine.stack.pushScriptNum(result);
 }
 
 /// Computes the absolute value of the top stack item
 pub fn opAbs(engine: *Engine) !void {
+    const value = try engine.stack.popScriptNum();
+    const result = value.abs();
+    try engine.stack.pushScriptNum(result);
+}
+
+/// Pushes 1 if the top stack item is 0, 0 otherwise
+///
+/// The consensus require we treat those as numbers and not boolean,
+/// both while reading and writing.
+pub fn opNot(engine: *Engine) !void {
     const value = try engine.stack.popInt();
-    const result = if (value == std.math.minInt(ScriptNum))
-        std.math.minInt(ScriptNum) // Handle overflow case
-    else if (value < 0)
-        -value
-    else
-        value;
+    const result: u8 = if (value == 0) 1 else 0;
     try engine.stack.pushInt(result);
 }
 
-/// Pushes true if the top stack item is 0, false otherwise
-pub fn opNot(self: *Engine) !void {
-    const value = try self.stack.popInt();
-    const result = if (value == 0) true else false;
-    try self.stack.pushBool(result);
-}
-
 /// Pushes 1 if the top stack item is not 0, 0 otherwise
-pub fn op0NotEqual(self: *Engine) !void {
-    const value = try self.stack.popInt();
-    const result: ScriptNum = if (value != 0) 1 else 0;
-    try self.stack.pushInt(result);
+pub fn op0NotEqual(engine: *Engine) !void {
+    const value = try engine.stack.popInt();
+    const result: u8 = if (value != 0) 1 else 0;
+    try engine.stack.pushInt(result);
 }
 
 /// Adds the top two stack items
-pub fn opAdd(self: *Engine) !void {
-    const b = try self.stack.popInt();
-    const a = try self.stack.popInt();
-    const result = @addWithOverflow(a, b);
-    try self.stack.pushInt(result[0]);
+pub fn opAdd(engine: *Engine) !void {
+    const first = try engine.stack.popScriptNum();
+    const second = try engine.stack.popScriptNum();
+    const result = second.add(first);
+    try engine.stack.pushScriptNum(result);
 }
 
 /// Subtracts the top stack item from the second top stack item
-pub fn opSub(self: *Engine) !void {
-    const b = try self.stack.popInt();
-    const a = try self.stack.popInt();
-    const result = @subWithOverflow(a, b);
-    try self.stack.pushInt(result[0]);
+pub fn opSub(engine: *Engine) !void {
+    const first = try engine.stack.popScriptNum();
+    const second = try engine.stack.popScriptNum();
+    const result = second.sub(first);
+    try engine.stack.pushScriptNum(result);
 }
 
-/// Pushes true if both top two stack items are non-zero, false otherwise
-pub fn opBoolAnd(self: *Engine) !void {
-    const b = try self.stack.popInt();
-    const a = try self.stack.popInt();
-    const result = if ((a != 0) and (b != 0)) true else false;
-    try self.stack.pushBool(result);
+/// Pushes 1 if both top two stack items are non-zero, 0 otherwise
+pub fn opBoolAnd(engine: *Engine) !void {
+    const first = try engine.stack.popInt();
+    const second = try engine.stack.popInt();
+    const result: u8 = @intFromBool(first != 0 and second != 0);
+    try engine.stack.pushInt(result);
 }
 
-/// Pushes true if either of the top two stack items is non-zero, false otherwise
-pub fn opBoolOr(self: *Engine) !void {
-    const b = try self.stack.popInt();
-    const a = try self.stack.popInt();
-    const result = if ((a != 0) or (b != 0)) true else false;
-    try self.stack.pushBool(result);
+/// Pushes 1 if either of the top two stack items is non-zero, 0 otherwise
+pub fn opBoolOr(engine: *Engine) !void {
+    const first = try engine.stack.popInt();
+    const second = try engine.stack.popInt();
+    const result: u8 = @intFromBool(first != 0 or second != 0);
+    try engine.stack.pushInt(result);
 }
 
-/// Pushes true if the top two stack items are equal, false otherwise
-pub fn opNumEqual(self: *Engine) !void {
-    const b = try self.stack.popInt();
-    const a = try self.stack.popInt();
-    const result = if (a == b) true else false;
-    try self.stack.pushBool(result);
+/// Pushes 1 if the top two stack items are equal, 0 otherwise
+pub fn opNumEqual(engine: *Engine) !void {
+    const b = try engine.stack.popInt();
+    const a = try engine.stack.popInt();
+    const result: u8 = @intFromBool(a == b);
+    try engine.stack.pushInt(result);
 }
 
 /// Helper function to verify the top stack item is true
-pub fn abstractVerify(self: *Engine) !void {
-    const verified = try self.stack.popBool();
+pub fn abstractVerify(engine: *Engine) !void {
+    const verified = try engine.stack.popBool();
     if (!verified) {
         return StackError.VerifyFailed;
     }
 }
 
 /// Combines opNumEqual and abstractVerify operations
-pub fn opNumEqualVerify(self: *Engine) !void {
-    try opNumEqual(self);
-    try abstractVerify(self);
+pub fn opNumEqualVerify(engine: *Engine) !void {
+    try opNumEqual(engine);
+    try abstractVerify(engine);
 }
 
-/// Pushes true if the top two stack items are not equal, false otherwise
-pub fn opNumNotEqual(self: *Engine) !void {
-    const b = try self.stack.popInt();
-    const a = try self.stack.popInt();
-    const result = if (a != b) true else false;
-    try self.stack.pushBool(result);
+/// Pushes 1 if the top two stack items are not equal, 0 otherwise
+pub fn opNumNotEqual(engine: *Engine) !void {
+    const b = try engine.stack.popInt();
+    const a = try engine.stack.popInt();
+    const result: u8 = @intFromBool(a != b);
+    try engine.stack.pushInt(result);
 }
 
-/// Pushes true if the second top stack item is less than the top stack item, false otherwise
-pub fn opLessThan(self: *Engine) !void {
-    const b = try self.stack.popInt();
-    const a = try self.stack.popInt();
-    const result = if (a < b) true else false;
-    try self.stack.pushBool(result);
+/// Pushes 1 if the second top stack item is less than the top stack item, 0 otherwise
+pub fn opLessThan(engine: *Engine) !void {
+    const b = try engine.stack.popInt();
+    const a = try engine.stack.popInt();
+    const result: u8 = @intFromBool(a < b);
+    try engine.stack.pushInt(result);
 }
 
-/// Pushes true if the second top stack item is greater than the top stack item, false otherwise
-pub fn opGreaterThan(self: *Engine) !void {
-    const b = try self.stack.popInt();
-    const a = try self.stack.popInt();
-    const result = if (a > b) true else false;
-    try self.stack.pushBool(result);
+/// Pushes 1 if the second top stack item is greater than the top stack item, 0 otherwise
+pub fn opGreaterThan(engine: *Engine) !void {
+    const b = try engine.stack.popInt();
+    const a = try engine.stack.popInt();
+    const result = @intFromBool(a > b);
+    try engine.stack.pushInt(result);
 }
 
-/// Pushes true if the second top stack item is less than or equal to the top stack item, false otherwise
-pub fn opLessThanOrEqual(self: *Engine) !void {
-    const b = try self.stack.popInt();
-    const a = try self.stack.popInt();
-    const result = if (a <= b) true else false;
-    try self.stack.pushBool(result);
+/// Pushes 1 if the second top stack item is less than or equal to the top stack item, 0 otherwise
+pub fn opLessThanOrEqual(engine: *Engine) !void {
+    const b = try engine.stack.popInt();
+    const a = try engine.stack.popInt();
+    const result = @intFromBool(a <= b);
+    try engine.stack.pushInt(result);
 }
 
-/// Pushes true if the second top stack item is greater than or equal to the top stack item, false otherwise
-pub fn opGreaterThanOrEqual(self: *Engine) !void {
-    const b = try self.stack.popInt();
-    const a = try self.stack.popInt();
-    const result = if (a >= b) true else false;
-    try self.stack.pushBool(result);
+/// Pushes 1 if the second top stack item is greater than or equal to the top stack item, 0 otherwise
+pub fn opGreaterThanOrEqual(engine: *Engine) !void {
+    const b = try engine.stack.popInt();
+    const a = try engine.stack.popInt();
+    const result = @intFromBool(a >= b);
+    try engine.stack.pushInt(result);
 }
 
 /// Pushes the minimum of the top two stack items
-pub fn opMin(self: *Engine) !void {
-    const b = try self.stack.popInt();
-    const a = try self.stack.popInt();
+pub fn opMin(engine: *Engine) !void {
+    const b = try engine.stack.popInt();
+    const a = try engine.stack.popInt();
     const result = if (a < b) a else b;
-    try self.stack.pushInt(result);
+    try engine.stack.pushInt(result);
 }
 
 /// Pushes the maximum of the top two stack items
-pub fn opMax(self: *Engine) !void {
-    const b = try self.stack.popInt();
-    const a = try self.stack.popInt();
+pub fn opMax(engine: *Engine) !void {
+    const b = try engine.stack.popInt();
+    const a = try engine.stack.popInt();
     const result = if (a > b) a else b;
-    try self.stack.pushInt(result);
+    try engine.stack.pushInt(result);
 }
 
 /// Pushes true if x is within the range [min, max], false otherwise
-pub fn opWithin(self: *Engine) !void {
-    const max = try self.stack.popInt();
-    const min = try self.stack.popInt();
-    const x = try self.stack.popInt();
-    const result = if ((min <= x) and (x < max)) true else false;
-    try self.stack.pushBool(result);
+pub fn opWithin(engine: *Engine) !void {
+    const max = try engine.stack.popInt();
+    const min = try engine.stack.popInt();
+    const x = try engine.stack.popInt();
+    const result = @intFromBool(min <= x and x < max);
+    try engine.stack.pushInt(result);
 }
 
 test "OP_1ADD operation" {
@@ -180,15 +175,15 @@ test "OP_1ADD operation" {
 
     // Test cases
     const testCases = [_]struct {
-        input: ScriptNum,
-        expected: ScriptNum,
+        input: i32,
+        expected: i32,
     }{
         .{ .input = 0, .expected = 1 },
         .{ .input = -1, .expected = 0 },
         .{ .input = 42, .expected = 43 },
         .{ .input = -100, .expected = -99 },
-        .{ .input = std.math.maxInt(ScriptNum), .expected = std.math.minInt(ScriptNum) }, // Overflow case
-        .{ .input = std.math.minInt(ScriptNum), .expected = std.math.minInt(ScriptNum) + 1 },
+        .{ .input = std.math.maxInt(i32), .expected = std.math.minInt(i32) }, // Overflow case
+        .{ .input = std.math.minInt(i32), .expected = std.math.minInt(i32) + 1 },
     };
 
     for (testCases) |tc| {
@@ -219,16 +214,16 @@ test "OP_1SUB operation" {
 
     // Test cases
     const testCases = [_]struct {
-        input: ScriptNum,
-        expected: ScriptNum,
+        input: i32,
+        expected: i32,
     }{
         .{ .input = 0, .expected = -1 },
         .{ .input = 1, .expected = 0 },
         .{ .input = -1, .expected = -2 },
         .{ .input = 42, .expected = 41 },
         .{ .input = -100, .expected = -101 },
-        .{ .input = std.math.maxInt(ScriptNum), .expected = std.math.maxInt(ScriptNum) - 1 },
-        .{ .input = std.math.minInt(ScriptNum), .expected = std.math.maxInt(ScriptNum) }, // Underflow case
+        .{ .input = std.math.maxInt(i32), .expected = std.math.maxInt(i32) - 1 },
+        .{ .input = std.math.minInt(i32), .expected = std.math.maxInt(i32) }, // Underflow case
     };
 
     for (testCases) |tc| {
@@ -259,16 +254,16 @@ test "OP_NEGATE operation" {
 
     // Test cases
     const testCases = [_]struct {
-        input: ScriptNum,
-        expected: ScriptNum,
+        input: i32,
+        expected: i32,
     }{
         .{ .input = 0, .expected = 0 },
         .{ .input = 1, .expected = -1 },
         .{ .input = -1, .expected = 1 },
         .{ .input = 42, .expected = -42 },
         .{ .input = -42, .expected = 42 },
-        .{ .input = std.math.maxInt(ScriptNum), .expected = -std.math.maxInt(ScriptNum) },
-        .{ .input = std.math.minInt(ScriptNum), .expected = std.math.minInt(ScriptNum) }, // Special case
+        .{ .input = std.math.maxInt(i32), .expected = -std.math.maxInt(i32) },
+        .{ .input = std.math.minInt(i32), .expected = std.math.minInt(i32) }, // Special case
     };
 
     for (testCases) |tc| {
@@ -299,16 +294,16 @@ test "OP_ABS operation" {
 
     // Test cases
     const testCases = [_]struct {
-        input: ScriptNum,
-        expected: ScriptNum,
+        input: i32,
+        expected: i32,
     }{
         .{ .input = 0, .expected = 0 },
         .{ .input = 1, .expected = 1 },
         .{ .input = -1, .expected = 1 },
         .{ .input = 42, .expected = 42 },
         .{ .input = -42, .expected = 42 },
-        .{ .input = std.math.maxInt(ScriptNum), .expected = std.math.maxInt(ScriptNum) },
-        .{ .input = std.math.minInt(ScriptNum), .expected = std.math.minInt(ScriptNum) }, // Special case
+        .{ .input = std.math.maxInt(i32), .expected = std.math.maxInt(i32) },
+        .{ .input = std.math.minInt(i32), .expected = std.math.minInt(i32) }, // Special case
     };
 
     for (testCases) |tc| {
@@ -339,7 +334,7 @@ test "OP_NOT operation" {
 
     // Test cases
     const testCases = [_]struct {
-        input: ScriptNum,
+        input: i32,
         expected: bool,
     }{
         .{ .input = 0, .expected = true },
@@ -347,8 +342,8 @@ test "OP_NOT operation" {
         .{ .input = -1, .expected = false },
         .{ .input = 42, .expected = false },
         .{ .input = -42, .expected = false },
-        .{ .input = std.math.maxInt(ScriptNum), .expected = false },
-        .{ .input = std.math.minInt(ScriptNum), .expected = false }, // Special case
+        .{ .input = std.math.maxInt(i32), .expected = false },
+        .{ .input = std.math.minInt(i32), .expected = false }, // Special case
     };
 
     for (testCases) |tc| {
@@ -379,16 +374,16 @@ test "OP_0NOTEQUAL operation" {
 
     // Test cases
     const testCases = [_]struct {
-        input: ScriptNum,
-        expected: ScriptNum,
+        input: i32,
+        expected: i32,
     }{
         .{ .input = 0, .expected = 0 },
         .{ .input = 1, .expected = 1 },
         .{ .input = -1, .expected = 1 },
         .{ .input = 42, .expected = 1 },
         .{ .input = -42, .expected = 1 },
-        .{ .input = std.math.maxInt(ScriptNum), .expected = 1 },
-        .{ .input = std.math.minInt(ScriptNum), .expected = 1 }, // Special case
+        .{ .input = std.math.maxInt(i32), .expected = 1 },
+        .{ .input = std.math.minInt(i32), .expected = 1 }, // Special case
     };
 
     for (testCases) |tc| {
@@ -419,9 +414,9 @@ test "OP_ADD operation" {
 
     // Test cases
     const testCases = [_]struct {
-        a: ScriptNum,
-        b: ScriptNum,
-        expected: ScriptNum,
+        a: i32,
+        b: i32,
+        expected: i32,
     }{
         .{ .a = 0, .b = 0, .expected = 0 },
         .{ .a = 0, .b = 1, .expected = 1 },
@@ -430,8 +425,8 @@ test "OP_ADD operation" {
         .{ .a = -1, .b = 1, .expected = 0 },
         .{ .a = 42, .b = 42, .expected = 84 },
         .{ .a = -42, .b = 42, .expected = 0 },
-        .{ .a = std.math.maxInt(ScriptNum), .b = 1, .expected = std.math.minInt(ScriptNum) }, // Overflow case
-        .{ .a = std.math.minInt(ScriptNum), .b = -1, .expected = std.math.maxInt(ScriptNum) }, // Underflow case
+        .{ .a = std.math.maxInt(i32), .b = 1, .expected = std.math.minInt(i32) }, // Overflow case
+        .{ .a = std.math.minInt(i32), .b = -1, .expected = std.math.maxInt(i32) }, // Underflow case
     };
 
     for (testCases) |tc| {
@@ -463,9 +458,9 @@ test "OP_SUB operation" {
 
     // Test cases
     const testCases = [_]struct {
-        a: ScriptNum,
-        b: ScriptNum,
-        expected: ScriptNum,
+        a: i32,
+        b: i32,
+        expected: i32,
     }{
         .{ .a = 0, .b = 0, .expected = 0 },
         .{ .a = 0, .b = 1, .expected = -1 },
@@ -474,8 +469,8 @@ test "OP_SUB operation" {
         .{ .a = -1, .b = 1, .expected = -2 },
         .{ .a = 42, .b = 42, .expected = 0 },
         .{ .a = -42, .b = 42, .expected = -84 },
-        .{ .a = std.math.maxInt(ScriptNum), .b = -1, .expected = std.math.minInt(ScriptNum) }, // Overflow case
-        .{ .a = std.math.minInt(ScriptNum), .b = 1, .expected = std.math.maxInt(ScriptNum) }, // Underflow case
+        .{ .a = std.math.maxInt(i32), .b = -1, .expected = std.math.minInt(i32) }, // Overflow case
+        .{ .a = std.math.minInt(i32), .b = 1, .expected = std.math.maxInt(i32) }, // Underflow case
     };
 
     for (testCases) |tc| {
@@ -507,8 +502,8 @@ test "OP_BOOLOR operation" {
 
     // Test cases
     const testCases = [_]struct {
-        a: ScriptNum,
-        b: ScriptNum,
+        a: i32,
+        b: i32,
         expected: bool,
     }{
         .{ .a = 0, .b = 0, .expected = false },
@@ -518,8 +513,8 @@ test "OP_BOOLOR operation" {
         .{ .a = -1, .b = 1, .expected = true },
         .{ .a = 42, .b = 42, .expected = true },
         .{ .a = -42, .b = 42, .expected = true },
-        .{ .a = std.math.maxInt(ScriptNum), .b = 1, .expected = true },
-        .{ .a = std.math.minInt(ScriptNum), .b = -1, .expected = true },
+        .{ .a = std.math.maxInt(i32), .b = 1, .expected = true },
+        .{ .a = std.math.minInt(i32), .b = -1, .expected = true },
     };
 
     for (testCases) |tc| {
@@ -551,8 +546,8 @@ test "OP_NUMEQUAL operation" {
 
     // Test cases
     const testCases = [_]struct {
-        a: ScriptNum,
-        b: ScriptNum,
+        a: i32,
+        b: i32,
         expected: bool,
     }{
         .{ .a = 0, .b = 0, .expected = true },
@@ -562,8 +557,8 @@ test "OP_NUMEQUAL operation" {
         .{ .a = -1, .b = 1, .expected = false },
         .{ .a = 42, .b = 42, .expected = true },
         .{ .a = -42, .b = 42, .expected = false },
-        .{ .a = std.math.maxInt(ScriptNum), .b = 1, .expected = false },
-        .{ .a = std.math.minInt(ScriptNum), .b = -1, .expected = false },
+        .{ .a = std.math.maxInt(i32), .b = 1, .expected = false },
+        .{ .a = std.math.minInt(i32), .b = -1, .expected = false },
     };
 
     for (testCases) |tc| {
@@ -595,8 +590,8 @@ test "OP_NUMNOTEQUAL operation" {
 
     // Test cases
     const testCases = [_]struct {
-        a: ScriptNum,
-        b: ScriptNum,
+        a: i32,
+        b: i32,
         expected: bool,
     }{
         .{ .a = 0, .b = 0, .expected = false },
@@ -606,8 +601,8 @@ test "OP_NUMNOTEQUAL operation" {
         .{ .a = -1, .b = 1, .expected = true },
         .{ .a = 42, .b = 42, .expected = false },
         .{ .a = -42, .b = 42, .expected = true },
-        .{ .a = std.math.maxInt(ScriptNum), .b = 1, .expected = true },
-        .{ .a = std.math.minInt(ScriptNum), .b = -1, .expected = true },
+        .{ .a = std.math.maxInt(i32), .b = 1, .expected = true },
+        .{ .a = std.math.minInt(i32), .b = -1, .expected = true },
     };
 
     for (testCases) |tc| {
@@ -639,8 +634,8 @@ test "OP_LESSTHAN operation" {
 
     // Test cases
     const testCases = [_]struct {
-        a: ScriptNum,
-        b: ScriptNum,
+        a: i32,
+        b: i32,
         expected: bool,
     }{
         .{ .a = 0, .b = 0, .expected = false },
@@ -650,8 +645,8 @@ test "OP_LESSTHAN operation" {
         .{ .a = -1, .b = 1, .expected = true },
         .{ .a = 42, .b = 42, .expected = false },
         .{ .a = -42, .b = 42, .expected = true },
-        .{ .a = std.math.maxInt(ScriptNum), .b = 1, .expected = false },
-        .{ .a = std.math.minInt(ScriptNum), .b = -1, .expected = true },
+        .{ .a = std.math.maxInt(i32), .b = 1, .expected = false },
+        .{ .a = std.math.minInt(i32), .b = -1, .expected = true },
     };
 
     for (testCases) |tc| {
@@ -683,8 +678,8 @@ test "OP_GREATERTHAN operation" {
 
     // Test cases
     const testCases = [_]struct {
-        a: ScriptNum,
-        b: ScriptNum,
+        a: i32,
+        b: i32,
         expected: bool,
     }{
         .{ .a = 0, .b = 0, .expected = false },
@@ -694,8 +689,8 @@ test "OP_GREATERTHAN operation" {
         .{ .a = -1, .b = 1, .expected = false },
         .{ .a = 42, .b = 42, .expected = false },
         .{ .a = -42, .b = 42, .expected = false },
-        .{ .a = std.math.maxInt(ScriptNum), .b = 1, .expected = true },
-        .{ .a = std.math.minInt(ScriptNum), .b = -1, .expected = false },
+        .{ .a = std.math.maxInt(i32), .b = 1, .expected = true },
+        .{ .a = std.math.minInt(i32), .b = -1, .expected = false },
     };
 
     for (testCases) |tc| {
@@ -727,8 +722,8 @@ test "OP_LESSTHANOREQUAL operation" {
 
     // Test cases
     const testCases = [_]struct {
-        a: ScriptNum,
-        b: ScriptNum,
+        a: i32,
+        b: i32,
         expected: bool,
     }{
         .{ .a = 0, .b = 0, .expected = true },
@@ -738,8 +733,8 @@ test "OP_LESSTHANOREQUAL operation" {
         .{ .a = -1, .b = 1, .expected = true },
         .{ .a = 42, .b = 42, .expected = true },
         .{ .a = -42, .b = 42, .expected = true },
-        .{ .a = std.math.maxInt(ScriptNum), .b = 1, .expected = false },
-        .{ .a = std.math.minInt(ScriptNum), .b = -1, .expected = true },
+        .{ .a = std.math.maxInt(i32), .b = 1, .expected = false },
+        .{ .a = std.math.minInt(i32), .b = -1, .expected = true },
     };
 
     for (testCases) |tc| {
@@ -771,8 +766,8 @@ test "OP_GREATERTHANOREQUAL operation" {
 
     // Test cases
     const testCases = [_]struct {
-        a: ScriptNum,
-        b: ScriptNum,
+        a: i32,
+        b: i32,
         expected: bool,
     }{
         .{ .a = 0, .b = 0, .expected = true },
@@ -782,8 +777,8 @@ test "OP_GREATERTHANOREQUAL operation" {
         .{ .a = -1, .b = 1, .expected = false },
         .{ .a = 42, .b = 42, .expected = true },
         .{ .a = -42, .b = 42, .expected = false },
-        .{ .a = std.math.maxInt(ScriptNum), .b = 1, .expected = true },
-        .{ .a = std.math.minInt(ScriptNum), .b = -1, .expected = false },
+        .{ .a = std.math.maxInt(i32), .b = 1, .expected = true },
+        .{ .a = std.math.minInt(i32), .b = -1, .expected = false },
     };
 
     for (testCases) |tc| {
@@ -815,9 +810,9 @@ test "OP_MIN operation" {
 
     // Test cases
     const testCases = [_]struct {
-        a: ScriptNum,
-        b: ScriptNum,
-        expected: ScriptNum,
+        a: i32,
+        b: i32,
+        expected: i32,
     }{
         .{ .a = 0, .b = 0, .expected = 0 },
         .{ .a = 0, .b = 1, .expected = 0 },
@@ -826,8 +821,8 @@ test "OP_MIN operation" {
         .{ .a = -1, .b = 1, .expected = -1 },
         .{ .a = 42, .b = 42, .expected = 42 },
         .{ .a = -42, .b = 42, .expected = -42 },
-        .{ .a = std.math.maxInt(ScriptNum), .b = 1, .expected = 1 },
-        .{ .a = std.math.minInt(ScriptNum), .b = -1, .expected = std.math.minInt(ScriptNum) },
+        .{ .a = std.math.maxInt(i32), .b = 1, .expected = 1 },
+        .{ .a = std.math.minInt(i32), .b = -1, .expected = std.math.minInt(i32) },
     };
 
     for (testCases) |tc| {
@@ -859,9 +854,9 @@ test "OP_MAX operation" {
 
     // Test cases
     const testCases = [_]struct {
-        a: ScriptNum,
-        b: ScriptNum,
-        expected: ScriptNum,
+        a: i32,
+        b: i32,
+        expected: i32,
     }{
         .{ .a = 0, .b = 0, .expected = 0 },
         .{ .a = 0, .b = 1, .expected = 1 },
@@ -870,8 +865,8 @@ test "OP_MAX operation" {
         .{ .a = -1, .b = 1, .expected = 1 },
         .{ .a = 42, .b = 42, .expected = 42 },
         .{ .a = -42, .b = 42, .expected = 42 },
-        .{ .a = std.math.maxInt(ScriptNum), .b = 1, .expected = std.math.maxInt(ScriptNum) },
-        .{ .a = std.math.minInt(ScriptNum), .b = -1, .expected = -1 },
+        .{ .a = std.math.maxInt(i32), .b = 1, .expected = std.math.maxInt(i32) },
+        .{ .a = std.math.minInt(i32), .b = -1, .expected = -1 },
     };
 
     for (testCases) |tc| {
@@ -903,9 +898,9 @@ test "OP_WITHIN operation" {
 
     // Test cases
     const testCases = [_]struct {
-        x: ScriptNum,
-        min: ScriptNum,
-        max: ScriptNum,
+        x: i32,
+        min: i32,
+        max: i32,
         expected: bool,
     }{
         .{ .x = 0, .min = -1, .max = 1, .expected = true },
@@ -946,15 +941,15 @@ test "OP_NUMEQUALVERIFY operation" {
 
     // Test cases
     const testCases = [_]struct {
-        a: ScriptNum,
-        b: ScriptNum,
+        a: i32,
+        b: i32,
         shouldVerify: bool,
     }{
         .{ .a = 0, .b = 0, .shouldVerify = true },
         .{ .a = 1, .b = 1, .shouldVerify = true },
         .{ .a = -1, .b = -1, .shouldVerify = true },
-        .{ .a = std.math.maxInt(ScriptNum), .b = std.math.maxInt(ScriptNum), .shouldVerify = true },
-        .{ .a = std.math.minInt(ScriptNum), .b = std.math.minInt(ScriptNum), .shouldVerify = true },
+        .{ .a = std.math.maxInt(i32), .b = std.math.maxInt(i32), .shouldVerify = true },
+        .{ .a = std.math.minInt(i32), .b = std.math.minInt(i32), .shouldVerify = true },
         .{ .a = 0, .b = 1, .shouldVerify = false },
         .{ .a = 1, .b = 0, .shouldVerify = false },
         .{ .a = -1, .b = 1, .shouldVerify = false },

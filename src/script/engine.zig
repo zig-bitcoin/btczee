@@ -84,7 +84,7 @@ pub const Engine = struct {
         }
     }
 
-    fn executeOpcode(self: *Engine, opcode: Opcode) !void {
+    fn executeOpcode(self: *Engine, opcode: Opcode) EngineError!void {
         self.log("Executing opcode: 0x{x:0>2}\n", .{opcode.toBytes()});
 
         // Check if the opcode is a push data opcode
@@ -411,7 +411,8 @@ pub const Engine = struct {
     fn opSize(self: *Engine) !void {
         const top_value = try self.stack.pop();
         const len = top_value.len;
-        const result: ScriptNum = @intCast(len);
+        // Should be ok as the max len of an elem is MAX_SCRIPT_ELEMENT_SIZE (520)
+        const result: i32 = @intCast(len);
 
         try self.stack.pushElement(top_value);
         try self.stack.pushInt(result);

@@ -64,17 +64,6 @@ pub const Stack = struct {
         };
     }
 
-    /// Push an integer onto the stack
-    ///
-    /// # Arguments
-    /// - `value`: The integer value to be pushed onto the stack
-    ///
-    /// # Returns
-    /// - `StackError` if out of memory
-    pub fn pushInt(self: *Stack, value: ScriptNum) StackError!void {
-        try self.pushByteArray(std.mem.asBytes(&value));
-    }
-
     /// Push an item onto the stack(does not create copy of item)
     ///
     /// # Arguments
@@ -89,20 +78,55 @@ pub const Stack = struct {
         };
     }
 
+    pub fn pushInt(self: *Stack, value: i32) StackError!void {
+        if (value == 0) {
+            const elem = try self.allocator.alloc(u8, 0);
+            try self.pushElement(elem);
+            return;
+        }
+
+        const is_negative = value < 0;
+        const bytes: [4]u8 = @bitCast(std.mem.nativeToLittle(u32, @abs(value)));
+
+        var i: usize = 4;
+        while (i > 0) {
+            i -= 1;
+            if (bytes[i] != 0) {
+                i = i;
+                break;
+            }
+        }
+        const additional_byte: usize = @intFromBool(bytes[i] & 0x80 != 0);
+        var elem = try self.allocator.alloc(u8, i + 1 + additional_byte);
+        errdefer self.allocator.free(elem);
+
+        @memcpy(elem[0 .. i + 1], bytes[0 .. i + 1]);
+        if (is_negative) {
+            elem[elem.len - 1] |= 0x80;
+        }
+
+        try self.pushElement(elem);
+    }
+
+    pub fn pushScriptNum(self: *Stack, value: ScriptNum) StackError!void {
+        try self.pushByteArray(try value.toBytes(self.allocator));
+    }
+
     /// Pop an integer from the stack
     ///
     /// # Returns
     /// - `ScriptNum`: The popped integer value
     /// - `StackError` if the stack is empty or the value is invalid
-    pub fn popInt(self: *Stack) StackError!ScriptNum {
+    pub fn popScriptNum(self: *Stack) StackError!ScriptNum {
         const value = try self.pop();
         defer self.allocator.free(value);
 
-        if (value.len > 8) return StackError.InvalidValue;
-
-        return std.mem.readVarInt(ScriptNum, value, native_endian);
+        return ScriptNum.fromBytes(value);
     }
 
+    pub fn popInt(self: *Stack) !i32 {
+        return @intCast((try self.popScriptNum()).value);
+    }
     /// Pop a boolean value from the stack
     ///
     /// # Returns
@@ -302,11 +326,11 @@ test "Stack pushInt and popInt" {
     try testing.expectEqual(0, try stack.popInt());
 
     // Test pushing and popping large integers
-    try stack.pushInt(std.math.maxInt(ScriptNum));
-    try testing.expectEqual(std.math.maxInt(ScriptNum), try stack.popInt());
+    try stack.pushInt(std.math.maxInt(i32));
+    try testing.expectEqual(std.math.maxInt(i32), try stack.popInt());
 
-    try stack.pushInt(std.math.minInt(ScriptNum));
-    try testing.expectEqual(std.math.minInt(ScriptNum), try stack.popInt());
+    try stack.pushInt(std.math.minInt(i32));
+    try testing.expectEqual(std.math.minInt(i32), try stack.popInt());
 
     // Test popping from empty stack
     try testing.expectError(StackError.StackUnderflow, stack.popInt());

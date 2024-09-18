@@ -1,9 +1,8 @@
+const std = @import("std");
 pub const engine = @import("engine.zig");
 pub const stack = @import("stack.zig");
 pub const arithmetic = @import("opcodes/arithmetic.zig");
 const StackError = @import("stack.zig").StackError;
-
-pub const ScriptNum = i64;
 
 /// Maximum number of bytes pushable to the stack
 const MAX_SCRIPT_ELEMENT_SIZE = 520;
@@ -78,3 +77,78 @@ pub const EngineError = error{
     /// Encountered a disabled opcode
     DisabledOpcode,
 } || StackError;
+
+pub const ScriptNum = struct {
+    pub const InnerReprType = i36;
+
+    value: Self.InnerReprType,
+
+    const Self = @This();
+
+    pub fn toBytes(self: Self, allocator: std.mem.Allocator) ![]u8 {
+        if (self.value == 0) {
+            return allocator.alloc(u8, 0);
+        }
+
+        const is_negative = self.value < 0;
+        const bytes: [8]u8 = @bitCast(std.mem.nativeToLittle(u64, @abs(self.value)));
+
+        var i: usize = 8;
+        while (i > 0) {
+            i -= 1;
+            if (bytes[i] != 0) {
+                i = i;
+                break;
+            }
+        }
+        const additional_byte: usize = @intFromBool(bytes[i] & 0x80 != 0);
+        var elem = try allocator.alloc(u8, i + 1 + additional_byte);
+        errdefer allocator.free(elem);
+
+        @memcpy(elem[0 .. i + 1], bytes[0 .. i + 1]);
+        if (is_negative) {
+            elem[elem.len - 1] |= 0x80;
+        }
+
+        return elem;
+    }
+
+    pub fn fromBytes(bytes: []u8) !Self {
+        if (bytes.len > 4) {
+            return StackError.InvalidValue;
+        }
+        if (bytes.len == 0) {
+            return .{ .value = 0 };
+        }
+
+        const is_negative = if (bytes[bytes.len - 1] & 0x80 != 0) true else false;
+        bytes[bytes.len - 1] &= 0x7f;
+
+        const abs_value = std.mem.readVarInt(i32, bytes, .little);
+
+        return .{ .value = if (is_negative) -abs_value else abs_value };
+    }
+
+    pub fn add(self: Self, rhs: Self) Self {
+        const result = std.math.add(Self.InnerReprType, self.value, rhs.value) catch unreachable;
+        return .{ .value = result };
+    }
+    pub fn sub(self: Self, rhs: Self) Self {
+        const result = std.math.sub(Self.InnerReprType, self.value, rhs.value) catch unreachable;
+        return .{ .value = result };
+    }
+    pub fn addOne(self: Self) Self {
+        const result = std.math.add(Self.InnerReprType, self.value, 1) catch unreachable;
+        return .{ .value = result };
+    }
+    pub fn subOne(self: Self) Self {
+        const result = std.math.sub(Self.InnerReprType, self.value, 1) catch unreachable;
+        return .{ .value = result };
+    }
+    pub fn abs(self: Self) Self {
+        return if (self.value < 0) .{ .value = std.math.negate(self.value) catch unreachable } else self;
+    }
+    pub fn negate(self: Self) Self {
+        return .{ .value = std.math.negate(self.value) catch unreachable };
+    }
+};
