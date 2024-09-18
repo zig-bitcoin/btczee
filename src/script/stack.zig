@@ -1,6 +1,8 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const ScriptNum = @import("lib.zig").ScriptNum;
 const testing = std.testing;
+const native_endian = @import("builtin").target.cpu.arch.endian();
 
 /// Errors that can occur during stack operations
 pub const StackError = error{
@@ -69,11 +71,8 @@ pub const Stack = struct {
     ///
     /// # Returns
     /// - `StackError` if out of memory
-    pub fn pushInt(self: *Stack, value: i64) StackError!void {
-        var buffer: [8]u8 = undefined;
-        const bytes = std.mem.asBytes(&value);
-        @memcpy(&buffer, bytes);
-        try self.pushByteArray(&buffer);
+    pub fn pushInt(self: *Stack, value: ScriptNum) StackError!void {
+        try self.pushByteArray(std.mem.asBytes(&value));
     }
 
     /// Push an item onto the stack(does not create copy of item)
@@ -93,17 +92,15 @@ pub const Stack = struct {
     /// Pop an integer from the stack
     ///
     /// # Returns
-    /// - `i64`: The popped integer value
+    /// - `ScriptNum`: The popped integer value
     /// - `StackError` if the stack is empty or the value is invalid
-    pub fn popInt(self: *Stack) StackError!i64 {
+    pub fn popInt(self: *Stack) StackError!ScriptNum {
         const value = try self.pop();
         defer self.allocator.free(value);
 
         if (value.len > 8) return StackError.InvalidValue;
 
-        var buffer: [8]u8 = undefined;
-        std.mem.copyBackwards(u8, buffer[0..value.len], value);
-        return std.mem.bytesToValue(i64, &buffer);
+        return std.mem.readVarInt(ScriptNum, value, native_endian);
     }
 
     /// Pop a boolean value from the stack
@@ -150,6 +147,17 @@ pub const Stack = struct {
         return self.items.items[self.items.items.len - 1 - index];
     }
 
+    pub fn peekInt(self: *Stack, index: usize) StackError!i64 {
+        if (index >= self.items.items.len) {
+            return StackError.StackUnderflow;
+        }
+
+        const elem = self.items.items[self.items.items.len - 1 - index];
+        if (elem.len > 8) return StackError.InvalidValue;
+
+        return std.mem.readVarInt(i64, elem, native_endian);
+    }
+
     /// Get the number of items in the stack
     ///
     /// # Returns
@@ -166,10 +174,10 @@ test "Stack basic operations" {
 
     // Test push and len
     try stack.pushByteArray(&[_]u8{1});
-    try testing.expectEqual(@as(usize, 1), stack.len());
+    try testing.expectEqual(1, stack.len());
 
     try stack.pushByteArray(&[_]u8{ 2, 3 });
-    try testing.expectEqual(@as(usize, 2), stack.len());
+    try testing.expectEqual(2, stack.len());
 
     // Test peek
     const top = try stack.peek(0);
@@ -181,7 +189,7 @@ test "Stack basic operations" {
         defer allocator.free(popped);
         try testing.expectEqualSlices(u8, &[_]u8{ 2, 3 }, popped);
     }
-    try testing.expectEqual(@as(usize, 1), stack.len());
+    try testing.expectEqual(1, stack.len());
 
     // Test underflow
     try testing.expectError(StackError.StackUnderflow, stack.peek(1));
@@ -216,7 +224,7 @@ test "Stack memory management" {
         }
 
         // Stack should be empty now
-        try testing.expectEqual(@as(usize, 0), stack.len());
+        try testing.expectEqual(0, stack.len());
     }
     // The stack should be fully deallocated here
 }
@@ -232,12 +240,12 @@ test "Stack push and peek multiple items" {
     try stack.pushByteArray(&[_]u8{3});
 
     // Peek at different indices
-    try testing.expectEqualSlices(u8, &[_]u8{3}, try stack.peek(0));
-    try testing.expectEqualSlices(u8, &[_]u8{2}, try stack.peek(1));
-    try testing.expectEqualSlices(u8, &[_]u8{1}, try stack.peek(2));
+    try testing.expectEqual(3, try stack.peekInt(0));
+    try testing.expectEqual(2, try stack.peekInt(1));
+    try testing.expectEqual(1, try stack.peekInt(2));
 
     // Verify length
-    try testing.expectEqual(@as(usize, 3), stack.len());
+    try testing.expectEqual(3, stack.len());
 
     // Attempt to peek beyond stack size
     try testing.expectError(StackError.StackUnderflow, stack.peek(3));
@@ -252,7 +260,7 @@ test "Stack push empty slice" {
     try stack.pushByteArray(&[_]u8{});
 
     // Verify it was pushed correctly
-    try testing.expectEqual(@as(usize, 1), stack.len());
+    try testing.expectEqual(1, stack.len());
     try testing.expectEqualSlices(u8, &[_]u8{}, try stack.peek(0));
 
     // Pop and verify
@@ -273,7 +281,7 @@ test "Stack out of memory simulation" {
     try testing.expectError(StackError.OutOfMemory, stack.pushByteArray(&[_]u8{1}));
 
     // Verify the stack is still empty
-    try testing.expectEqual(@as(usize, 0), stack.len());
+    try testing.expectEqual(0, stack.len());
 }
 
 test "Stack pushInt and popInt" {
@@ -283,22 +291,22 @@ test "Stack pushInt and popInt" {
 
     // Test pushing and popping positive integers
     try stack.pushInt(42);
-    try testing.expectEqual(@as(i64, 42), try stack.popInt());
+    try testing.expectEqual(42, try stack.popInt());
 
     // Test pushing and popping negative integers
     try stack.pushInt(-123);
-    try testing.expectEqual(@as(i64, -123), try stack.popInt());
+    try testing.expectEqual(-123, try stack.popInt());
 
     // Test pushing and popping zero
     try stack.pushInt(0);
-    try testing.expectEqual(@as(i64, 0), try stack.popInt());
+    try testing.expectEqual(0, try stack.popInt());
 
     // Test pushing and popping large integers
-    try stack.pushInt(std.math.maxInt(i64));
-    try testing.expectEqual(std.math.maxInt(i64), try stack.popInt());
+    try stack.pushInt(std.math.maxInt(ScriptNum));
+    try testing.expectEqual(std.math.maxInt(ScriptNum), try stack.popInt());
 
-    try stack.pushInt(std.math.minInt(i64));
-    try testing.expectEqual(std.math.minInt(i64), try stack.popInt());
+    try stack.pushInt(std.math.minInt(ScriptNum));
+    try testing.expectEqual(std.math.minInt(ScriptNum), try stack.popInt());
 
     // Test popping from empty stack
     try testing.expectError(StackError.StackUnderflow, stack.popInt());
