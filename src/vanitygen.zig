@@ -6,9 +6,13 @@ const crypto = std.crypto;
 const mpmc = @import("util/sync/mpmc.zig");
 const ref = @import("util/sync/ref.zig");
 const clap = @import("clap");
+const builtin = @import("builtin");
 
 pub const std_options = std.Options{
-    .log_level = .debug,
+    .log_level = switch (builtin.mode) {
+        .Debug => .debug,
+        else => .info,
+    },
 };
 
 /// A struct to hold bitcoin::secp256k1::SecretKey bitcoin::Key::PublicKey and a string address

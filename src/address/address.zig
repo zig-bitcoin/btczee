@@ -1,7 +1,9 @@
 const std = @import("std");
 const bitcoin_primitives = @import("bitcoin-primitives");
 
+const NetworkKind = @import("../network/network.zig").NetworkKind;
 const Sha256 = std.crypto.hash.sha2.Sha256;
+const Hash160 = bitcoin_primitives.hashes.Hash160;
 
 /// The different types of addresses.
 pub const AddressType = enum {
@@ -21,33 +23,24 @@ pub const AddressType = enum {
 /// A hash of a public key.
 pub const PubkeyHash = struct {
     // hash160
-    inner: [20]u8,
+    inner: [Hash160.digest_length]u8,
 };
 
 /// SegWit version of a public key hash.
 pub const WpubkeyHash = struct {
     // hash160
-    inner: [20]u8,
+    inner: [Hash160.digest_length]u8,
 };
 
 /// A hash of Bitcoin Script bytecode.
 pub const ScriptHash = struct {
     // hash160
-    inner: [20]u8,
+    inner: [Hash160.digest_length]u8,
 };
 /// SegWit version of a Bitcoin Script bytecode hash.
 pub const WScriptHash = struct {
     // sha256 hash
     inner: [Sha256.digest_length]u8,
-};
-
-// TODO move to network
-/// What kind of network we are on.
-pub const NetworkKind = enum {
-    /// The Bitcoin mainnet network.
-    main,
-    /// Some kind of testnet network.
-    @"test",
 };
 
 /// Known bech32 human-readable parts.
@@ -110,5 +103,3 @@ pub const Address = union(enum) {
         }
     }
 };
-
-test "test" {}
