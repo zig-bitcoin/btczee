@@ -17,6 +17,7 @@ pub const wallet = @import("wallet/wallet.zig");
 pub const miner = @import("miner/miner.zig");
 pub const node = @import("node/node.zig");
 pub const script = @import("script/lib.zig");
+pub const wire = @import("network/wire/lib.zig");
 
 test {
     @import("std").testing.refAllDeclsRecursive(@This());
