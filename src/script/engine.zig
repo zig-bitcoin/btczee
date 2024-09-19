@@ -503,7 +503,7 @@ test "opSha1 function test" {
     for (test_cases) |case| {
         const allocator = std.testing.allocator;
 
-        const script_bytes = [_]u8{0xa7};
+        const script_bytes = [_]u8{Opcode.OP_SHA1.toBytes()};
         const script = Script.init(&script_bytes);
 
         var engine = Engine.init(allocator, script, .{});
