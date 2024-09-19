@@ -108,6 +108,8 @@ pub const Engine = struct {
             Opcode.OP_NOP => try self.opNop(),
             Opcode.OP_VERIFY => try self.opVerify(),
             Opcode.OP_RETURN => try self.opReturn(),
+            Opcode.OP_TOALTSTACK => try self.opToAltStack(),
+            Opcode.OP_FROMALTSTACK => try self.opFromAltStack(),
             Opcode.OP_2DROP => try self.op2Drop(),
             Opcode.OP_2DUP => try self.op2Dup(),
             Opcode.OP_3DUP => try self.op3Dup(),
@@ -263,6 +265,24 @@ pub const Engine = struct {
     fn opReturn(self: *Engine) !void {
         _ = self;
         return error.EarlyReturn;
+    }
+
+    /// OP_TOALTSTACK: Puts the value onto the top of the alt stack, and removes it from the main stack.
+    ///
+    /// # Returns
+    /// - `EngineError`: If an error occurs during execution
+    fn opToAltStack(self: *Engine) !void {
+        const value = try self.stack.pop();
+        try self.alt_stack.pushElement(value);
+    }
+    
+    /// OP_FROMALTSTACK: Puts the value onto the top of the main stack, and removes it from the alt stack.
+    ///
+    /// # Returns
+    /// - `EngineError`: If an error occurs during execution
+    fn opFromAltStack(self: *Engine) !void {
+        const value = try self.alt_stack.pop();
+        try self.stack.pushElement(value);
     }
 
     /// OP_2DROP: Drops top 2 stack items
@@ -522,6 +542,26 @@ test "Script execution - OP_RETURN" {
         defer allocator.free(item);
         try std.testing.expectEqualSlices(u8, &[_]u8{1}, item);
     }
+}
+
+test "Script execution - OP_TOALTSTACK OP_FROMALTSTACK" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_TOALTSTACK OP_FROMALTSTACK
+    const script_bytes = [_]u8{
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_TOALTSTACK.toBytes(),
+        Opcode.OP_FROMALTSTACK.toBytes(),
+    };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    try std.testing.expectEqual(1, engine.stack.len());
+    try std.testing.expectEqual(0, engine.alt_stack.len());
 }
 
 test "Script execution - OP_1 OP_1 OP_1 OP_2Drop" {
