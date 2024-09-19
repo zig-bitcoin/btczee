@@ -76,8 +76,10 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
     const checksum = try r.readBytesNoEof(4);
 
     // Read payload
-    const message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name()))
-        try protocol.messages.VersionMessage.deserializeReader(allocator, r)
+    const message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name())) 
+        protocol.messages.Message{ .Version = try protocol.messages.VersionMessage.deserializeReader(allocator, r)}
+    else if (std.mem.eql(u8, &command, protocol.messages.VerackMessage.name()))
+        protocol.messages.Message{ .Verack = try protocol.messages.VerackMessage.deserializeReader(allocator, r)}
     else
         return error.InvalidCommand;
     errdefer message.deinit(allocator);
@@ -89,12 +91,12 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
         return error.InvaliPayloadLen;
     }
 
-    return protocol.messages.Message{ .Version = message };
+    return message;
 }
 
 // TESTS
 
-test "ok_send_message" {
+test "ok_send_version_message" {
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
@@ -130,6 +132,31 @@ test "ok_send_message" {
 
     switch (received_message) {
         .Version => |rm| try std.testing.expect(message.eql(&rm)),
+        .Verack => unreachable,
+    }
+}
+
+test "ok_send_verack_message" {
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const VerackMessage = protocol.messages.VerackMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const message = VerackMessage{};
+
+    const writer = list.writer();
+    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
+    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
+    const reader = fbs.reader();
+
+    const received_message = try receiveMessage(test_allocator, reader);
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .Verack => {},
+        .Version => unreachable,
     }
 }
 
