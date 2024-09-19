@@ -15,6 +15,22 @@ pub const std_options = std.Options{
     },
 };
 
+/// Checks all given information's before passing to the vanity address finder function.
+/// Returns Ok if all checks were successful.
+/// Returns Err if the string is longer than 4 chars and -d or --disable-fast-mode flags are not given.
+/// Returns Err if the string is not in base58 format.
+fn validateInput(string: []const u8) !void {
+    if (string.len == 0) {
+        return;
+    }
+
+    for (string) |c|
+        if (c == '0' or c == 'I' or c == 'O' or c == 'l' or !std.ascii.isAlphanumeric(c))
+            return error.NotBase58;
+
+    return;
+}
+
 /// A struct to hold bitcoin::secp256k1::SecretKey bitcoin::Key::PublicKey and a string address
 pub const KeysAndAddress = struct {
     private_key: secp256k1.SecretKey,
@@ -247,6 +263,16 @@ pub fn main() !void {
     if (clap_res.positionals.len != 1) return error.WrongPositionalArguments;
 
     const expected_str = clap_res.positionals[0];
+
+    validateInput(expected_str) catch |err| {
+        switch (err) {
+            error.NotBase58 => {
+                std.log.err("Your input is not in base58. Don't include zero: '0', uppercase i: 'I', uppercase o: 'O', lowercase L: 'l' \nor any non-alphanumeric character in your input!", .{});
+                return;
+            },
+            else => return err,
+        }
+    };
 
     std.log.info("Searching key pair which their address has the string: '{s}' (case sensitive = {any}) with {d} threads. Mode = {any}.", .{ expected_str, case_sensitive, threads, vanity_mode });
 
