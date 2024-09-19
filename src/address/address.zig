@@ -85,7 +85,7 @@ pub const Address = union(enum) {
         };
     }
 
-    // TODO make other init
+    // TODO make other types of address
     /// Encoding address to string
     /// caller responsible to free data
     pub fn toString(self: Address) !std.BoundedArray(u8, 50) {
@@ -99,7 +99,6 @@ pub const Address = union(enum) {
 
                 var encoder = bitcoin_primitives.base58.Encoder{};
 
-                // std.log.debug("prefixed {any}", .{prefixed});
                 var res = try std.BoundedArray(u8, 50).init(0);
 
                 res.resize(encoder.encodeCheck(&res.buffer, &buf, &prefixed)) catch unreachable;
