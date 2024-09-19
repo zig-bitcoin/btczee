@@ -28,9 +28,6 @@ pub const KeysAndAddress = struct {
         // pk is compressed so we use just pk.serialize
         // TODO create PublicKey type abstraction and add compressed option inside
         // with method that returns hash160 of pk
-
-        // TODO: due perfomance, we need to use fixedBufferSize, to avoid allocations, maybe we need use it as a global (fixed buffer)?
-
         const hash = getHashForPublicKey(pk);
 
         return .{
@@ -118,30 +115,20 @@ fn threadSearcher(
             return;
         };
 
-        const f = switch (vanity_mode) {
-            inline .anywhere => switch (case_sensitive) {
-                inline true => std.mem.indexOf(u8, keys_and_address.comp_address.constSlice(), found_str) != null,
-                inline false => v: {
-                    const addr = std.ascii.lowerString(buf[50..], keys_and_address.comp_address.constSlice());
+        const f = switch (case_sensitive) {
+            inline false => v: {
+                const addr = std.ascii.lowerString(buf[50..], keys_and_address.comp_address.constSlice());
 
-                    break :v std.mem.indexOf(u8, addr, found_str) != null;
-                },
+                break :v switch (vanity_mode) {
+                    .prefix => std.mem.eql(u8, addr[1 .. found_str.len + 1], found_str),
+                    .suffix => std.mem.eql(u8, addr[keys_and_address.comp_address.len - found_str.len ..], found_str),
+                    .anywhere => std.mem.indexOf(u8, addr, found_str) != null,
+                };
             },
-            inline .suffix => switch (case_sensitive) {
-                inline true => std.mem.eql(u8, keys_and_address.comp_address.constSlice()[keys_and_address.comp_address.len - found_str.len ..], found_str),
-                inline false => v: {
-                    const addr = std.ascii.lowerString(buf[50..], keys_and_address.comp_address.constSlice());
-
-                    break :v std.mem.startsWith(u8, addr[addr.len - found_str.len ..], found_str);
-                },
-            },
-            inline .prefix => switch (case_sensitive) {
-                inline true => std.mem.eql(u8, keys_and_address.comp_address.constSlice()[1 .. found_str.len + 1], found_str),
-                inline false => v: {
-                    const addr = std.ascii.lowerString(buf[50..], keys_and_address.comp_address.constSlice());
-
-                    break :v std.mem.startsWith(u8, addr[1 .. found_str.len + 1], found_str);
-                },
+            inline true => switch (vanity_mode) {
+                .prefix => std.mem.eql(u8, keys_and_address.comp_address.constSlice()[1 .. found_str.len + 1], found_str),
+                .suffix => std.mem.eql(u8, keys_and_address.comp_address.constSlice()[keys_and_address.comp_address.len - found_str.len ..], found_str),
+                .anywhere => std.mem.indexOf(u8, keys_and_address.comp_address.constSlice(), found_str) != null,
             },
         };
 
