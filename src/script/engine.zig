@@ -548,7 +548,11 @@ test "Script execution - OP_TOALTSTACK OP_FROMALTSTACK" {
     const allocator = std.testing.allocator;
 
     // Simple script: OP_1 OP_TOALTSTACK OP_FROMALTSTACK
-    const script_bytes = [_]u8{ 0x51, 0x6b, 0x6c };
+    const script_bytes = [_]u8{
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_TOALTSTACK.toBytes(),
+        Opcode.OP_FROMALTSTACK.toBytes(),
+    };
     const script = Script.init(&script_bytes);
 
     var engine = Engine.init(allocator, script, .{});
