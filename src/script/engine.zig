@@ -141,6 +141,7 @@ pub const Engine = struct {
             Opcode.OP_CHECKSIG => try self.opCheckSig(),
             Opcode.OP_NIP => try self.opNip(),
             Opcode.OP_OVER => try self.opOver(),
+            Opcode.OP_ROLL => try self.opRoll(),
             Opcode.OP_SWAP => try self.opSwap(),
             Opcode.OP_TUCK => try self.opTuck(),
             Opcode.OP_SIZE => try self.opSize(),
@@ -377,6 +378,16 @@ pub const Engine = struct {
     fn opOver(self: *Engine) !void {
         const value = try self.stack.peek(1);
         try self.stack.pushByteArray(value);
+    }
+
+    /// OP_ROLL: Pop the top stack element as N. Move the Nth stack element to the top.
+    ///
+    /// # Returns
+    /// - `EngineError`: If an error occurs during execution
+    fn opRoll(self: *Engine) !void {
+        const n = try self.stack.popInt();
+        const value = try self.stack.removeAt(@intCast(n));
+        try self.stack.pushElement(value);
     }
 
     /// OP_SWAP: The top two items on the stack are swapped.
@@ -717,6 +728,28 @@ test "Script execution OP_1 OP_2 OP_3 OP_OVER" {
 
     try std.testing.expectEqual(2, element0);
     try std.testing.expectEqual(3, element1);
+}
+
+test "Script execution OP_1 OP_2 OP_3 OP_ROLL" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_2 OP_3 OP_2 OP_PICK
+    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x52, 0x7a };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    try std.testing.expectEqual(3, engine.stack.len());
+
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+    const element2 = try engine.stack.peekInt(2);
+
+    try std.testing.expectEqual(1, element0);
+    try std.testing.expectEqual(3, element1);
+    try std.testing.expectEqual(2, element2);
 }
 
 test "Script execution OP_1 OP_2 OP_3 OP_SWAP" {
