@@ -24,10 +24,7 @@ fn computePayloadChecksum(payload: []u8) [4]u8 {
     Sha256.hash(payload, &digest, .{});
     Sha256.hash(&digest, &digest, .{});
 
-    var ret: [4]u8 = undefined;
-    @memcpy(ret[0..], digest[0..4]);
-
-    return ret;
+    return digest[0..4].*;
 }
 
 /// Send a message through the wire.
@@ -56,7 +53,7 @@ pub fn sendMessage(allocator: std.mem.Allocator, w: anytype, protocol_version: i
     const payload_len: u32 = @intCast(payload.len);
 
     try w.writeAll(&network_id);
-    try w.writeAll(&command);
+    try w.writeAll(command);
     try w.writeAll(std.mem.asBytes(&payload_len));
     try w.writeAll(std.mem.asBytes(&checksum));
     try w.writeAll(payload);
@@ -79,7 +76,7 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
     const checksum = try r.readBytesNoEof(4);
 
     // Read payload
-    const message = if (std.mem.eql(u8, &command, &protocol.messages.VersionMessage.name()))
+    const message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name()))
         try protocol.messages.VersionMessage.deserializeReader(allocator, r)
     else
         return error.InvalidCommand;

@@ -2,7 +2,7 @@ pub const messages = @import("./messages/lib.zig");
 
 /// Known network ids
 pub const BitcoinNetworkId = struct {
-    pub const MAINNET: [4]u8 = [4]u8{ 0xd9, 0xb4, 0xbe, 0xf9 };
+    pub const MAINNET: [4]u8 = .{ 0xd9, 0xb4, 0xbe, 0xf9 };
     pub const REGTEST: [4]u8 = 0xdab5bffa;
     pub const TESTNET3: [4]u8 = 0x0709110b;
     pub const SIGNET: [4]u8 = 0x40cf030a;

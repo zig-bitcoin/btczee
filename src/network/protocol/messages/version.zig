@@ -27,10 +27,8 @@ pub const VersionMessage = struct {
     user_agent: ?[]const u8,
     relay: ?bool,
 
-    pub fn name() [12]u8 {
-        var ret = std.mem.zeroes([12]u8);
-        @memcpy(ret[0..7], protocol.CommandNames.VERSION);
-        return ret;
+    pub inline fn name() *const [12]u8 {
+        return protocol.CommandNames.VERSION ++ [_]u8{0} ** 5;
     }
 
     /// Returns the message checksum
@@ -45,10 +43,7 @@ pub const VersionMessage = struct {
 
         Sha256.hash(&digest, &digest, .{});
 
-        var ret: [4]u8 = undefined;
-        @memcpy(ret[0..], digest[0..4]);
-
-        return ret;
+        return digest[0..4].*;
     }
 
     /// Free the `user_agent` if there is one
@@ -201,18 +196,8 @@ pub const VersionMessage = struct {
         }
 
         // relay
-        if (self.relay) |ln| {
-            if (other.relay) |rn| {
-                if (ln != rn) {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        } else {
-            if (other.relay) |_| {
-                return false;
-            }
+        if (self.relay != other.relay) {
+            return false;
         }
 
         return true;
