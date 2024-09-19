@@ -617,7 +617,12 @@ test "Script execution - OP_OVER" {
     const allocator = std.testing.allocator;
 
     // Simple script: OP_1 OP_2 OP_3 OP_OVER
-    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x78 }; // 0x78 is OP_OVER
+    const script_bytes = [_]u8{
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_2.toBytes(),
+        Opcode.OP_3.toBytes(),
+        Opcode.OP_OVER.toBytes(),
+    };
     const script = Script.init(&script_bytes);
 
     var engine = Engine.init(allocator, script, .{});
@@ -629,15 +634,15 @@ test "Script execution - OP_OVER" {
     try std.testing.expectEqual(@as(usize, 4), engine.stack.len());
 
     // Check the stack elements
-    const element0 = try engine.stack.peek(0);
-    const element1 = try engine.stack.peek(1);
-    const element2 = try engine.stack.peek(2);
-    const element3 = try engine.stack.peek(3);
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+    const element2 = try engine.stack.peekInt(2);
+    const element3 = try engine.stack.peekInt(3);
 
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element0);
-    try std.testing.expectEqualSlices(u8, &[_]u8{3}, element1);
-    try std.testing.expectEqualSlices(u8, &[_]u8{2}, element2);
-    try std.testing.expectEqualSlices(u8, &[_]u8{1}, element3);
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(3, element1);
+    try std.testing.expectEqual(2, element2);
+    try std.testing.expectEqual(1, element3);
 }
 
 test "Script execution - OP_1 OP_2 OP_DEPTH" {
