@@ -80,6 +80,8 @@ pub const EngineError = error{
 
 pub const ScriptNum = struct {
     pub const InnerReprType = i36;
+    pub const MAX: i32 = std.math.maxInt(i32);
+    pub const MIN: i32 = std.math.minInt(i32) + 1;
 
     value: Self.InnerReprType,
 
@@ -104,6 +106,7 @@ pub const ScriptNum = struct {
         const additional_byte: usize = @intFromBool(bytes[i] & 0x80 != 0);
         var elem = try allocator.alloc(u8, i + 1 + additional_byte);
         errdefer allocator.free(elem);
+        for (0..elem.len) |idx| elem[idx] = 0;
 
         @memcpy(elem[0 .. i + 1], bytes[0 .. i + 1]);
         if (is_negative) {

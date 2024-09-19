@@ -81,6 +81,7 @@ pub const Stack = struct {
     pub fn pushInt(self: *Stack, value: i32) StackError!void {
         if (value == 0) {
             const elem = try self.allocator.alloc(u8, 0);
+            errdefer self.allocator.free(elem);
             try self.pushElement(elem);
             return;
         }
@@ -99,6 +100,7 @@ pub const Stack = struct {
         const additional_byte: usize = @intFromBool(bytes[i] & 0x80 != 0);
         var elem = try self.allocator.alloc(u8, i + 1 + additional_byte);
         errdefer self.allocator.free(elem);
+        for (0..elem.len) |idx| elem[idx] = 0;
 
         @memcpy(elem[0 .. i + 1], bytes[0 .. i + 1]);
         if (is_negative) {
@@ -109,7 +111,7 @@ pub const Stack = struct {
     }
 
     pub fn pushScriptNum(self: *Stack, value: ScriptNum) StackError!void {
-        try self.pushByteArray(try value.toBytes(self.allocator));
+        try self.pushElement(try value.toBytes(self.allocator));
     }
 
     /// Pop an integer from the stack
@@ -326,11 +328,11 @@ test "Stack pushInt and popInt" {
     try testing.expectEqual(0, try stack.popInt());
 
     // Test pushing and popping large integers
-    try stack.pushInt(std.math.maxInt(i32));
-    try testing.expectEqual(std.math.maxInt(i32), try stack.popInt());
+    try stack.pushInt(ScriptNum.MAX);
+    try testing.expectEqual(ScriptNum.MAX, try stack.popInt());
 
-    try stack.pushInt(std.math.minInt(i32));
-    try testing.expectEqual(std.math.minInt(i32), try stack.popInt());
+    try stack.pushInt(ScriptNum.MIN);
+    try testing.expectEqual(ScriptNum.MIN, try stack.popInt());
 
     // Test popping from empty stack
     try testing.expectError(StackError.StackUnderflow, stack.popInt());
