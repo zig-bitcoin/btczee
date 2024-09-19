@@ -23,7 +23,6 @@ pub const KeysAndAddress = struct {
 
     /// Generates a randomly generated key pair and their compressed addresses without generating a new Secp256k1.
     /// and Returns them in a KeysAndAddress struct.
-    /// Caller is own result, and responsible to deinit
     pub fn generateRandom(rand: std.Random, secp: secp256k1.Secp256k1) !KeysAndAddress {
         const secret_key, const pk = secp.generateKeypair(rand);
 
