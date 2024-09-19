@@ -481,6 +481,7 @@ pub const Engine = struct {
 
     fn opSha1(self: *Engine) !void {
         const data = try self.stack.pop();
+        defer self.allocator.free(data);
         var hash: [sha1.digest_length]u8 = undefined;
         sha1.hash(data, &hash, .{});
         try self.stack.pushByteArray(&hash);
@@ -488,7 +489,7 @@ pub const Engine = struct {
 };
 
 // Testing SHA1 against known vectors
-test "sha1 vectors" {
+test "opSha1 function test" {
     const test_cases = [_]struct {
         input: []const u8,
         expected: []const u8,
@@ -500,16 +501,30 @@ test "sha1 vectors" {
     };
 
     for (test_cases) |case| {
-        errdefer {
-            std.log.err("test case failed, case = {s}", .{std.json.fmt(case, .{})});
-        }
+        const allocator = std.testing.allocator;
+
+        const script_bytes = [_]u8{0xa7};
+        const script = Script.init(&script_bytes);
+
+        var engine = Engine.init(allocator, script, .{});
+        defer engine.deinit();
+
+        // Push the input onto the stack
+        try engine.stack.pushByteArray(case.input);
+
+        // Call opSha1
+        try engine.opSha1();
+
+        // Pop the result from the stack
+        const result = try engine.stack.pop();
+        defer engine.allocator.free(result); // Free the result after use
+
+        // Convert expected hash to bytes
         var expected_output: [sha1.digest_length]u8 = undefined;
         _ = try std.fmt.hexToBytes(&expected_output, case.expected);
 
-        var actual_output: [sha1.digest_length]u8 = undefined;
-
-        sha1.hash(case.input, &actual_output, .{});
-        try std.testing.expectEqualSlices(u8, &expected_output, &actual_output);
+        // Compare the result with the expected hash
+        try std.testing.expectEqualSlices(u8, &expected_output, result);
     }
 }
 
