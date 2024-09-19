@@ -1,4 +1,5 @@
 .idea
+profile.json
 **/.DS_Store
 
 .zig-cache
