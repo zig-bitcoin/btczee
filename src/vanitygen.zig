@@ -17,7 +17,6 @@ pub const std_options = std.Options{
 
 /// Checks all given information's before passing to the vanity address finder function.
 /// Returns Ok if all checks were successful.
-/// Returns Err if the string is longer than 4 chars and -d or --disable-fast-mode flags are not given.
 /// Returns Err if the string is not in base58 format.
 fn validateInput(string: []const u8) !void {
     if (string.len == 0) {
