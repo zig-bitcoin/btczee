@@ -513,7 +513,7 @@ test "opSha1 function test" {
         try engine.stack.pushByteArray(case.input);
 
         // Call opSha1
-        try engine.opSha1();
+        try engine.execute();
 
         // Pop the result from the stack
         const result = try engine.stack.pop();
