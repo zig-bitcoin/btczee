@@ -7,8 +7,7 @@ const mpmc = @import("util/sync/mpmc.zig");
 const ref = @import("util/sync/ref.zig");
 const clap = @import("clap");
 
-pub const std_options: std.Options = .{
-    // Set the log level to info
+pub const std_options = std.Options{
     .log_level = .debug,
 };
 
@@ -21,8 +20,8 @@ pub const KeysAndAddress = struct {
     /// Generates a randomly generated key pair and their compressed addresses without generating a new Secp256k1.
     /// and Returns them in a KeysAndAddress struct.
     /// Caller is own result, and responsible to deinit
-    pub fn generateRandom(secp: secp256k1.Secp256k1) !KeysAndAddress {
-        const secret_key, const pk = secp.generateKeypair(crypto.random);
+    pub fn generateRandom(rand: std.Random, secp: secp256k1.Secp256k1) !KeysAndAddress {
+        const secret_key, const pk = secp.generateKeypair(rand);
 
         // to calculate comp_address we need init p2pkh address with hash160 of pk
         // we need serialize pk and serilized data should be hashed by hash160
@@ -102,12 +101,17 @@ fn threadSearcher(
     found: *std.atomic.Value(bool),
 ) void {
     defer std.log.debug("thread stopped", .{});
-    _ = case_sensitive; // autofix
+    var buf: [100]u8 = undefined;
+    var found_str = str;
+
+    if (!case_sensitive) found_str = std.ascii.lowerString(&buf, str);
+
     while (true) {
         if (found.load(.acquire)) return;
 
         // Generate the key pair and address using generate_from_biguint
         const keys_and_address = KeysAndAddress.generateRandom(
+            std.crypto.random,
             secp,
         ) catch |err| {
             std.log.err("catch error on gen: {}", .{err});
@@ -115,11 +119,30 @@ fn threadSearcher(
         };
 
         const f = switch (vanity_mode) {
-            .anywhere => v: {
-                // case sensitive TODO
-                break :v std.mem.indexOf(u8, keys_and_address.comp_address.constSlice(), str) != null;
+            inline .anywhere => switch (case_sensitive) {
+                inline true => std.mem.indexOf(u8, keys_and_address.comp_address.constSlice(), found_str) != null,
+                inline false => v: {
+                    const addr = std.ascii.lowerString(buf[50..], keys_and_address.comp_address.constSlice());
+
+                    break :v std.mem.indexOf(u8, addr, found_str) != null;
+                },
             },
-            else => @panic("asaa"),
+            inline .suffix => switch (case_sensitive) {
+                inline true => std.mem.eql(u8, keys_and_address.comp_address.constSlice()[keys_and_address.comp_address.len - found_str.len ..], found_str),
+                inline false => v: {
+                    const addr = std.ascii.lowerString(buf[50..], keys_and_address.comp_address.constSlice());
+
+                    break :v std.mem.startsWith(u8, addr[addr.len - found_str.len ..], found_str);
+                },
+            },
+            inline .prefix => switch (case_sensitive) {
+                inline true => std.mem.eql(u8, keys_and_address.comp_address.constSlice()[1 .. found_str.len + 1], found_str),
+                inline false => v: {
+                    const addr = std.ascii.lowerString(buf[50..], keys_and_address.comp_address.constSlice());
+
+                    break :v std.mem.startsWith(u8, addr[1 .. found_str.len + 1], found_str);
+                },
+            },
         };
 
         // send to sender
@@ -178,7 +201,6 @@ fn findVanityAddress(
     wg.wait();
 
     std.log.info("\n\nfound in {d} sec\n\n", .{@as(f32, @floatFromInt(std.time.milliTimestamp() - started)) / 1000.0});
-    // std.log.debug("all threads despawned {any}", .{wg.isDone()});
 
     return key.value.*;
 }

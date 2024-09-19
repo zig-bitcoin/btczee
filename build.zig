@@ -156,9 +156,16 @@ pub fn build(b: *std.Build) !void {
             mod.name,
             mod.module,
         );
+
+        const check_test = b.addTest(.{
+            .root_source_file = b.path("src/lib.zig"),
+            .target = target,
+        });
+
         // This step is used to check if btczee compiles, it helps to provide a faster feedback loop when developing.
         const check = b.step("check", "Check if btczee compiles");
         check.dependOn(&exe_check.step);
+        check.dependOn(&check_test.step);
     }
 
     // **************************************************************
