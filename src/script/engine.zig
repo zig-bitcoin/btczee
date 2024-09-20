@@ -271,7 +271,7 @@ pub const Engine = struct {
     ///
     /// # Returns
     /// - `EngineError`: If an error occurs during execution
-    fn opToAltStack(self: *Engine) !void {
+    fn opToAltStack(self: *Engine) EngineError!void {
         const value = try self.stack.pop();
         try self.alt_stack.pushElement(value);
     }
@@ -280,7 +280,7 @@ pub const Engine = struct {
     ///
     /// # Returns
     /// - `EngineError`: If an error occurs during execution
-    fn opFromAltStack(self: *Engine) !void {
+    fn opFromAltStack(self: *Engine) EngineError!void {
         const value = try self.alt_stack.pop();
         try self.stack.pushElement(value);
     }
@@ -550,6 +550,8 @@ test "Script execution - OP_TOALTSTACK OP_FROMALTSTACK" {
     // Simple script: OP_1 OP_TOALTSTACK OP_FROMALTSTACK
     const script_bytes = [_]u8{
         Opcode.OP_1.toBytes(),
+        Opcode.OP_2.toBytes(),
+        Opcode.OP_TOALTSTACK.toBytes(),
         Opcode.OP_TOALTSTACK.toBytes(),
         Opcode.OP_FROMALTSTACK.toBytes(),
     };
@@ -560,8 +562,8 @@ test "Script execution - OP_TOALTSTACK OP_FROMALTSTACK" {
 
     try engine.execute();
 
-    try std.testing.expectEqual(1, engine.stack.len());
-    try std.testing.expectEqual(0, engine.alt_stack.len());
+    try std.testing.expectEqual(1, try engine.stack.peekInt(0));
+    try std.testing.expectEqual(2, try engine.alt_stack.peekInt(0));
 }
 
 test "Script execution - OP_1 OP_1 OP_1 OP_2Drop" {
