@@ -6,21 +6,21 @@ const ScriptNum = @import("../lib.zig").ScriptNum;
 const ScriptFlags = @import("../lib.zig").ScriptFlags;
 const StackError = @import("../stack.zig").StackError;
 
-/// OP_1ADD: Add 1 to the top stack item
+/// Add 1 to the top stack item
 pub fn op1Add(engine: *Engine) !void {
     const value = try engine.stack.popScriptNum();
     const result = value.addOne();
     try engine.stack.pushScriptNum(result);
 }
 
-/// OP_1SUB: Subtract 1 from the top stack item
+/// Subtract 1 from the top stack item
 pub fn op1Sub(engine: *Engine) !void {
     const value = try engine.stack.popScriptNum();
     const result = value.subOne();
     try engine.stack.pushScriptNum(result);
 }
 
-/// OP_NEGATE: Negate the top stack item
+/// Negate the top stack item
 pub fn opNegate(engine: *Engine) !void {
     const value = try engine.stack.popScriptNum();
     const result = value.negate();
@@ -484,8 +484,10 @@ test "OP_ADD operation" {
         b: i32,
         expected: []const u8,
     }{
-        .{ .a = ScriptNum.MAX, .b = 1, .expected = &[_]u8{ 0x0, 0x0, 0x0, 0x80, 0x0 } }, // Overflow case
-        .{ .a = ScriptNum.MIN, .b = -1, .expected = &[_]u8{ 0x0, 0x0, 0x0, 0x80, 0x80 } }, // Underflow case
+        .{ .a = ScriptNum.MAX, .b = 1, .expected = &[_]u8{ 0x0, 0x0, 0x0, 0x80, 0x0 } },
+        .{ .a = ScriptNum.MIN, .b = -1, .expected = &[_]u8{ 0x0, 0x0, 0x0, 0x80, 0x80 } },
+        .{ .a = ScriptNum.MAX, .b = ScriptNum.MAX, .expected = &[_]u8{ 0xfe, 0xff, 0xff, 0xff, 0x0 } },
+        .{ .a = ScriptNum.MIN, .b = ScriptNum.MIN, .expected = &[_]u8{ 0xfe, 0xff, 0xff, 0xff, 0x80 } },
     };
 
     for (normalTestCases) |tc| {
@@ -558,8 +560,10 @@ test "OP_SUB operation" {
         b: i32,
         expected: []const u8,
     }{
-        .{ .a = ScriptNum.MAX, .b = -1, .expected = &[_]u8{ 0x0, 0x0, 0x0, 0x80, 0x0 } }, // Overflow case
-        .{ .a = ScriptNum.MIN, .b = 1, .expected = &[_]u8{ 0x0, 0x0, 0x0, 0x80, 0x80 } }, // Underflow case
+        .{ .a = ScriptNum.MAX, .b = -1, .expected = &[_]u8{ 0x0, 0x0, 0x0, 0x80, 0x0 } },
+        .{ .a = ScriptNum.MIN, .b = 1, .expected = &[_]u8{ 0x0, 0x0, 0x0, 0x80, 0x80 } },
+        .{ .a = ScriptNum.MIN, .b = ScriptNum.MAX, .expected = &[_]u8{ 0xfe, 0xff, 0xff, 0xff, 0x80 } },
+        .{ .a = ScriptNum.MAX, .b = ScriptNum.MIN, .expected = &[_]u8{ 0xfe, 0xff, 0xff, 0xff, 0x00 } },
     };
 
     for (normalTestCases) |tc| {
