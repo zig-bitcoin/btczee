@@ -49,7 +49,7 @@ pub fn sendMessage(allocator: std.mem.Allocator, w: anytype, protocol_version: i
     defer allocator.free(payload);
     const checksum = computePayloadChecksum(payload);
 
-    // I believe it's safe. No payload will be longer than u32.MAX
+    // No payload will be longer than u32.MAX
     const payload_len: u32 = @intCast(payload.len);
 
     try w.writeAll(&network_id);
@@ -76,10 +76,10 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
     const checksum = try r.readBytesNoEof(4);
 
     // Read payload
-    const message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name())) 
-        protocol.messages.Message{ .Version = try protocol.messages.VersionMessage.deserializeReader(allocator, r)}
+    const message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name()))
+        protocol.messages.Message{ .Version = try protocol.messages.VersionMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.VerackMessage.name()))
-        protocol.messages.Message{ .Verack = try protocol.messages.VerackMessage.deserializeReader(allocator, r)}
+        protocol.messages.Message{ .Verack = try protocol.messages.VerackMessage.deserializeReader(allocator, r) }
     else
         return error.InvalidCommand;
     errdefer message.deinit(allocator);
