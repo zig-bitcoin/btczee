@@ -11,7 +11,7 @@ const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 
 /// VerackMessage represents the "verack" message
 ///
-/// https://developer.bitcoin.org/reference/p2p_networking.html#version
+/// https://developer.bitcoin.org/reference/p2p_networking.html#verack
 pub const VerackMessage = struct {
     // verack message do not contain any payload, thus there is no field
 
@@ -42,7 +42,6 @@ pub const VerackMessage = struct {
         _ = self;
         return 0;
     }
-
 };
 
 // TESTS
