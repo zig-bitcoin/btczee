@@ -1,26 +1,40 @@
 const std = @import("std");
 const net = std.net;
 const protocol = @import("./protocol/lib.zig");
+const wire = @import("./wire/lib.zig");
+const Config = @import("../config/config.zig").Config;
+
+const PeerError = error{
+    WeOnlySupportIPV6ForNow,
+};
 
 /// Represents a peer connection in the Bitcoin network
 pub const Peer = struct {
     allocator: std.mem.Allocator,
+    config: *const Config,
     stream: net.Stream,
     address: net.Address,
-    version: ?protocol.messages.VersionMessage,
+    protocol_version: ?i32,
+    services: ?u64,
     last_seen: i64,
-    is_outbound: bool,
 
     /// Initialize a new peer
-    pub fn init(allocator: std.mem.Allocator, connection: net.Server.Connection) !*Peer {
+    pub fn init(allocator: std.mem.Allocator, config: *const Config, address: std.net.Address) !*Peer {
+        if (address.any.family != std.posix.AF.INET6) {
+            return error.WeOnlySupportIPV6ForNow;
+        }
+
+        const stream = try std.net.tcpConnectToAddress(address);
         const peer = try allocator.create(Peer);
+
         peer.* = .{
             .allocator = allocator,
-            .stream = connection.stream,
-            .address = connection.address,
-            .version = null,
+            .config = config,
+            .stream = stream,
+            .address = address,
+            .protocol_version = null,
+            .services = null,
             .last_seen = std.time.timestamp(),
-            .is_outbound = false,
         };
         return peer;
     }
@@ -32,90 +46,55 @@ pub const Peer = struct {
     }
 
     /// Start peer operations
-    pub fn start(self: *Peer) !void {
+    pub fn start(self: *Peer, is_outbound: bool) !void {
         std.log.info("Starting peer connection with {}", .{self.address});
+        if (is_outbound) {
+            try self.negociateProtocolOutboundConnection();
+        } else {
+            // Not implemented yet
+            unreachable;
+        }
+    }
 
+    fn negociateProtocolOutboundConnection(self: *Peer) !void {
         try self.sendVersionMessage();
-        try self.handleMessages();
+
+        while (true) {
+            const received_message = wire.receiveMessage(self.allocator, self.stream.reader()) catch |e| {
+                switch (e) {
+                    error.EndOfStream, error.UnknownMessage => continue,
+                    else => return e,
+                }
+            };
+
+            switch (received_message) {
+                .Version => {
+                    self.protocol_version = @min(self.config.protocol_version, received_message.Version.version);
+                    self.services = received_message.Version.trans_services;
+                },
+
+                .Verack => return,
+                else => return error.InvalidHandshake,
+            }
+        }
     }
 
     /// Send version message to peer
     fn sendVersionMessage(self: *Peer) !void {
-        const version_msg = protocol.VersionMessage{
-            .version = 70015,
-            .services = 1,
-            .timestamp = @intCast(std.time.timestamp()),
-            .addr_recv = protocol.NetworkAddress.init(self.address),
-        };
+        const message = protocol.messages.VersionMessage.new(
+            self.config.protocol_version,
+            .{ .ip = std.mem.zeroes([16]u8), .port = 0, .services = self.config.services },
+            .{ .ip = self.address.in6.sa.addr, .port = self.address.in6.getPort(), .services = 0 },
+            std.crypto.random.int(u64),
+            self.config.bestBlock(),
+        );
 
-        try self.sendMessage("version", version_msg);
-    }
-
-    /// Handle incoming messages from peer
-    fn handleMessages(self: *Peer) !void {
-        var buffer: [1024]u8 = undefined;
-
-        while (true) {
-            const bytes_read = try self.stream.read(&buffer);
-            if (bytes_read == 0) break; // Connection closed
-
-            // Mock message parsing
-            const message_type = self.parseMessageType(buffer[0..bytes_read]);
-            try self.handleMessage(message_type, buffer[0..bytes_read]);
-
-            self.last_seen = std.time.timestamp();
-        }
-    }
-
-    /// Mock function to parse message type
-    fn parseMessageType(self: *Peer, data: []const u8) []const u8 {
-        _ = self;
-        if (std.mem.startsWith(u8, data, "version")) {
-            return "version";
-        } else if (std.mem.startsWith(u8, data, "verack")) {
-            return "verack";
-        } else {
-            return "unknown";
-        }
-    }
-
-    /// Handle a specific message type
-    fn handleMessage(self: *Peer, message_type: []const u8, data: []const u8) !void {
-        if (std.mem.eql(u8, message_type, "version")) {
-            try self.handleVersionMessage(data);
-        } else if (std.mem.eql(u8, message_type, "verack")) {
-            try self.handleVerackMessage();
-        } else {
-            std.log.warn("Received unknown message type from peer", .{});
-        }
-    }
-
-    /// Handle version message
-    fn handleVersionMessage(self: *Peer, data: []const u8) !void {
-        _ = data; // In a real implementation, parse the version message
-
-        // Mock version message handling
-        self.version = protocol.VersionMessage{
-            .version = 70015,
-            .services = 1,
-            .timestamp = @intCast(std.time.timestamp()),
-            .addr_recv = protocol.NetworkAddress.init(self.address),
-            // ... other fields ...
-        };
-
-        try self.sendMessage("verack", {});
-    }
-
-    /// Handle verack message
-    fn handleVerackMessage(self: *Peer) !void {
-        std.log.info("Received verack from peer {}", .{self.address});
-        // In a real implementation, mark the connection as established
-    }
-
-    /// Send a message to the peer
-    fn sendMessage(self: *Peer, command: []const u8, message: anytype) !void {
-        _ = message;
-        // In a real implementation, serialize the message and send it
-        try self.stream.writer().print("{s}\n", .{command});
+        try wire.sendMessage(
+            self.allocator,
+            self.stream.writer(),
+            self.config.protocol_version,
+            self.config.network_id,
+            message,
+        );
     }
 };

@@ -27,6 +27,8 @@ pub const VersionMessage = struct {
     user_agent: ?[]const u8,
     relay: ?bool,
 
+    const Self = @This();
+
     pub inline fn name() *const [12]u8 {
         return protocol.CommandNames.VERSION ++ [_]u8{0} ** 5;
     }
@@ -34,7 +36,7 @@ pub const VersionMessage = struct {
     /// Returns the message checksum
     ///
     /// Computed as `Sha256(Sha256(self.serialize()))[0..4]`
-    pub fn checksum(self: VersionMessage) [4]u8 {
+    pub fn checksum(self: *const Self) [4]u8 {
         var digest: [32]u8 = undefined;
         var hasher = Sha256.init(.{});
         const writer = hasher.writer();
@@ -47,7 +49,7 @@ pub const VersionMessage = struct {
     }
 
     /// Free the `user_agent` if there is one
-    pub fn deinit(self: VersionMessage, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *const Self, allocator: std.mem.Allocator) void {
         if (self.user_agent) |ua| {
             allocator.free(ua);
         }
@@ -56,7 +58,7 @@ pub const VersionMessage = struct {
     /// Serialize the message as bytes and write them to the Writer.
     ///
     /// `w` should be a valid `Writer`.
-    pub fn serializeToWriter(self: *const VersionMessage, w: anytype) !void {
+    pub fn serializeToWriter(self: *const Self, w: anytype) !void {
         comptime {
             if (!std.meta.hasFn(@TypeOf(w), "writeInt")) @compileError("Expects r to have fn 'writeInt'.");
             if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects r to have fn 'writeAll'.");
@@ -91,14 +93,14 @@ pub const VersionMessage = struct {
     /// Serialize a message as bytes and write them to the buffer.
     ///
     /// buffer.len must be >= than self.hintSerializedLen()
-    pub fn serializeToSlice(self: *const VersionMessage, buffer: []u8) !void {
+    pub fn serializeToSlice(self: *const Self, buffer: []u8) !void {
         var fbs = std.io.fixedBufferStream(buffer);
         const writer = fbs.writer();
         try self.serializeToWriter(writer);
     }
 
     /// Serialize a message as bytes and return them.
-    pub fn serialize(self: *const VersionMessage, allocator: std.mem.Allocator) ![]u8 {
+    pub fn serialize(self: *const Self, allocator: std.mem.Allocator) ![]u8 {
         const serialized_len = self.hintSerializedLen();
 
         const ret = try allocator.alloc(u8, serialized_len);
@@ -110,7 +112,7 @@ pub const VersionMessage = struct {
     }
 
     /// Deserialize a Reader bytes as a `VersionMessage`
-    pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !VersionMessage {
+    pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
         comptime {
             if (!std.meta.hasFn(@TypeOf(r), "readInt")) @compileError("Expects r to have fn 'readInt'.");
             if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects r to have fn 'readNoEof'.");
@@ -118,7 +120,7 @@ pub const VersionMessage = struct {
             if (!std.meta.hasFn(@TypeOf(r), "readByte")) @compileError("Expects r to have fn 'readByte'.");
         }
 
-        var vm: VersionMessage = undefined;
+        var vm: Self = undefined;
 
         vm.version = try r.readInt(i32, .little);
         vm.services = try r.readInt(u64, .little);
@@ -148,13 +150,13 @@ pub const VersionMessage = struct {
     }
 
     /// Deserialize bytes into a `VersionMessage`
-    pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !VersionMessage {
+    pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
         var fbs = std.io.fixedBufferStream(bytes);
         const reader = fbs.reader();
-        return try VersionMessage.deserializeReader(allocator, reader);
+        return try Self.deserializeReader(allocator, reader);
     }
 
-    pub fn hintSerializedLen(self: VersionMessage) usize {
+    pub fn hintSerializedLen(self: *const Self) usize {
         // 4 + 8 + 8 + (2 * (8 + 16 + 2) + 8 + 4)
         const fixed_length = 84;
         const user_agent_len: usize = if (self.user_agent) |ua| ua.len else 0;
@@ -165,7 +167,7 @@ pub const VersionMessage = struct {
         return fixed_length + variable_length;
     }
 
-    pub fn eql(self: *const VersionMessage, other: *const VersionMessage) bool {
+    pub fn eql(self: *const Self, other: *const Self) bool {
         // Normal fields
         if (self.version != other.version //
         or self.services != other.services //
@@ -201,6 +203,24 @@ pub const VersionMessage = struct {
         }
 
         return true;
+    }
+
+    pub fn new(protocol_version: i32, me: protocol.NetworkAddress, you: protocol.NetworkAddress, nonce: u64, last_block: i32) Self {
+        return .{
+            .version = protocol_version,
+            .services = ServiceFlags.NODE_NETWORK,
+            .timestamp = std.time.timestamp(),
+            .recv_services = you.services,
+            .trans_services = me.services,
+            .recv_ip = you.ip,
+            .trans_ip = me.ip,
+            .recv_port = you.port,
+            .trans_port = me.port,
+            .nonce = nonce,
+            .user_agent = null,
+            .start_height = last_block,
+            .relay = null,
+        };
     }
 };
 

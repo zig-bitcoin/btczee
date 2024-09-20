@@ -59,7 +59,7 @@ pub fn sendMessage(allocator: std.mem.Allocator, w: anytype, protocol_version: i
     try w.writeAll(payload);
 }
 
-pub const ReceiveMessageError = error{ InvalidCommand, InvaliPayloadLen, InvalidChecksum };
+pub const ReceiveMessageError = error{ UnknownMessage, InvaliPayloadLen, InvalidChecksum, InvalidHandshake };
 
 /// Read a message from the wire.
 ///
@@ -79,14 +79,13 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
     const message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name()))
         protocol.messages.Message{ .Version = try protocol.messages.VersionMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.VerackMessage.name()))
-
         protocol.messages.Message{ .Verack = try protocol.messages.VerackMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.MempoolMessage.name()))
         protocol.messages.Message{ .Mempool = try protocol.messages.MempoolMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.GetaddrMessage.name()))
         protocol.messages.Message{ .Getaddr = try protocol.messages.GetaddrMessage.deserializeReader(allocator, r) }
     else
-        return error.InvalidCommand;
+        return error.UnknownMessage;
     errdefer message.deinit(allocator);
 
     if (!std.mem.eql(u8, &message.checksum(), &checksum)) {
@@ -102,6 +101,7 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
 // TESTS
 
 test "ok_send_version_message" {
+    const Config = @import("../../config/config.zig").Config;
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
@@ -128,7 +128,7 @@ test "ok_send_version_message" {
     };
 
     const writer = list.writer();
-    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
@@ -144,6 +144,7 @@ test "ok_send_version_message" {
 }
 
 test "ok_send_verack_message" {
+    const Config = @import("../../config/config.zig").Config;
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const VerackMessage = protocol.messages.VerackMessage;
@@ -154,7 +155,7 @@ test "ok_send_verack_message" {
     const message = VerackMessage{};
 
     const writer = list.writer();
-    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
@@ -170,6 +171,7 @@ test "ok_send_verack_message" {
 }
 
 test "ok_send_mempool_message" {
+    const Config = @import("../../config/config.zig").Config;
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const MempoolMessage = protocol.messages.MempoolMessage;
@@ -180,7 +182,7 @@ test "ok_send_mempool_message" {
     const message = MempoolMessage{};
 
     const writer = list.writer();
-    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
@@ -196,6 +198,7 @@ test "ok_send_mempool_message" {
 }
 
 test "ko_receive_invalid_payload_length" {
+    const Config = @import("../../config/config.zig").Config;
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
@@ -222,7 +225,7 @@ test "ko_receive_invalid_payload_length" {
     };
 
     const writer = list.writer();
-    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
 
     // Corrupt header payload length
     @memset(list.items[16..20], 42);
@@ -234,6 +237,7 @@ test "ko_receive_invalid_payload_length" {
 }
 
 test "ko_receive_invalid_checksum" {
+    const Config = @import("../../config/config.zig").Config;
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
@@ -260,7 +264,7 @@ test "ko_receive_invalid_checksum" {
     };
 
     const writer = list.writer();
-    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
 
     // Corrupt header checksum
     @memset(list.items[20..24], 42);
@@ -272,6 +276,7 @@ test "ko_receive_invalid_checksum" {
 }
 
 test "ko_receive_invalid_command" {
+    const Config = @import("../../config/config.zig").Config;
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
@@ -298,7 +303,7 @@ test "ko_receive_invalid_command" {
     };
 
     const writer = list.writer();
-    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
 
     // Corrupt header command
     @memcpy(list.items[4..16], "whoissatoshi");
@@ -306,5 +311,5 @@ test "ko_receive_invalid_command" {
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
-    try std.testing.expectError(error.InvalidCommand, receiveMessage(test_allocator, reader));
+    try std.testing.expectError(error.UnknownMessage, receiveMessage(test_allocator, reader));
 }
