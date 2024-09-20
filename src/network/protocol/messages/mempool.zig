@@ -3,10 +3,6 @@ const std = @import("std");
 const native_endian = @import("builtin").target.cpu.arch.endian();
 const protocol = @import("../lib.zig");
 
-const ServiceFlags = protocol.ServiceFlags;
-
-const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
-
 /// MempoolMessage represents the "mempool" message
 ///
 /// https://developer.bitcoin.org/reference/p2p_networking.html#version
