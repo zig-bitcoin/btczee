@@ -1,6 +1,9 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ScriptNum = @import("lib.zig").ScriptNum;
+const script = @import("lib.zig");
+const ScriptNum = script.ScriptNum;
+const asBool = script.asBool;
+const asInt = script.asInt;
 const testing = std.testing;
 const native_endian = @import("builtin").target.cpu.arch.endian();
 
@@ -45,13 +48,7 @@ pub const Stack = struct {
         self.items.deinit();
     }
 
-    /// Push an item onto the stack
-    ///
-    /// # Arguments
-    /// - `item`: Slice of bytes to be pushed onto the stack
-    ///
-    /// # Returns
-    /// - `StackError` if out of memory
+    /// Push an element onto the stack (allocate a copy of it)
     pub fn pushByteArray(self: *Stack, item: []const u8) StackError!void {
         // Create a copy of the input item
         const copy = self.allocator.dupe(u8, item) catch return StackError.OutOfMemory;
@@ -64,13 +61,7 @@ pub const Stack = struct {
         };
     }
 
-    /// Push an item onto the stack(does not create copy of item)
-    ///
-    /// # Arguments
-    /// - `item`: Slice of bytes to be pushed onto the stack
-    ///
-    /// # Returns
-    /// - `StackError` if out of memory
+    /// Push an element onto the stack(does not create copy of item)
     pub fn pushElement(self: *Stack, item: []u8) StackError!void {
         // Append the item directly to the stack
         self.items.append(item) catch {
@@ -78,6 +69,7 @@ pub const Stack = struct {
         };
     }
 
+    /// Push a number onto the stack (allocate a copy of it)
     pub fn pushInt(self: *Stack, value: i32) StackError!void {
         if (value == 0) {
             const elem = try self.allocator.alloc(u8, 0);
@@ -114,30 +106,28 @@ pub const Stack = struct {
         try self.pushElement(try value.toBytes(self.allocator));
     }
 
-    /// Pop an integer from the stack
+    /// Pop a ScriptNum from the stack
     ///
-    /// # Returns
-    /// - `ScriptNum`: The popped integer value
-    /// - `StackError` if the stack is empty or the value is invalid
+    /// Suitable when you need to do some potentially overflowing operations on it.
+    /// Otherwise prefer popInt.
     pub fn popScriptNum(self: *Stack) StackError!ScriptNum {
         const value = try self.pop();
         defer self.allocator.free(value);
-
-        return ScriptNum.fromBytes(value);
+        return ScriptNum.new(try asInt(value));
     }
 
+    /// Pop an integer from the stack
     pub fn popInt(self: *Stack) !i32 {
-        return @intCast((try self.popScriptNum()).value);
+        const value = try self.pop();
+        defer self.allocator.free(value);
+        return asInt(value);
     }
+
     /// Pop a boolean value from the stack
-    ///
-    /// # Returns
-    /// - `bool`: The popped boolean value
-    /// - `StackError` if the stack is empty
     pub fn popBool(self: *Stack) StackError!bool {
         const value = try self.pop();
         defer self.allocator.free(value);
-        return if (value.len == 1 and value[0] != 0) true else false;
+        return asBool(value);
     }
 
     // Function to push a boolean value onto the stack
@@ -145,7 +135,8 @@ pub const Stack = struct {
         if (value) {
             try self.pushByteArray(&[_]u8{1});
         } else {
-            try self.pushByteArray(&[_]u8{0});
+            const empty_slice: []u8 = &.{};
+            self.items.append(empty_slice) catch return error.OutOfMemory;
         }
     }
 
@@ -173,15 +164,23 @@ pub const Stack = struct {
         return self.items.items[self.items.items.len - 1 - index];
     }
 
-    pub fn peekInt(self: *Stack, index: usize) StackError!i64 {
+    pub fn peekInt(self: *Stack, index: usize) StackError!i32 {
         if (index >= self.items.items.len) {
             return StackError.StackUnderflow;
         }
 
-        const elem = self.items.items[self.items.items.len - 1 - index];
-        if (elem.len > 8) return StackError.InvalidValue;
+        const bytes = self.items.items[self.items.items.len - 1 - index];
 
-        return std.mem.readVarInt(i64, elem, native_endian);
+        return asInt(bytes);
+    }
+    pub fn peekBool(self: *Stack, index: usize) StackError!bool {
+        if (index >= self.items.items.len) {
+            return StackError.StackUnderflow;
+        }
+
+        const bytes = self.items.items[self.items.items.len - 1 - index];
+
+        return asBool(bytes);
     }
 
     /// Get the number of items in the stack
