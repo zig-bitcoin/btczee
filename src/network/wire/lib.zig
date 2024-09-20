@@ -80,6 +80,8 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
         protocol.messages.Message{ .Version = try protocol.messages.VersionMessage.deserializeReader(allocator, r)}
     else if (std.mem.eql(u8, &command, protocol.messages.VerackMessage.name()))
         protocol.messages.Message{ .Verack = try protocol.messages.VerackMessage.deserializeReader(allocator, r)}
+    else if (std.mem.eql(u8, &command, protocol.messages.MempoolMessage.name()))
+        protocol.messages.Message{ .Mempool = try protocol.messages.MempoolMessage.deserializeReader(allocator, r)}
     else
         return error.InvalidCommand;
     errdefer message.deinit(allocator);
@@ -133,6 +135,7 @@ test "ok_send_version_message" {
     switch (received_message) {
         .Version => |rm| try std.testing.expect(message.eql(&rm)),
         .Verack => unreachable,
+        .Mempool => unreachable,
     }
 }
 
@@ -156,6 +159,32 @@ test "ok_send_verack_message" {
 
     switch (received_message) {
         .Verack => {},
+        .Version => unreachable,
+        .Mempool => unreachable,
+    }
+}
+
+test "ok_send_mempool_message" {
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const MempoolMessage = protocol.messages.MempoolMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const message = MempoolMessage{};
+
+    const writer = list.writer();
+    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
+    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
+    const reader = fbs.reader();
+
+    const received_message = try receiveMessage(test_allocator, reader);
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .Mempool => {},
+        .Verack => unreachable,
         .Version => unreachable,
     }
 }
