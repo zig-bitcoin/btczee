@@ -730,11 +730,11 @@ test "Script execution OP_1 OP_2 OP_3 OP_OVER" {
     try std.testing.expectEqual(3, element1);
 }
 
-test "Script execution OP_1 OP_2 OP_3 OP_ROLL" {
+test "Script execution OP_1 OP_2 OP_3 OP_2 OP_ROLL" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_2 OP_3 OP_2 OP_PICK
-    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x52, 0x7a };
+    // Simple script: OP_1 OP_2 OP_3 OP_2 OP_ROLL
+    const script_bytes = [_]u8{ Opcode.OP_1.toBytes(), Opcode.OP_2.toBytes(), Opcode.OP_3.toBytes(), Opcode.OP_2.toBytes(), Opcode.OP_ROLL.toBytes() };
     const script = Script.init(&script_bytes);
 
     var engine = Engine.init(allocator, script, .{});

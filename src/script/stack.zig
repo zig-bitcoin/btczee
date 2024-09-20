@@ -167,19 +167,14 @@ pub const Stack = struct {
     /// - `StackError` if the index is out of bounds
     /// - `[]u8`: The removed item
     pub fn removeAt(self: *Stack, index: usize) StackError![]u8 {
-        const value = try self.allocator.dupe(u8, try self.peek(index));
+    if (index >= self.items.items.len) {
+        return StackError.StackUnderflow; 
+    }
 
-        var i: usize = 0;
-        while (i < index) : (i += 1) {
-            const next_value = try self.peek(index - i - 1);
-            const entry = self.items.items[self.len() - index + i - 1];
-            self.allocator.free(entry);
-            self.items.items[self.len() - index + i - 1] = try self.allocator.dupe(u8, next_value);
-        }
-        const last_entry = self.items.popOrNull() orelse return StackError.StackUnderflow;
-        self.allocator.free(last_entry);
+    const actualIndex = self.items.items.len - 1 - index;
 
-        return value;
+    // Use orderedRemove to get the item
+    return self.items.orderedRemove(actualIndex);
     }
 
     /// Get the number of items in the stack
