@@ -5,7 +5,7 @@ const protocol = @import("../lib.zig");
 
 /// MempoolMessage represents the "mempool" message
 ///
-/// https://developer.bitcoin.org/reference/p2p_networking.html#version
+/// https://developer.bitcoin.org/reference/p2p_networking.html#mempool
 pub const MempoolMessage = struct {
     // mempool message do not contain any payload, thus there is no field
 
