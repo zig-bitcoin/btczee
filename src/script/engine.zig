@@ -54,7 +54,11 @@ pub const Engine = struct {
     /// Log debug information
     fn log(self: *Engine, comptime format: []const u8, args: anytype) void {
         _ = self;
-        std.debug.print(format, args);
+        _ = format;
+        _ = args;
+        // Uncomment this if you need to access the log
+        // In the future it would be cool to log somewhere else than stderr
+        // std.debug.print(format, args);
     }
 
     /// Execute the script
@@ -404,12 +408,12 @@ pub const Engine = struct {
     }
 
     fn opDisabled(self: *Engine) !void {
-        std.debug.print("Attempt to execute disabled opcode: 0x{x:0>2}\n", .{self.script.data[self.pc]});
+        _ = self;
         return error.DisabledOpcode;
     }
 
     fn opInvalid(self: *Engine) !void {
-        std.debug.print("Attempt to execute invalid opcode: 0x{x:0>2}\n", .{self.script.data[self.pc]});
+        _ = self;
         return error.UnknownOpcode;
     }
 
