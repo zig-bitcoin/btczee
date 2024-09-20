@@ -76,10 +76,12 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
     const checksum = try r.readBytesNoEof(4);
 
     // Read payload
-    const message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name())) 
-        protocol.messages.Message{ .Version = try protocol.messages.VersionMessage.deserializeReader(allocator, r)}
+    const message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name()))
+        protocol.messages.Message{ .Version = try protocol.messages.VersionMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.VerackMessage.name()))
-        protocol.messages.Message{ .Verack = try protocol.messages.VerackMessage.deserializeReader(allocator, r)}
+        protocol.messages.Message{ .Verack = try protocol.messages.VerackMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.GetaddrMessage.name()))
+        protocol.messages.Message{ .Getaddr = try protocol.messages.GetaddrMessage.deserializeReader(allocator, r) }
     else
         return error.InvalidCommand;
     errdefer message.deinit(allocator);
@@ -133,6 +135,7 @@ test "ok_send_version_message" {
     switch (received_message) {
         .Version => |rm| try std.testing.expect(message.eql(&rm)),
         .Verack => unreachable,
+        .Getaddr => unreachable,
     }
 }
 
@@ -157,6 +160,7 @@ test "ok_send_verack_message" {
     switch (received_message) {
         .Verack => {},
         .Version => unreachable,
+        .Getaddr => unreachable,
     }
 }
 
