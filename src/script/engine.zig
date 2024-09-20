@@ -85,7 +85,7 @@ pub const Engine = struct {
         }
     }
 
-    fn executeOpcode(self: *Engine, opcode: Opcode) !void {
+    fn executeOpcode(self: *Engine, opcode: Opcode) EngineError!void {
         self.log("Executing opcode: 0x{x:0>2}\n", .{opcode.toBytes()});
 
         // Check if the opcode is a push data opcode
@@ -413,7 +413,8 @@ pub const Engine = struct {
     fn opSize(self: *Engine) !void {
         const top_value = try self.stack.pop();
         const len = top_value.len;
-        const result: ScriptNum = @intCast(len);
+        // Should be ok as the max len of an elem is MAX_SCRIPT_ELEMENT_SIZE (520)
+        const result: i32 = @intCast(len);
 
         try self.stack.pushElement(top_value);
         try self.stack.pushInt(result);
@@ -638,6 +639,38 @@ test "Script execution - OP_1 OP_2 OP_IFDUP" {
     try std.testing.expectEqual(3, engine.stack.len());
     try std.testing.expectEqual(2, element0);
     try std.testing.expectEqual(2, element1);
+}
+
+test "Script execution - OP_OVER" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_2 OP_3 OP_OVER
+    const script_bytes = [_]u8{
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_2.toBytes(),
+        Opcode.OP_3.toBytes(),
+        Opcode.OP_OVER.toBytes(),
+    };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    // Ensure the stack has the expected number of elements
+    try std.testing.expectEqual(@as(usize, 4), engine.stack.len());
+
+    // Check the stack elements
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+    const element2 = try engine.stack.peekInt(2);
+    const element3 = try engine.stack.peekInt(3);
+
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(3, element1);
+    try std.testing.expectEqual(2, element2);
+    try std.testing.expectEqual(1, element3);
 }
 
 test "Script execution - OP_1 OP_2 OP_DEPTH" {
