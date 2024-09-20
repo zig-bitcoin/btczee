@@ -51,6 +51,7 @@ pub const P2P = struct {
         // TODO: Implement the P2P network handler
         // Initialize the listener
         // const address = try net.Address.parseIp4("0.0.0.0", self.config.p2p_port);
+        // std.debug.panic("{any}", .{address});
         // const stream = try net.tcpConnectToAddress(address);
 
         // self.listener = net.Server{
