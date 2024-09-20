@@ -11,7 +11,7 @@ const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 
 /// GetaddrMessage represents the "verack" message
 ///
-/// https://developer.bitcoin.org/reference/p2p_networking.html#version
+/// https://developer.bitcoin.org/reference/p2p_networking.html#getaddr
 pub const GetaddrMessage = struct {
     // verack message do not contain any payload, thus there is no field
 
