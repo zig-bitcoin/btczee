@@ -8,6 +8,7 @@ const arithmetic = @import("opcodes/arithmetic.zig");
 const Opcode = @import("opcodes/constant.zig").Opcode;
 const isUnnamedPushNDataOpcode = @import("opcodes/constant.zig").isUnnamedPushNDataOpcode;
 const EngineError = @import("lib.zig").EngineError;
+const ripemd160 = @import("bitcoin-primitives").hashes.Ripemd160;
 /// Engine is the virtual machine that executes Bitcoin scripts
 pub const Engine = struct {
     /// The script being executed
@@ -137,6 +138,7 @@ pub const Engine = struct {
             Opcode.OP_MIN => try arithmetic.opMin(self),
             Opcode.OP_MAX => try arithmetic.opMax(self),
             Opcode.OP_WITHIN => try arithmetic.opWithin(self),
+            Opcode.OP_RIPEMD160 => try self.opRipemd160(),
             Opcode.OP_HASH160 => try self.opHash160(),
             Opcode.OP_CHECKSIG => try self.opCheckSig(),
             Opcode.OP_NIP => try self.opNip(),
@@ -476,6 +478,14 @@ pub const Engine = struct {
         std.debug.print("Attempt to execute invalid opcode: 0x{x:0>2}\n", .{self.script.data[self.pc]});
         return error.UnknownOpcode;
     }
+
+    fn opRipemd160(self: *Engine) !void {
+        const data = try self.stack.pop();
+        defer self.allocator.free(data);
+        var hash: [ripemd160.digest_length]u8 = undefined;
+        ripemd160.hash(data, &hash, .{});
+        try self.stack.pushByteArray(&hash);
+    }
 };
 
 test "Script execution - OP_1 OP_1 OP_EQUAL" {
@@ -811,4 +821,43 @@ test "Script execution OP_1 OP_2 OP_3 OP_SIZE" {
 
     try std.testing.expectEqual(1, element0);
     try std.testing.expectEqual(3, element1);
+}
+
+test "Script execution OP_RIPEMD160" {
+    const test_cases = [_]struct {
+        input: []const u8,
+        expected: []const u8,
+    }{
+        .{ .input = "", .expected = "9c1185a5c5e9fc54612808977ee8f548b2258d31" },
+        .{ .input = "a", .expected = "0bdc9d2d256b3ee9daae347be6f4dc835a467ffe" },
+        .{ .input = "abc", .expected = "8eb208f7e05d987a9b044a8e98c6b087f15a0bfc" },
+        .{ .input = "message digest", .expected = "5d0689ef49d2fae572b881b123a85ffa21595f36" },
+    };
+
+    for (test_cases) |case| {
+        const allocator = std.testing.allocator;
+
+        const script_bytes = [_]u8{Opcode.OP_RIPEMD160.toBytes()};
+        const script = Script.init(&script_bytes);
+
+        var engine = Engine.init(allocator, script, .{});
+        defer engine.deinit();
+
+        // Push the input onto the stack
+        try engine.stack.pushByteArray(case.input);
+
+        // Call opRipemd160
+        try engine.execute();
+
+        // Pop the result from the stack
+        const result = try engine.stack.pop();
+        defer engine.allocator.free(result); // Free the result after use
+
+        // Convert expected hash to bytes
+        var expected_output: [ripemd160.digest_length]u8 = undefined;
+        _ = try std.fmt.hexToBytes(&expected_output, case.expected);
+
+        // Compare the result with the expected hash
+        try std.testing.expectEqualSlices(u8, &expected_output, result);
+    }
 }
