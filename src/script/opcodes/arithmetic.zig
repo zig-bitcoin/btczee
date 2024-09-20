@@ -40,14 +40,14 @@ pub fn opAbs(engine: *Engine) !void {
 /// both while reading and writing.
 pub fn opNot(engine: *Engine) !void {
     const value = try engine.stack.popInt();
-    const result: u8 = if (value == 0) 1 else 0;
+    const result: u8 = @intFromBool(value == 0);
     try engine.stack.pushInt(result);
 }
 
 /// Pushes 1 if the top stack item is not 0, 0 otherwise
 pub fn op0NotEqual(engine: *Engine) !void {
     const value = try engine.stack.popInt();
-    const result: u8 = if (value != 0) 1 else 0;
+    const result: u8 = @intFromBool(value != 0);
     try engine.stack.pushInt(result);
 }
 
