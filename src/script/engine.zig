@@ -2,6 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Stack = @import("stack.zig").Stack;
 const Script = @import("lib.zig").Script;
+const asBool = @import("lib.zig").asBool;
 const ScriptNum = @import("lib.zig").ScriptNum;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
 const arithmetic = @import("opcodes/arithmetic.zig");
@@ -243,202 +244,134 @@ pub const Engine = struct {
         _ = self;
     }
 
-    /// OP_IF: If the top stack value is not False, the statements are executed. The top stack value is removed.
+    /// OP_VERIFY: Pop the top value and verify it is true
     ///
-    /// # Returns
-    /// OP_VERIFY: Verify the top stack value
-    ///
-    /// # Returns
-    /// - `EngineError`: If verification fails or an error occurs
+    /// If verification fails or an error occurs
     fn opVerify(self: *Engine) !void {
-        const value = try self.stack.pop();
-        defer self.allocator.free(value);
-        if (value.len == 0 or (value.len == 1 and value[0] == 0)) {
+        const value = try self.stack.popBool();
+        if (!value) {
             return error.VerifyFailed;
         }
     }
 
     /// OP_RETURN: Immediately halt execution
-    ///
-    /// # Returns
-    /// - `EngineError.EarlyReturn`: Always
     fn opReturn(self: *Engine) !void {
         _ = self;
         return error.EarlyReturn;
     }
 
     /// OP_2DROP: Drops top 2 stack items
-    ///
-    /// # Returns
-    /// - "EngineError.StackUnderflow": if initial stack length < 2
     fn op2Drop(self: *Engine) !void {
-        if (self.stack.len() < 2) {
-            return error.StackUnderflow;
-        }
-        const a = try self.stack.pop();
-        const b = try self.stack.pop();
-
-        defer self.allocator.free(a);
-        defer self.allocator.free(b);
+        const first = try self.stack.pop();
+        defer self.allocator.free(first);
+        const second = try self.stack.pop();
+        defer self.allocator.free(second);
     }
 
     /// OP_2DUP: Duplicates top 2 stack item
-    ///
-    /// # Returns
-    /// -  "EngineError.StackUnderflow": if initial stack length < 2
     fn op2Dup(self: *Engine) !void {
-        if (self.stack.len() < 2) {
-            return error.StackUnderflow;
-        }
-
-        const second_item = try self.stack.peek(0);
-        const first_item = try self.stack.peek(1);
-        try self.stack.pushByteArray(first_item);
-        try self.stack.pushByteArray(second_item);
+        const first = try self.stack.peek(0);
+        const second = try self.stack.peek(1);
+        try self.stack.pushByteArray(second);
+        try self.stack.pushByteArray(first);
     }
 
     /// OP_3DUP: Duplicates top 3 stack item
-    ///
-    /// # Returns
-    /// -  "EngineError.StackUnderflow": if initial stack length < 3
     fn op3Dup(self: *Engine) !void {
-        if (self.stack.len() < 3) {
-            return error.StackUnderflow;
-        }
-        const third_item = try self.stack.peek(2);
-        const second_item = try self.stack.peek(1);
-        const first_item = try self.stack.peek(0);
-        try self.stack.pushByteArray(third_item);
-        try self.stack.pushByteArray(second_item);
-        try self.stack.pushByteArray(first_item);
+        const first = try self.stack.peek(0);
+        const second = try self.stack.peek(1);
+        const third = try self.stack.peek(2);
+        try self.stack.pushByteArray(third);
+        try self.stack.pushByteArray(second);
+        try self.stack.pushByteArray(first);
     }
 
     /// OP_DEPTH: Puts the number of stack items onto the stack.
-    ///
-    /// # Returns
-    /// -  "EngineError.StackUnderflow": if initial stack length == 0
     fn opDepth(self: *Engine) !void {
-        if (self.stack.len() == 0) {
-            return error.StackUnderflow;
-        }
         const stack_length = self.stack.len();
-        const u8_stack_length: u8 = @intCast(stack_length);
-        try self.stack.pushByteArray(&[_]u8{u8_stack_length});
+        // Casting should be fine as stack length cannot contain more than 1000.
+        try self.stack.pushInt(@intCast(stack_length));
     }
 
-    /// OP_IFDUP: If the top stack value is not 0, duplicate itp
-    ///
-    /// # Returns
-    /// -  "EngineError.StackUnderflow": if initial stack length < 1
+    /// OP_IFDUP: If the top stack value is not 0, duplicate it
     fn opIfDup(self: *Engine) !void {
-        if (self.stack.len() < 1) {
-            return error.StackUnderflow;
-        }
         const value = try self.stack.peek(0);
-        if (value.len != 1 or value[0] != 0) {
+        if (asBool(value)) {
             try self.stack.pushByteArray(value);
         }
     }
 
     /// OP_DROP: Drops top stack item
-    ///
-    /// # Returns
-    /// -  "EngineError.StackUnderflow": if initial stack length < 1
     fn opDrop(self: *Engine) !void {
-        if (self.stack.len() < 1) {
-            return error.StackUnderflow;
-        }
-        const a = try self.stack.pop();
-        defer self.allocator.free(a);
+        const item = try self.stack.pop();
+        defer self.allocator.free(item);
     }
 
     /// OP_DUP: Duplicate the top stack item
-    ///
-    /// # Returns
-    /// - `EngineError`: If an error occurs during execution
     fn opDup(self: *Engine) !void {
         const value = try self.stack.peek(0);
         try self.stack.pushByteArray(value);
     }
 
     /// OP_NIP: Removes the second-to-top stack item
-    ///
-    /// - will return an error if initial stack length < 2
     fn opNip(self: *Engine) !void {
-        const top_value = try self.stack.pop();
-        const second_to_top_value = try self.stack.pop();
-        try self.stack.pushElement(top_value);
-        // defer self.allocator.free(top_value);
-        defer self.allocator.free(second_to_top_value);
+        const first = try self.stack.pop();
+        errdefer self.allocator.free(first);
+        const second = try self.stack.pop();
+        defer self.allocator.free(second);
+        try self.stack.pushElement(first);
     }
 
     /// OP_OVER: Copies the second-to-top stack item to the top
-    ///
-    /// /// # Returns
-    /// - "EngineError.StackUnderflow": if initial stack length < 2
     fn opOver(self: *Engine) !void {
         const value = try self.stack.peek(1);
         try self.stack.pushByteArray(value);
     }
 
     /// OP_SWAP: The top two items on the stack are swapped.
-    ///
-    /// /// # Returns
-    /// - "EngineError.StackUnderflow": if initial stack length < 2
     fn opSwap(self: *Engine) !void {
-        const top_value = try self.stack.pop();
-        const second_to_top_value = try self.stack.pop();
+        const first = try self.stack.pop();
+        errdefer self.allocator.free(first);
+        const second = try self.stack.pop();
+        errdefer self.allocator.free(second);
 
-        try self.stack.pushElement(top_value);
-        try self.stack.pushElement(second_to_top_value);
+        try self.stack.pushElement(first);
+        try self.stack.pushElement(second);
     }
 
     /// OP_TUCK: The item at the top of the stack is copied and inserted before the second-to-top item.
-    ///
-    /// /// # Returns
-    /// - "EngineError.StackUnderflow": if initial stack length < 2
     fn opTuck(self: *Engine) !void {
-        const top_value = try self.stack.pop();
-        const second_to_top_value = try self.stack.pop();
+        const first = try self.stack.pop();
+        errdefer self.allocator.free(first);
+        const second = try self.stack.pop();
+        errdefer self.allocator.free(second);
 
-        try self.stack.pushByteArray(second_to_top_value); //this must be pushBytesArray because we need the variable again
-        try self.stack.pushElement(top_value);
-        try self.stack.pushElement(second_to_top_value);
+        try self.stack.pushByteArray(first);
+        try self.stack.pushElement(second);
+        try self.stack.pushElement(first);
     }
 
-    /// OP_SIZE:Pushes the string length of the top element of the stack
-    ///
-    /// /// # Returns
-    /// - "EngineError.StackUnderflow": if initial stack length < 2
+    /// OP_SIZE: Pushes the size of the top element
     fn opSize(self: *Engine) !void {
-        const top_value = try self.stack.pop();
-        const len = top_value.len;
+        const first = try self.stack.peek(0);
         // Should be ok as the max len of an elem is MAX_SCRIPT_ELEMENT_SIZE (520)
-        const result: i32 = @intCast(len);
+        const len: i32 = @intCast(first.len);
 
-        try self.stack.pushElement(top_value);
-        try self.stack.pushInt(result);
+        try self.stack.pushInt(len);
     }
 
     /// OP_EQUAL: Push 1 if the top two items are equal, 0 otherwise
-    ///
-    /// # Returns
-    /// - `EngineError`: If an error occurs during execution
     fn opEqual(self: *Engine) EngineError!void {
-        const b = try self.stack.pop();
-        const a = try self.stack.pop();
+        const first = try self.stack.pop();
+        defer self.allocator.free(first);
+        const second = try self.stack.pop();
+        defer self.allocator.free(second);
 
-        defer self.allocator.free(b);
-        defer self.allocator.free(a);
-
-        const equal = std.mem.eql(u8, a, b);
-        try self.stack.pushByteArray(if (equal) &[_]u8{1} else &[_]u8{0});
+        const are_equal = std.mem.eql(u8, first, second);
+        try self.stack.pushBool(are_equal);
     }
 
     /// OP_EQUALVERIFY: OP_EQUAL followed by OP_VERIFY
-    ///
-    /// # Returns
-    /// - `EngineError`: If verification fails or an error occurs
     fn opEqualVerify(self: *Engine) !void {
         try self.opEqual();
         try self.opVerify();
@@ -462,12 +395,12 @@ pub const Engine = struct {
     /// - `EngineError`: If an error occurs during execution
     fn opCheckSig(self: *Engine) !void {
         const pubkey = try self.stack.pop();
-        const sig = try self.stack.pop();
         defer self.allocator.free(pubkey);
+        const sig = try self.stack.pop();
         defer self.allocator.free(sig);
         // TODO: Implement actual signature checking
         // Assume signature is valid for now
-        try self.stack.pushByteArray(&[_]u8{1});
+        try self.stack.pushBool(true);
     }
 
     fn opDisabled(self: *Engine) !void {
@@ -786,7 +719,7 @@ test "Script execution OP_1 OP_2 OP_3 OP_TUCK" {
     const allocator = std.testing.allocator;
 
     // Simple script: OP_1 OP_2 OP_3 OP_TUCK
-    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x7d };
+    const script_bytes = [_]u8{ Opcode.OP_1.toBytes(), Opcode.OP_2.toBytes(), Opcode.OP_3.toBytes(), Opcode.OP_TUCK.toBytes() };
     const script = Script.init(&script_bytes);
 
     var engine = Engine.init(allocator, script, .{});
@@ -798,10 +731,12 @@ test "Script execution OP_1 OP_2 OP_3 OP_TUCK" {
     const element0 = try engine.stack.peekInt(0);
     const element1 = try engine.stack.peekInt(1);
     const element2 = try engine.stack.peekInt(2);
+    const element3 = try engine.stack.peekInt(3);
 
-    try std.testing.expectEqual(2, element0);
-    try std.testing.expectEqual(3, element1);
-    try std.testing.expectEqual(2, element2);
+    try std.testing.expectEqual(3, element0);
+    try std.testing.expectEqual(2, element1);
+    try std.testing.expectEqual(3, element2);
+    try std.testing.expectEqual(1, element3);
 }
 
 test "Script execution OP_1 OP_2 OP_3 OP_SIZE" {
