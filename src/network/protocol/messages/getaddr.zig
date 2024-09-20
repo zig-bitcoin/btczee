@@ -9,11 +9,11 @@ const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 
-/// GetaddrMessage represents the "verack" message
+/// GetaddrMessage represents the "getaddr" message
 ///
 /// https://developer.bitcoin.org/reference/p2p_networking.html#getaddr
 pub const GetaddrMessage = struct {
-    // verack message do not contain any payload, thus there is no field
+    // getaddr message do not contain any payload, thus there is no field
 
     pub inline fn name() *const [12]u8 {
         return protocol.CommandNames.GETADDR ++ [_]u8{0} ** 5;
