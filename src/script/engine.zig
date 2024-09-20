@@ -10,6 +10,7 @@ const Opcode = @import("opcodes/constant.zig").Opcode;
 const isUnnamedPushNDataOpcode = @import("opcodes/constant.zig").isUnnamedPushNDataOpcode;
 const EngineError = @import("lib.zig").EngineError;
 const ripemd160 = @import("bitcoin-primitives").hashes.Ripemd160;
+const Sha256 = std.crypto.hash.sha2.Sha256;
 /// Engine is the virtual machine that executes Bitcoin scripts
 pub const Engine = struct {
     /// The script being executed
@@ -144,6 +145,7 @@ pub const Engine = struct {
             Opcode.OP_MAX => try arithmetic.opMax(self),
             Opcode.OP_WITHIN => try arithmetic.opWithin(self),
             Opcode.OP_RIPEMD160 => try self.opRipemd160(),
+            Opcode.OP_SHA256 => try self.opSha256(),
             Opcode.OP_HASH160 => try self.opHash160(),
             Opcode.OP_CHECKSIG => try self.opCheckSig(),
             Opcode.OP_NIP => try self.opNip(),
@@ -379,6 +381,21 @@ pub const Engine = struct {
     fn opEqualVerify(self: *Engine) !void {
         try self.opEqual();
         try self.opVerify();
+    }
+
+    /// OP_Sha256: The input is hashed with SHA-256.
+    ///
+    /// # Returns
+    /// - `EngineError`: If an error occurs during execution
+    fn opSha256(self: *Engine) !void {
+        const arr = try self.stack.pop();
+        defer self.allocator.free(arr);
+
+        // Create a digest buffer to hold the hash result
+        var hash: [Sha256.digest_length]u8 = undefined;
+        Sha256.hash(arr, &hash, .{});
+
+        try self.stack.pushByteArray(&hash);
     }
 
     /// OP_HASH160: Hash the top stack item with SHA256 and RIPEMD160
@@ -800,4 +817,27 @@ test "Script execution OP_RIPEMD160" {
         // Compare the result with the expected hash
         try std.testing.expectEqualSlices(u8, &expected_output, result);
     }
+}
+
+test "Script execution - OP_SHA256" {
+    const allocator = std.testing.allocator;
+
+    const script_bytes = [_]u8{ Opcode.OP_1.toBytes(), Opcode.OP_SHA256.toBytes() };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit(); // Ensure engine is deinitialized and memory is freed
+
+    try engine.execute();
+
+    try std.testing.expectEqual(1, engine.stack.len());
+
+    const hash_bytes = try engine.stack.pop(); // Pop the result
+    defer engine.allocator.free(hash_bytes); // Free the popped byte array
+
+    try std.testing.expectEqual(Sha256.digest_length, hash_bytes.len);
+
+    var expected_hash: [Sha256.digest_length]u8 = undefined;
+    Sha256.hash(&[_]u8{1}, &expected_hash, .{});
+    try std.testing.expectEqualSlices(u8, expected_hash[0..], hash_bytes);
 }
