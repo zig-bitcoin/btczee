@@ -2,6 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Stack = @import("stack.zig").Stack;
 const Script = @import("lib.zig").Script;
+const asBool = @import("lib.zig").asBool;
 const ScriptNum = @import("lib.zig").ScriptNum;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
 const arithmetic = @import("opcodes/arithmetic.zig");
@@ -9,6 +10,8 @@ const Opcode = @import("opcodes/constant.zig").Opcode;
 const isUnnamedPushNDataOpcode = @import("opcodes/constant.zig").isUnnamedPushNDataOpcode;
 const EngineError = @import("lib.zig").EngineError;
 const sha1 = std.crypto.hash.Sha1;
+const ripemd160 = @import("bitcoin-primitives").hashes.Ripemd160;
+const Sha256 = std.crypto.hash.sha2.Sha256;
 /// Engine is the virtual machine that executes Bitcoin scripts
 pub const Engine = struct {
     /// The script being executed
@@ -53,7 +56,11 @@ pub const Engine = struct {
     /// Log debug information
     fn log(self: *Engine, comptime format: []const u8, args: anytype) void {
         _ = self;
-        std.debug.print(format, args);
+        _ = format;
+        _ = args;
+        // Uncomment this if you need to access the log
+        // In the future it would be cool to log somewhere else than stderr
+        // std.debug.print(format, args);
     }
 
     /// Execute the script
@@ -138,6 +145,8 @@ pub const Engine = struct {
             Opcode.OP_MIN => try arithmetic.opMin(self),
             Opcode.OP_MAX => try arithmetic.opMax(self),
             Opcode.OP_WITHIN => try arithmetic.opWithin(self),
+            Opcode.OP_RIPEMD160 => try self.opRipemd160(),
+            Opcode.OP_SHA256 => try self.opSha256(),
             Opcode.OP_HASH160 => try self.opHash160(),
             Opcode.OP_CHECKSIG => try self.opCheckSig(),
             Opcode.OP_NIP => try self.opNip(),
@@ -243,205 +252,152 @@ pub const Engine = struct {
         _ = self;
     }
 
-    /// OP_IF: If the top stack value is not False, the statements are executed. The top stack value is removed.
+    /// OP_VERIFY: Pop the top value and verify it is true
     ///
-    /// # Returns
-    /// OP_VERIFY: Verify the top stack value
-    ///
-    /// # Returns
-    /// - `EngineError`: If verification fails or an error occurs
+    /// If verification fails or an error occurs
     fn opVerify(self: *Engine) !void {
-        const value = try self.stack.pop();
-        defer self.allocator.free(value);
-        if (value.len == 0 or (value.len == 1 and value[0] == 0)) {
+        const value = try self.stack.popBool();
+        if (!value) {
             return error.VerifyFailed;
         }
     }
 
     /// OP_RETURN: Immediately halt execution
-    ///
-    /// # Returns
-    /// - `EngineError.EarlyReturn`: Always
     fn opReturn(self: *Engine) !void {
         _ = self;
         return error.EarlyReturn;
     }
 
     /// OP_2DROP: Drops top 2 stack items
-    ///
-    /// # Returns
-    /// - "EngineError.StackUnderflow": if initial stack length < 2
     fn op2Drop(self: *Engine) !void {
-        if (self.stack.len() < 2) {
-            return error.StackUnderflow;
-        }
-        const a = try self.stack.pop();
-        const b = try self.stack.pop();
-
-        defer self.allocator.free(a);
-        defer self.allocator.free(b);
+        const first = try self.stack.pop();
+        defer self.allocator.free(first);
+        const second = try self.stack.pop();
+        defer self.allocator.free(second);
     }
 
     /// OP_2DUP: Duplicates top 2 stack item
-    ///
-    /// # Returns
-    /// -  "EngineError.StackUnderflow": if initial stack length < 2
     fn op2Dup(self: *Engine) !void {
-        if (self.stack.len() < 2) {
-            return error.StackUnderflow;
-        }
-
-        const second_item = try self.stack.peek(0);
-        const first_item = try self.stack.peek(1);
-        try self.stack.pushByteArray(first_item);
-        try self.stack.pushByteArray(second_item);
+        const first = try self.stack.peek(0);
+        const second = try self.stack.peek(1);
+        try self.stack.pushByteArray(second);
+        try self.stack.pushByteArray(first);
     }
 
     /// OP_3DUP: Duplicates top 3 stack item
-    ///
-    /// # Returns
-    /// -  "EngineError.StackUnderflow": if initial stack length < 3
     fn op3Dup(self: *Engine) !void {
-        if (self.stack.len() < 3) {
-            return error.StackUnderflow;
-        }
-        const third_item = try self.stack.peek(2);
-        const second_item = try self.stack.peek(1);
-        const first_item = try self.stack.peek(0);
-        try self.stack.pushByteArray(third_item);
-        try self.stack.pushByteArray(second_item);
-        try self.stack.pushByteArray(first_item);
+        const first = try self.stack.peek(0);
+        const second = try self.stack.peek(1);
+        const third = try self.stack.peek(2);
+        try self.stack.pushByteArray(third);
+        try self.stack.pushByteArray(second);
+        try self.stack.pushByteArray(first);
     }
 
     /// OP_DEPTH: Puts the number of stack items onto the stack.
-    ///
-    /// # Returns
-    /// -  "EngineError.StackUnderflow": if initial stack length == 0
     fn opDepth(self: *Engine) !void {
-        if (self.stack.len() == 0) {
-            return error.StackUnderflow;
-        }
         const stack_length = self.stack.len();
-        const u8_stack_length: u8 = @intCast(stack_length);
-        try self.stack.pushByteArray(&[_]u8{u8_stack_length});
+        // Casting should be fine as stack length cannot contain more than 1000.
+        try self.stack.pushInt(@intCast(stack_length));
     }
 
-    /// OP_IFDUP: If the top stack value is not 0, duplicate itp
-    ///
-    /// # Returns
-    /// -  "EngineError.StackUnderflow": if initial stack length < 1
+    /// OP_IFDUP: If the top stack value is not 0, duplicate it
     fn opIfDup(self: *Engine) !void {
-        if (self.stack.len() < 1) {
-            return error.StackUnderflow;
-        }
         const value = try self.stack.peek(0);
-        if (value.len != 1 or value[0] != 0) {
+        if (asBool(value)) {
             try self.stack.pushByteArray(value);
         }
     }
 
     /// OP_DROP: Drops top stack item
-    ///
-    /// # Returns
-    /// -  "EngineError.StackUnderflow": if initial stack length < 1
     fn opDrop(self: *Engine) !void {
-        if (self.stack.len() < 1) {
-            return error.StackUnderflow;
-        }
-        const a = try self.stack.pop();
-        defer self.allocator.free(a);
+        const item = try self.stack.pop();
+        defer self.allocator.free(item);
     }
 
     /// OP_DUP: Duplicate the top stack item
-    ///
-    /// # Returns
-    /// - `EngineError`: If an error occurs during execution
     fn opDup(self: *Engine) !void {
         const value = try self.stack.peek(0);
         try self.stack.pushByteArray(value);
     }
 
     /// OP_NIP: Removes the second-to-top stack item
-    ///
-    /// - will return an error if initial stack length < 2
     fn opNip(self: *Engine) !void {
-        const top_value = try self.stack.pop();
-        const second_to_top_value = try self.stack.pop();
-        try self.stack.pushElement(top_value);
-        // defer self.allocator.free(top_value);
-        defer self.allocator.free(second_to_top_value);
+        const first = try self.stack.pop();
+        errdefer self.allocator.free(first);
+        const second = try self.stack.pop();
+        defer self.allocator.free(second);
+        try self.stack.pushElement(first);
     }
 
     /// OP_OVER: Copies the second-to-top stack item to the top
-    ///
-    /// /// # Returns
-    /// - "EngineError.StackUnderflow": if initial stack length < 2
     fn opOver(self: *Engine) !void {
         const value = try self.stack.peek(1);
         try self.stack.pushByteArray(value);
     }
 
     /// OP_SWAP: The top two items on the stack are swapped.
-    ///
-    /// /// # Returns
-    /// - "EngineError.StackUnderflow": if initial stack length < 2
     fn opSwap(self: *Engine) !void {
-        const top_value = try self.stack.pop();
-        const second_to_top_value = try self.stack.pop();
+        const first = try self.stack.pop();
+        errdefer self.allocator.free(first);
+        const second = try self.stack.pop();
+        errdefer self.allocator.free(second);
 
-        try self.stack.pushElement(top_value);
-        try self.stack.pushElement(second_to_top_value);
+        try self.stack.pushElement(first);
+        try self.stack.pushElement(second);
     }
 
     /// OP_TUCK: The item at the top of the stack is copied and inserted before the second-to-top item.
-    ///
-    /// /// # Returns
-    /// - "EngineError.StackUnderflow": if initial stack length < 2
     fn opTuck(self: *Engine) !void {
-        const top_value = try self.stack.pop();
-        const second_to_top_value = try self.stack.pop();
+        const first = try self.stack.pop();
+        errdefer self.allocator.free(first);
+        const second = try self.stack.pop();
+        errdefer self.allocator.free(second);
 
-        try self.stack.pushByteArray(second_to_top_value); //this must be pushBytesArray because we need the variable again
-        try self.stack.pushElement(top_value);
-        try self.stack.pushElement(second_to_top_value);
+        try self.stack.pushByteArray(first);
+        try self.stack.pushElement(second);
+        try self.stack.pushElement(first);
     }
 
-    /// OP_SIZE:Pushes the string length of the top element of the stack
-    ///
-    /// /// # Returns
-    /// - "EngineError.StackUnderflow": if initial stack length < 2
+    /// OP_SIZE: Pushes the size of the top element
     fn opSize(self: *Engine) !void {
-        const top_value = try self.stack.pop();
-        const len = top_value.len;
+        const first = try self.stack.peek(0);
         // Should be ok as the max len of an elem is MAX_SCRIPT_ELEMENT_SIZE (520)
-        const result: i32 = @intCast(len);
+        const len: i32 = @intCast(first.len);
 
-        try self.stack.pushElement(top_value);
-        try self.stack.pushInt(result);
+        try self.stack.pushInt(len);
     }
 
     /// OP_EQUAL: Push 1 if the top two items are equal, 0 otherwise
-    ///
-    /// # Returns
-    /// - `EngineError`: If an error occurs during execution
     fn opEqual(self: *Engine) EngineError!void {
-        const b = try self.stack.pop();
-        const a = try self.stack.pop();
+        const first = try self.stack.pop();
+        defer self.allocator.free(first);
+        const second = try self.stack.pop();
+        defer self.allocator.free(second);
 
-        defer self.allocator.free(b);
-        defer self.allocator.free(a);
-
-        const equal = std.mem.eql(u8, a, b);
-        try self.stack.pushByteArray(if (equal) &[_]u8{1} else &[_]u8{0});
+        const are_equal = std.mem.eql(u8, first, second);
+        try self.stack.pushBool(are_equal);
     }
 
     /// OP_EQUALVERIFY: OP_EQUAL followed by OP_VERIFY
-    ///
-    /// # Returns
-    /// - `EngineError`: If verification fails or an error occurs
     fn opEqualVerify(self: *Engine) !void {
         try self.opEqual();
         try self.opVerify();
+    }
+
+    /// OP_Sha256: The input is hashed with SHA-256.
+    ///
+    /// # Returns
+    /// - `EngineError`: If an error occurs during execution
+    fn opSha256(self: *Engine) !void {
+        const arr = try self.stack.pop();
+        defer self.allocator.free(arr);
+
+        // Create a digest buffer to hold the hash result
+        var hash: [Sha256.digest_length]u8 = undefined;
+        Sha256.hash(arr, &hash, .{});
+
+        try self.stack.pushByteArray(&hash);
     }
 
     /// OP_HASH160: Hash the top stack item with SHA256 and RIPEMD160
@@ -462,22 +418,30 @@ pub const Engine = struct {
     /// - `EngineError`: If an error occurs during execution
     fn opCheckSig(self: *Engine) !void {
         const pubkey = try self.stack.pop();
-        const sig = try self.stack.pop();
         defer self.allocator.free(pubkey);
+        const sig = try self.stack.pop();
         defer self.allocator.free(sig);
         // TODO: Implement actual signature checking
         // Assume signature is valid for now
-        try self.stack.pushByteArray(&[_]u8{1});
+        try self.stack.pushBool(true);
     }
 
     fn opDisabled(self: *Engine) !void {
-        std.debug.print("Attempt to execute disabled opcode: 0x{x:0>2}\n", .{self.script.data[self.pc]});
+        _ = self;
         return error.DisabledOpcode;
     }
 
     fn opInvalid(self: *Engine) !void {
-        std.debug.print("Attempt to execute invalid opcode: 0x{x:0>2}\n", .{self.script.data[self.pc]});
+        _ = self;
         return error.UnknownOpcode;
+    }
+
+    fn opRipemd160(self: *Engine) !void {
+        const data = try self.stack.pop();
+        defer self.allocator.free(data);
+        var hash: [ripemd160.digest_length]u8 = undefined;
+        ripemd160.hash(data, &hash, .{});
+        try self.stack.pushByteArray(&hash);
     }
 
     fn opSha1(self: *Engine) !void {
@@ -803,7 +767,7 @@ test "Script execution OP_1 OP_2 OP_3 OP_TUCK" {
     const allocator = std.testing.allocator;
 
     // Simple script: OP_1 OP_2 OP_3 OP_TUCK
-    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x7d };
+    const script_bytes = [_]u8{ Opcode.OP_1.toBytes(), Opcode.OP_2.toBytes(), Opcode.OP_3.toBytes(), Opcode.OP_TUCK.toBytes() };
     const script = Script.init(&script_bytes);
 
     var engine = Engine.init(allocator, script, .{});
@@ -815,10 +779,12 @@ test "Script execution OP_1 OP_2 OP_3 OP_TUCK" {
     const element0 = try engine.stack.peekInt(0);
     const element1 = try engine.stack.peekInt(1);
     const element2 = try engine.stack.peekInt(2);
+    const element3 = try engine.stack.peekInt(3);
 
-    try std.testing.expectEqual(2, element0);
-    try std.testing.expectEqual(3, element1);
-    try std.testing.expectEqual(2, element2);
+    try std.testing.expectEqual(3, element0);
+    try std.testing.expectEqual(2, element1);
+    try std.testing.expectEqual(3, element2);
+    try std.testing.expectEqual(1, element3);
 }
 
 test "Script execution OP_1 OP_2 OP_3 OP_SIZE" {
@@ -839,4 +805,66 @@ test "Script execution OP_1 OP_2 OP_3 OP_SIZE" {
 
     try std.testing.expectEqual(1, element0);
     try std.testing.expectEqual(3, element1);
+}
+
+test "Script execution OP_RIPEMD160" {
+    const test_cases = [_]struct {
+        input: []const u8,
+        expected: []const u8,
+    }{
+        .{ .input = "", .expected = "9c1185a5c5e9fc54612808977ee8f548b2258d31" },
+        .{ .input = "a", .expected = "0bdc9d2d256b3ee9daae347be6f4dc835a467ffe" },
+        .{ .input = "abc", .expected = "8eb208f7e05d987a9b044a8e98c6b087f15a0bfc" },
+        .{ .input = "message digest", .expected = "5d0689ef49d2fae572b881b123a85ffa21595f36" },
+    };
+
+    for (test_cases) |case| {
+        const allocator = std.testing.allocator;
+
+        const script_bytes = [_]u8{Opcode.OP_RIPEMD160.toBytes()};
+        const script = Script.init(&script_bytes);
+
+        var engine = Engine.init(allocator, script, .{});
+        defer engine.deinit();
+
+        // Push the input onto the stack
+        try engine.stack.pushByteArray(case.input);
+
+        // Call opRipemd160
+        try engine.execute();
+
+        // Pop the result from the stack
+        const result = try engine.stack.pop();
+        defer engine.allocator.free(result); // Free the result after use
+
+        // Convert expected hash to bytes
+        var expected_output: [ripemd160.digest_length]u8 = undefined;
+        _ = try std.fmt.hexToBytes(&expected_output, case.expected);
+
+        // Compare the result with the expected hash
+        try std.testing.expectEqualSlices(u8, &expected_output, result);
+    }
+}
+
+test "Script execution - OP_SHA256" {
+    const allocator = std.testing.allocator;
+
+    const script_bytes = [_]u8{ Opcode.OP_1.toBytes(), Opcode.OP_SHA256.toBytes() };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit(); // Ensure engine is deinitialized and memory is freed
+
+    try engine.execute();
+
+    try std.testing.expectEqual(1, engine.stack.len());
+
+    const hash_bytes = try engine.stack.pop(); // Pop the result
+    defer engine.allocator.free(hash_bytes); // Free the popped byte array
+
+    try std.testing.expectEqual(Sha256.digest_length, hash_bytes.len);
+
+    var expected_hash: [Sha256.digest_length]u8 = undefined;
+    Sha256.hash(&[_]u8{1}, &expected_hash, .{});
+    try std.testing.expectEqualSlices(u8, expected_hash[0..], hash_bytes);
 }

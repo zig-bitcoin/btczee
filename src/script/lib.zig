@@ -77,6 +77,43 @@ pub const EngineError = error{
     /// Encountered a disabled opcode
     DisabledOpcode,
 } || StackError;
+
+/// Decode bytes as a boolean
+///
+/// false can be represented as empty array [], positive zero [0x0 ... 0x0] and negative zero [0x0 ... 0x0 0x80].
+/// any other sequence of bytes means true.
+pub fn asBool(bytes: []const u8) bool {
+    for (0..bytes.len) |i| {
+        if (bytes[i] != 0 and (i != bytes.len - 1 or bytes[i] != 0)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// Decode bytesas the little endian, bit flag signed, variable-length representation of an i32
+///
+/// Will error if the input does not represent an int beetween ScriptNum.MIN and ScriptNum.MAX,
+/// meaning that it cannot read back overflown numbers.
+pub fn asInt(bytes: []const u8) StackError!i32 {
+    if (bytes.len > 4) {
+        return StackError.InvalidValue;
+    }
+    if (bytes.len == 0) {
+        return 0;
+    }
+
+    const is_negative = if (bytes[bytes.len - 1] & 0x80 != 0) true else false;
+    var owned_bytes = std.mem.zeroes([4]u8);
+    @memcpy(owned_bytes[0..bytes.len], bytes[0..bytes.len]);
+    // Erase the sign bit
+    owned_bytes[bytes.len - 1] &= 0x7f;
+
+    const abs_value = std.mem.readInt(i32, &owned_bytes, .little);
+
+    return if (is_negative) -abs_value else abs_value;
+}
+
 /// A struct allowing for safe reading and writing of bitcoin numbers as well as performing mathematical operations.
 ///
 /// Bitcoin numbers are represented on the stack as 0 to 4 bytes little endian variable-lenght integer,
@@ -104,6 +141,10 @@ pub const ScriptNum = struct {
     value: Self.InnerReprType,
 
     const Self = @This();
+
+    pub fn new(value: i32) Self {
+        return .{ .value = value };
+    }
 
     /// Encode `Self.value` as variable-lenght integer
     ///
@@ -135,26 +176,6 @@ pub const ScriptNum = struct {
         }
 
         return elem;
-    }
-
-    /// Decode a variable-length integer as an instance of Self
-    ///
-    /// Will error if the input does not represent an int beetween ScriptNum.MIN and ScriptNum.MAX,
-    /// meaning that it cannot read back overflown numbers.
-    pub fn fromBytes(bytes: []u8) !Self {
-        if (bytes.len > 4) {
-            return StackError.InvalidValue;
-        }
-        if (bytes.len == 0) {
-            return .{ .value = 0 };
-        }
-
-        const is_negative = if (bytes[bytes.len - 1] & 0x80 != 0) true else false;
-        bytes[bytes.len - 1] &= 0x7f;
-
-        const abs_value = std.mem.readVarInt(i32, bytes, .little);
-
-        return .{ .value = if (is_negative) -abs_value else abs_value };
     }
 
     /// Add `rhs` to `self`
