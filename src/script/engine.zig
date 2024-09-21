@@ -9,6 +9,7 @@ const arithmetic = @import("opcodes/arithmetic.zig");
 const Opcode = @import("opcodes/constant.zig").Opcode;
 const isUnnamedPushNDataOpcode = @import("opcodes/constant.zig").isUnnamedPushNDataOpcode;
 const EngineError = @import("lib.zig").EngineError;
+const ScriptBuilder = @import("scriptBuilder.zig").ScriptBuilder;
 const ripemd160 = @import("bitcoin-primitives").hashes.Ripemd160;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 /// Engine is the virtual machine that executes Bitcoin scripts
@@ -55,11 +56,11 @@ pub const Engine = struct {
     /// Log debug information
     fn log(self: *Engine, comptime format: []const u8, args: anytype) void {
         _ = self;
-        _ = format;
-        _ = args;
+        // _ = format;
+        // _ = args;
         // Uncomment this if you need to access the log
         // In the future it would be cool to log somewhere else than stderr
-        // std.debug.print(format, args);
+        std.debug.print(format, args);
     }
 
     /// Execute the script
@@ -840,4 +841,27 @@ test "Script execution - OP_SHA256" {
     var expected_hash: [Sha256.digest_length]u8 = undefined;
     Sha256.hash(&[_]u8{1}, &expected_hash, .{});
     try std.testing.expectEqualSlices(u8, expected_hash[0..], hash_bytes);
+}
+
+test "Build engine" {
+    var allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(allocator);
+
+    try sb.pushInt(&allocator, 1);
+    // _ = try r.pushInt(&allocator, 1);
+    try sb.pushInt(&allocator, 1);
+    try sb.pushOpcode(&allocator, Opcode.OP_ADD);
+    std.debug.print("sb:{any}\n", .{sb});
+    var engine = try sb.build(&allocator);
+    defer engine.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
+
+    // // Check the stack elements
+    // const element0 = try engine.stack.peekInt(0);
+    // const element1 = try engine.stack.peekInt(1);
+    // const element2 = try engine.stack.peekInt(2);
+    // const element3 = try engine.stack.peekInt(3);
+    defer sb.deinit(&allocator);
+    // std.debug.print("hello");
 }

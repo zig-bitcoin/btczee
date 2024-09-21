@@ -363,6 +363,13 @@ pub const Opcode = enum(u8) {
             return EngineError.UnknownOpcode;
         };
     }
+
+    pub fn pushOpcode(num: u8) Opcode {
+        return switch (num) {
+            1 => Opcode.OP_1,
+            else => Opcode.OP_0,
+        };
+    }
 };
 
 // Helper function to get all opcodes
