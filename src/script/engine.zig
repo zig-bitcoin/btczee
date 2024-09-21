@@ -56,11 +56,11 @@ pub const Engine = struct {
     /// Log debug information
     fn log(self: *Engine, comptime format: []const u8, args: anytype) void {
         _ = self;
-        // _ = format;
-        // _ = args;
+        _ = format;
+        _ = args;
         // Uncomment this if you need to access the log
         // In the future it would be cool to log somewhere else than stderr
-        std.debug.print(format, args);
+        // std.debug.print(format, args);
     }
 
     /// Execute the script
@@ -843,25 +843,56 @@ test "Script execution - OP_SHA256" {
     try std.testing.expectEqualSlices(u8, expected_hash[0..], hash_bytes);
 }
 
-test "Build engine" {
-    var allocator = std.testing.allocator;
+test "ScriptBuilder Smoke test" {
+    const allocator = std.testing.allocator;
     var sb = try ScriptBuilder.new(allocator);
+    sb.deinit();
 
-    try sb.pushInt(&allocator, 1);
-    // _ = try r.pushInt(&allocator, 1);
-    try sb.pushInt(&allocator, 1);
-    try sb.pushOpcode(&allocator, Opcode.OP_ADD);
-    std.debug.print("sb:{any}\n", .{sb});
-    var engine = try sb.build(&allocator);
+    var engine = try (try (try (try sb.pushInt(1)).pushInt(2)).pushOpcode(Opcode.OP_ADD)).build();
+
     defer engine.deinit();
 
     try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
 
-    // // Check the stack elements
-    // const element0 = try engine.stack.peekInt(0);
-    // const element1 = try engine.stack.peekInt(1);
-    // const element2 = try engine.stack.peekInt(2);
-    // const element3 = try engine.stack.peekInt(3);
-    defer sb.deinit(&allocator);
-    // std.debug.print("hello");
+    defer sb.deinit();
+}
+
+//METHOD 1
+test "ScriptBuilder OP_SWAP METHOD 1" {
+    var sb = try ScriptBuilder.new(std.testing.allocator);
+
+    var engine = try (try (try (try (try sb.pushInt(1)).pushInt(2)).pushInt(3)).pushOpcode(Opcode.OP_SWAP)).build();
+
+    defer engine.deinit();
+    defer sb.deinit();
+
+    try std.testing.expectEqual(@as(usize, 3), engine.stack.len());
+
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(3, element1);
+}
+//METHOD 2
+test "ScriptBuilder OP_SWAP METHOD 2" {
+    var sb = try ScriptBuilder.new(std.testing.allocator);
+
+    //requirement to assign to _ can be removed
+    _ = try sb.pushInt(1);
+    _ = try sb.pushInt(2);
+    _ = try sb.pushInt(3);
+    _ = try sb.pushOpcode(Opcode.OP_SWAP);
+    var engine = try sb.build();
+
+    defer engine.deinit();
+    defer sb.deinit();
+
+    try std.testing.expectEqual(@as(usize, 3), engine.stack.len());
+
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(3, element1);
 }
