@@ -1,16 +1,15 @@
-pub const message = @import("./message.zig");
 pub const messages = @import("./messages/lib.zig");
 
-/// Protocol version
-pub const PROTOCOL_VERSION: i32 = 70015;
-
 /// Known network ids
-pub const NetworkMagicBytes = struct {
-    pub const MAINNET: [4]u8 = 0xd9b4bef9;
+pub const BitcoinNetworkId = struct {
+    pub const MAINNET: [4]u8 = .{ 0xd9, 0xb4, 0xbe, 0xf9 };
     pub const REGTEST: [4]u8 = 0xdab5bffa;
     pub const TESTNET3: [4]u8 = 0x0709110b;
     pub const SIGNET: [4]u8 = 0x40cf030a;
 };
+
+/// Protocol version
+pub const PROTOCOL_VERSION: i32 = 70015;
 
 /// Network services
 pub const ServiceFlags = struct {
@@ -20,18 +19,6 @@ pub const ServiceFlags = struct {
     pub const NODE_WITNESS: u64 = 0x8;
     pub const NODE_XTHIN: u64 = 0x10;
     pub const NODE_NETWORK_LIMITED: u64 = 0x0400;
-};
-
-/// An IpV6 address
-pub const IpV6Address = struct {
-    ip: [8]u16, // represented in big endian
-    port: u16, // represented in system native endian
-};
-
-/// NetworkAddress represents a network address
-pub const NetworkAddress = struct {
-    services: u64,
-    address: IpV6Address,
 };
 
 pub const CommandNames = struct {
