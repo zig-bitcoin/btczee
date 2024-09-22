@@ -72,6 +72,9 @@ pub const AddrMessage = struct {
         //
         try self.ip_address_count.encodeToWriter(w);
 
+        // Ensure the slice is valid before iterating
+        if (self.ip_addresses.len == 0) return;
+
         // Serialize each IP address
         for (self.ip_addresses) |ip_address| {
             try w.writeInt(u32, ip_address.time, .little);
@@ -115,8 +118,9 @@ pub const AddrMessage = struct {
 
         // Allocate space for IP addresses
         const ip_addresses = try allocator.alloc(NetworkIPAddr, ip_address_count.value());
-        errdefer allocator.free(ip_addresses);
-
+       // errdefer allocator.free(ip_addresses);
+        defer allocator.free(ip_addresses); // Ensure memory is freed on exit
+                                                   //
         vm.ip_addresses = ip_addresses;
 
         for (vm.ip_addresses) |*ip_address| {
