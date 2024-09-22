@@ -47,6 +47,30 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| m.deinit(allocator),
             .ping => {},
             .pong => {},
+pub const AddrMessage = @import("addr.zig").AddrMessage;
+
+pub const MessageTypes = enum {
+    Version,
+    Verack,
+    Mempool,
+    Getaddr,
+    Addr
+};
+
+pub const Message = union(MessageTypes) {
+    Version: VersionMessage,
+    Verack: VerackMessage,
+    Mempool: MempoolMessage,
+    Getaddr: GetaddrMessage,
+    Addr: AddrMessage,
+
+    pub fn deinit(self: Message, allocator: std.mem.Allocator) void {
+        switch (self) {
+            .Version => |m| m.deinit(allocator),
+            .Verack => {},
+            .Mempool => {},
+            .Getaddr => {},
+            .Addr => {},
         }
     }
     pub fn checksum(self: Message) [4]u8 {
@@ -58,6 +82,7 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| m.checksum(),
             .ping => |m| m.checksum(),
             .pong => |m| m.checksum(),
+            .addr => |m| m.checksum(),
         };
     }
 
@@ -70,6 +95,7 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| m.hintSerializedLen(),
             .ping => |m| m.hintSerializedLen(),
             .pong => |m| m.hintSerializedLen(),
+            .addr => |m| m.hintSerializedLen(),
         };
     }
 };
