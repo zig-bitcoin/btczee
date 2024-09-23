@@ -4,7 +4,6 @@ const Allocator = std.mem.Allocator;
 
 /// Errors that can occur during stack operations
 pub const ConditionalStackError = error{
-    EmptyConditionalStack,
     InvalidCondition,
     DisabledOpcode,
     UnbalancedConditional,
@@ -42,8 +41,12 @@ pub const ConditionalStack = struct {
 
     /// Push a conditional value onto the stack
     ///
+    /// In Bitcoin script, conditional values are strictly limited to:
+    /// - 0: represents false
+    /// - 1: represents true
+    ///
     /// Args:
-    ///     value: The conditional value to push (typically 0, 1, or 2)
+    ///     value: The conditional value to push (must be 0 or 1)
     ///
     /// Returns:
     ///     Possible error if allocation fails
@@ -52,15 +55,11 @@ pub const ConditionalStack = struct {
     }
 
     /// Pop a conditional value from the stack
-    ///
-    /// Returns:
-    ///     The popped value (u8) if the stack is not empty
-    ///     ConditionalStackError.EmptyConditionalStack if the stack is empty
-    pub fn pop(self: *Self) !u8 {
+    pub fn pop(self: *ConditionalStack) !void {
         if (self.stack.items.len == 0) {
-            return ConditionalStackError.EmptyConditionalStack;
+            return ConditionalStackError.UnbalancedConditional;
         }
-        return self.stack.pop();
+        _ = self.stack.pop();
     }
 
     /// Check if the current branch is executing based on the top of the stack
@@ -103,15 +102,13 @@ test "ConditionalStack - push and pop" {
     try cond_stack.push(0);
     try testing.expectEqual(2, cond_stack.len());
 
-    const popped1 = try cond_stack.pop();
-    try testing.expectEqual(0, popped1);
+    try cond_stack.pop();
     try testing.expectEqual(1, cond_stack.len());
 
-    const popped2 = try cond_stack.pop();
-    try testing.expectEqual(1, popped2);
+    try cond_stack.pop();
     try testing.expectEqual(0, cond_stack.len());
 
-    try testing.expectError(ConditionalStackError.EmptyConditionalStack, cond_stack.pop());
+    try testing.expectError(ConditionalStackError.UnbalancedConditional, cond_stack.pop());
 }
 
 test "ConditionalStack - isBranchExecuting" {
@@ -143,11 +140,11 @@ test "ConditionalStack - multiple operations" {
     try testing.expectEqual(3, cond_stack.len());
     try testing.expect(!cond_stack.isBranchExecuting());
 
-    _ = try cond_stack.pop();  // Use _ to explicitly discard the return value
+    _ = try cond_stack.pop(); // Use _ to explicitly discard the return value
     try testing.expectEqual(2, cond_stack.len());
     try testing.expect(!cond_stack.isBranchExecuting());
 
-    _ = try cond_stack.pop();  // Use _ to explicitly discard the return value
+    _ = try cond_stack.pop(); // Use _ to explicitly discard the return value
     try testing.expectEqual(1, cond_stack.len());
     try testing.expect(cond_stack.isBranchExecuting());
 }

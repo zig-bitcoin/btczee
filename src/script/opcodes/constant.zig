@@ -391,3 +391,27 @@ pub fn isUnnamedPushNDataOpcode(opcode: Opcode) ?u8 {
     const opcodeByte = opcode.toBytes();
     return if (opcodeByte > 0x00 and opcodeByte <= 0x4b) opcodeByte else null;
 }
+
+/// Conditional execution constants for script operations.
+pub const OpConditional = enum(u8) {
+    /// Represents a false condition (0)
+    False = 0,
+
+    /// Represents a true condition (1)
+    True = 1,
+
+    /// Represents a condition to skip (2)
+    Skip = 2,
+
+    /// Convert the enum to its underlying u8 value
+    pub fn toU8(self: OpConditional) u8 {
+        return @intFromEnum(self);
+    }
+
+    /// Create an OpConditional from a u8 value
+    pub fn fromU8(value: u8) !OpConditional {
+        return std.meta.intToEnum(OpConditional, value) catch {
+            return error.InvalidOpConditional;
+        };
+    }
+};

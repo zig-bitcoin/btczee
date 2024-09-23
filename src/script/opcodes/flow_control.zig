@@ -5,6 +5,7 @@ const Script = @import("../lib.zig").Script;
 const ScriptFlags = @import("../lib.zig").ScriptFlags;
 const ConditionalStackError = @import("../cond_stack.zig").ConditionalStackError;
 const Opcode = @import("./constant.zig").Opcode;
+const OpConditional = @import("./constant.zig").OpConditional;
 
 /// OP_IF: Conditionally executes the following statements
 /// If the current branch is executing:
@@ -37,14 +38,14 @@ pub fn opIf(engine: *Engine) !void {
 /// If the current branch is not executing, mark as skip
 /// Pushes the resulting condition (0: false, 1: true, 2: skip) onto the conditional stack
 pub fn opNotIf(engine: *Engine) !void {
-    var cond_val: u8 = 1; // true (inverted)
+    var cond_val: u8 = OpConditional.True.toU8(); // true (inverted)
     if (engine.cond_stack.isBranchExecuting()) {
         const is_truthy = try engine.stack.popBool();
         if (is_truthy) {
-            cond_val = 0; // false (inverted)
+            cond_val = OpConditional.False.toU8(); // false (inverted)
         }
     } else {
-        cond_val = 2; // skip
+        cond_val = OpConditional.Skip.toU8(); // skip
     }
     try engine.cond_stack.push(cond_val);
 }
@@ -58,7 +59,7 @@ pub fn opNotIf(engine: *Engine) !void {
 /// Returns an error for any other condition value
 pub fn opElse(engine: *Engine) !void {
     if (engine.cond_stack.len() == 0) {
-        return ConditionalStackError.EmptyConditionalStack;
+        return ConditionalStackError.UnbalancedConditional;
     }
 
     const cond_idx = engine.cond_stack.len() - 1;
@@ -169,7 +170,7 @@ test "OP_ELSE" {
         var engine = Engine.init(allocator, script, ScriptFlags{});
         defer engine.deinit();
 
-        try std.testing.expectError(ConditionalStackError.EmptyConditionalStack, opElse(&engine));
+        try std.testing.expectError(ConditionalStackError.UnbalancedConditional, opElse(&engine));
     }
 }
 
@@ -201,6 +202,6 @@ test "OP_ENDIF" {
         var engine = Engine.init(allocator, script, ScriptFlags{});
         defer engine.deinit();
 
-        try std.testing.expectError(ConditionalStackError.EmptyConditionalStack, opEndIf(&engine));
+        try std.testing.expectError(ConditionalStackError.UnbalancedConditional, opEndIf(&engine));
     }
 }
