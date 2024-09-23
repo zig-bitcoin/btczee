@@ -37,14 +37,6 @@ pub const IBD = struct {
     fn downloadBlocks(self: *IBD) !void {
         self.logger.info("Downloading blocks...");
         // Simulate block download
-        var i: usize = 0;
-        while (i < 500) : (i += 1) {
-            const block = try self.simulateBlockDownload();
-            try self.processBlock(block);
-            if (i % 100 == 0) {
-                self.logger.infof("Downloaded block {d}", .{i});
-            }
-        }
     }
 
     fn simulateBlockDownload(self: *IBD) !Block {
