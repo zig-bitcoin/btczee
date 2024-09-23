@@ -9,6 +9,7 @@ const arithmetic = @import("opcodes/arithmetic.zig");
 const Opcode = @import("opcodes/constant.zig").Opcode;
 const isUnnamedPushNDataOpcode = @import("opcodes/constant.zig").isUnnamedPushNDataOpcode;
 const EngineError = @import("lib.zig").EngineError;
+const sha1 = std.crypto.hash.Sha1;
 const ripemd160 = @import("bitcoin-primitives").hashes.Ripemd160;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 /// Engine is the virtual machine that executes Bitcoin scripts
@@ -150,9 +151,11 @@ pub const Engine = struct {
             Opcode.OP_CHECKSIG => try self.opCheckSig(),
             Opcode.OP_NIP => try self.opNip(),
             Opcode.OP_OVER => try self.opOver(),
+            Opcode.OP_PICK => try self.opPick(),
             Opcode.OP_SWAP => try self.opSwap(),
             Opcode.OP_TUCK => try self.opTuck(),
             Opcode.OP_SIZE => try self.opSize(),
+            Opcode.OP_SHA1 => try self.opSha1(),
             else => try self.opInvalid(),
         };
     }
@@ -424,6 +427,16 @@ pub const Engine = struct {
         try self.stack.pushBool(true);
     }
 
+    /// OP_PICK: The item idx back in the stack is copied to the top.
+    /// 
+    /// # Returns
+    /// - `EngineError`: If an error occurs during execution
+    fn opPick(self: *Engine) !void {
+        const idx = try self.stack.popInt();
+        const value = try self.stack.peek(@intCast(idx));
+        try self.stack.pushByteArray(value);
+    }
+
     fn opDisabled(self: *Engine) !void {
         _ = self;
         return error.DisabledOpcode;
@@ -441,29 +454,54 @@ pub const Engine = struct {
         ripemd160.hash(data, &hash, .{});
         try self.stack.pushByteArray(&hash);
     }
+
+    fn opSha1(self: *Engine) !void {
+        const data = try self.stack.pop();
+        defer self.allocator.free(data);
+        var hash: [sha1.digest_length]u8 = undefined;
+        sha1.hash(data, &hash, .{});
+        try self.stack.pushByteArray(&hash);
+    }
 };
 
-test "Script execution - OP_1 OP_1 OP_EQUAL" {
-    const allocator = std.testing.allocator;
+// Testing SHA1 against known vectors
+test "opSha1 function test" {
+    const test_cases = [_]struct {
+        input: []const u8,
+        expected: []const u8,
+    }{
+        .{ .input = "hello", .expected = "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d" },
+        .{ .input = "blockchain", .expected = "56fde8f4392113e0f19e0430f14502e06968669f" },
+        .{ .input = "abc", .expected = "a9993e364706816aba3e25717850c26c9cd0d89d" },
+        .{ .input = "bitcoin", .expected = "ed1b8d80793e70c0608e8a8508a8dd80f6aa56f9" },
+    };
 
-    // Simple script: OP_1 OP_1 OP_EQUAL
-    const script_bytes = [_]u8{ 0x51, 0x51, 0x87 };
-    const script = Script.init(&script_bytes);
+    for (test_cases) |case| {
+        const allocator = std.testing.allocator;
 
-    var engine = Engine.init(allocator, script, .{});
-    defer engine.deinit();
+        const script_bytes = [_]u8{Opcode.OP_SHA1.toBytes()};
+        const script = Script.init(&script_bytes);
 
-    try engine.execute();
+        var engine = Engine.init(allocator, script, .{});
+        defer engine.deinit();
 
-    // Check if the execution result is true (non-empty stack with top element true)
-    {
+        // Push the input onto the stack
+        try engine.stack.pushByteArray(case.input);
+
+        // Call opSha1
+        try engine.execute();
+
+        // Pop the result from the stack
         const result = try engine.stack.pop();
-        defer allocator.free(result);
-        try std.testing.expect(result.len > 0 and result[0] != 0);
-    }
+        defer engine.allocator.free(result); // Free the result after use
 
-    // Ensure the stack is empty after popping the result
-    try std.testing.expectEqual(0, engine.stack.len());
+        // Convert expected hash to bytes
+        var expected_output: [sha1.digest_length]u8 = undefined;
+        _ = try std.fmt.hexToBytes(&expected_output, case.expected);
+
+        // Compare the result with the expected hash
+        try std.testing.expectEqualSlices(u8, &expected_output, result);
+    }
 }
 
 test "Script execution - OP_RETURN" {
@@ -645,6 +683,36 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
     const element0 = try engine.stack.peekInt(0);
 
     try std.testing.expectEqual(1, element0);
+}
+
+test "Script execution - OP_PICK" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_2 OP_3 OP_2 OP_PICK
+    const script_bytes = [_]u8{ 
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_2.toBytes(),
+        Opcode.OP_3.toBytes(),
+        Opcode.OP_2.toBytes(),
+        Opcode.OP_PICK.toBytes(),
+    };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    try std.testing.expectEqual(4, engine.stack.len());
+
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+    const element2 = try engine.stack.peekInt(2);
+    const element3 = try engine.stack.peekInt(3);
+
+    try std.testing.expectEqual(1, element0);
+    try std.testing.expectEqual(3, element1);
+    try std.testing.expectEqual(2, element2);
+    try std.testing.expectEqual(1, element3);
 }
 
 test "Script execution - OP_DISABLED" {
