@@ -16,7 +16,7 @@ pub const VersionMessage = struct {
     recv_ip: [16]u8,
     trans_ip: [16]u8,
     timestamp: i64,
-    services: u64,
+    services: u64 = 0,
     nonce: u64,
     recv_services: u64,
     trans_services: u64,
@@ -206,7 +206,6 @@ pub const VersionMessage = struct {
     pub fn new(protocol_version: i32, me: protocol.NetworkAddress, you: protocol.NetworkAddress, nonce: u64, last_block: i32) Self {
         return .{
             .version = protocol_version,
-            .services = ServiceFlags.NODE_NETWORK,
             .timestamp = std.time.timestamp(),
             .recv_services = you.services,
             .trans_services = me.services,
