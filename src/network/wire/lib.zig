@@ -207,25 +207,38 @@ test "ok_send_addr_message" {
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const AddrMessage = protocol.messages.AddrMessage;
-//    const NetworkIPAddr = protocol.messages.NetworkIPAddr;
     const ServiceFlags = protocol.ServiceFlags;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
 
-    var ips = [_]NetworkIPAddr{
-        NetworkIPAddr{
+    // Create an ArrayList for NetworkIPAddr
+    //var ips = ArrayList(NetworkIPAddr).init(test_allocator);
+    //defer ips.deinit();
+
+    //try ips.append(
+    //    NetworkIPAddr{
+    //    .time = 42,
+    //    .services = ServiceFlags.NODE_NETWORK,
+    //    .ip = [_]u8{13} ** 16,
+    //    .port = 33,
+    //    
+    //    });
+    //const message = AddrMessage{
+    //    //.ip_address_count = CompactSizeUint.new(1),
+    //    .ip_addresses = ips,
+    //};
+    var message = AddrMessage.init(test_allocator);
+    defer message.deinit();
+
+    try message.ip_addresses.append(NetworkIPAddr{
         .time = 42,
         .services = ServiceFlags.NODE_NETWORK,
         .ip = [_]u8{13} ** 16,
         .port = 33,
-        
-        }, 
-    };
-    const message = AddrMessage{
-        .ip_address_count = CompactSizeUint.new(1),
-        .ip_addresses = ips[0..],
-    };
+    });
+//
+
 
     const writer = list.writer();
     try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
