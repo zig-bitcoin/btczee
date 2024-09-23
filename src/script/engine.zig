@@ -150,6 +150,7 @@ pub const Engine = struct {
             Opcode.OP_CHECKSIG => try self.opCheckSig(),
             Opcode.OP_NIP => try self.opNip(),
             Opcode.OP_OVER => try self.opOver(),
+            Opcode.OP_PICK => try self.opPick(),
             Opcode.OP_SWAP => try self.opSwap(),
             Opcode.OP_TUCK => try self.opTuck(),
             Opcode.OP_SIZE => try self.opSize(),
@@ -424,6 +425,16 @@ pub const Engine = struct {
         try self.stack.pushBool(true);
     }
 
+    /// OP_PICK: The item idx back in the stack is copied to the top.
+    /// 
+    /// # Returns
+    /// - `EngineError`: If an error occurs during execution
+    fn opPick(self: *Engine) !void {
+        const idx = try self.stack.popInt();
+        const value = try self.stack.peek(@intCast(idx));
+        try self.stack.pushByteArray(value);
+    }
+
     fn opDisabled(self: *Engine) !void {
         _ = self;
         return error.DisabledOpcode;
@@ -645,6 +656,36 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
     const element0 = try engine.stack.peekInt(0);
 
     try std.testing.expectEqual(1, element0);
+}
+
+test "Script execution - OP_PICK" {
+    const allocator = std.testing.allocator;
+
+    // Simple script: OP_1 OP_2 OP_3 OP_2 OP_PICK
+    const script_bytes = [_]u8{ 
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_2.toBytes(),
+        Opcode.OP_3.toBytes(),
+        Opcode.OP_2.toBytes(),
+        Opcode.OP_PICK.toBytes(),
+    };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+    try std.testing.expectEqual(4, engine.stack.len());
+
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+    const element2 = try engine.stack.peekInt(2);
+    const element3 = try engine.stack.peekInt(3);
+
+    try std.testing.expectEqual(1, element0);
+    try std.testing.expectEqual(3, element1);
+    try std.testing.expectEqual(2, element2);
+    try std.testing.expectEqual(1, element3);
 }
 
 test "Script execution - OP_DISABLED" {
