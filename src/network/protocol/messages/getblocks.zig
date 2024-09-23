@@ -8,16 +8,11 @@ const Endian = std.builtin.Endian;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
-const MAX_SIZE: usize = 0x02000000; // 32 MB
 
 /// GetblocksMessage represents the "getblocks" message
 ///
 /// https://developer.bitcoin.org/reference/p2p_networking.html#getblocks
 pub const GetblocksMessage = struct {
-
-    pub const Error = error{
-        MessageTooLarge,
-    };
 
     version: i32,
     hash_count: u64,
@@ -41,6 +36,13 @@ pub const GetblocksMessage = struct {
         Sha256.hash(&digest, &digest, .{});
 
         return digest[0..4].*;
+    }
+
+    /// Free the `header_hashes`
+    pub fn deinit(self: GetblocksMessage, allocator: std.mem.Allocator) void {
+        if (self.header_hashes.len > 0) {
+            allocator.free(self.header_hashes);
+        }
     }
 
     /// Serialize the message as bytes and write them to the Writer.
@@ -73,44 +75,43 @@ pub const GetblocksMessage = struct {
         return ret;
     }
 
+    /// Serialize a message as bytes and write them to the buffer.
+    ///
+    /// buffer.len must be >= than self.hintSerializedLen()
+    pub fn serializeToSlice(self: *const GetblocksMessage, buffer: []u8) !void {
+        var fbs = std.io.fixedBufferStream(buffer);
+        const writer = fbs.writer();
+        try self.serializeToWriter(writer);
+    }
+
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !GetblocksMessage {
         comptime {
             if (!std.meta.hasFn(@TypeOf(r), "readInt")) @compileError("Expects r to have fn 'readInt'.");
             if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects r to have fn 'readNoEof'.");
         }
 
-        const buffer: []const u8 = try r.readAllAlloc(std.heap.page_allocator, MAX_SIZE + 1 );
-
-        // check message size
-        const msg_size = buffer.len;
-        if (msg_size > MAX_SIZE) {
-            return error.MessageTooLarge;
-        }
-
         var gb: GetblocksMessage = undefined;
-        var fbs = std.io.fixedBufferStream(buffer);
-        var reader = fbs.reader();
 
-        gb.version = try reader.readInt(i32, .little);
+        gb.version = try r.readInt(i32, .little);
 
         // Read CompactSize hash_count
-        const compact_hash_count = try CompactSizeUint.decodeReader(reader);
+        const compact_hash_count = try CompactSizeUint.decodeReader(r);
         gb.hash_count = compact_hash_count.value();
 
         // Allocate space for header_hashes based on hash_count
         const header_hashes = try allocator.alloc([32]u8, gb.hash_count);
 
         for (header_hashes) |*hash| {
-            try reader.readNoEof(hash);
+            try r.readNoEof(hash);
         }
         gb.header_hashes = header_hashes;
 
         // Read the stop_hash (32 bytes)
-        try reader.readNoEof(&gb.stop_hash);
+        try r.readNoEof(&gb.stop_hash);
         return gb;
     }
 
-    /// Deserialize bytes into a `VersionMessage`
+    /// Deserialize bytes into a `GetblocksMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !GetblocksMessage {
         var fbs = std.io.fixedBufferStream(bytes);
         const reader = fbs.reader();
@@ -118,7 +119,7 @@ pub const GetblocksMessage = struct {
         return try GetblocksMessage.deserializeReader(allocator, reader);
     }
 
-    pub fn hintSerializedLen(self: GetblocksMessage) usize {
+    pub fn hintSerializedLen(self: *const GetblocksMessage) usize {
         const fixed_length = 4 + 32; // version (4 bytes) + stop_hash (32 bytes)
         const compact_hash_count_len = CompactSizeUint.new(self.hash_count).hint_encoded_len();
         const header_hashes_len = self.header_hashes.len * 32; // hash (32 bytes)
@@ -134,8 +135,8 @@ pub const GetblocksMessage = struct {
             return false;
         }
 
-        for (self.header_hashes) |*hash| {
-            if (!std.mem.eql(u8, &hash.*, &other.header_hashes[0])) {
+        for (0..self.header_hashes.len) |i| {
+            if (!std.mem.eql(u8, self.header_hashes[i][0..], other.header_hashes[i][0..])) {
                 return false;
             }
         }
@@ -146,16 +147,6 @@ pub const GetblocksMessage = struct {
 
         return true;
     }
-
-    /// Serialize a message as bytes and write them to the buffer.
-    ///
-    /// buffer.len must be >= than self.hintSerializedLen()
-    pub fn serializeToSlice(self: *const GetblocksMessage, buffer: []u8) !void {
-        var fbs = std.io.fixedBufferStream(buffer);
-        const writer = fbs.writer();
-        try self.serializeToWriter(writer);
-    }
-
 };
 
 // TESTS

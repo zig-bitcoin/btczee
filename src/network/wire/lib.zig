@@ -15,6 +15,11 @@ const protocol = @import("../protocol/lib.zig");
 const Stream = std.net.Stream;
 const io = std.io;
 const Sha256 = std.crypto.hash.sha2.Sha256;
+const MAX_SIZE: usize = 0x02000000; // 32 MB
+
+pub const Error = error{
+    MessageTooLarge,
+};
 
 /// Return the checksum of a slice
 ///
@@ -49,8 +54,15 @@ pub fn sendMessage(allocator: std.mem.Allocator, w: anytype, protocol_version: i
     defer allocator.free(payload);
     const checksum = computePayloadChecksum(payload);
 
-    // No payload will be longer than u32.MAX
     const payload_len: u32 = @intCast(payload.len);
+
+    // Calculate total message size
+    const precomputed_total_size = 18; // network (4 bytes) + command (12 bytes) + payload size (4 bytes) + checksum (4 bytes)
+    const total_message_size = precomputed_total_size + payload_len;
+
+    if (total_message_size > MAX_SIZE) {
+        return Error.MessageTooLarge;
+    }
 
     try w.writeAll(&network_id);
     try w.writeAll(command);
@@ -236,10 +248,7 @@ test "ok_send_getblocks_message" {
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
-        .Getblocks => |rm| {
-            try std.testing.expect(message.eql(&rm));
-            defer test_allocator.free(rm.header_hashes);
-        },
+        .Getblocks => |rm| try std.testing.expect(message.eql(&rm)),
         .Verack => unreachable,
         .Version => unreachable,
         .Mempool => unreachable,
