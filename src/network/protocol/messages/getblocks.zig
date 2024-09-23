@@ -26,7 +26,7 @@ pub const GetblocksMessage = struct {
     /// Returns the message checksum
     ///
     /// Computed as `Sha256(Sha256(self.serialize()))[0..4]`
-    pub fn checksum(self: GetblocksMessage) [4]u8 {
+    pub fn checksum(self: *const GetblocksMessage) [4]u8 {
         var digest: [32]u8 = undefined;
         var hasher = Sha256.init(.{});
         const writer = hasher.writer();
@@ -40,9 +40,7 @@ pub const GetblocksMessage = struct {
 
     /// Free the `header_hashes`
     pub fn deinit(self: GetblocksMessage, allocator: std.mem.Allocator) void {
-        if (self.header_hashes.len > 0) {
-            allocator.free(self.header_hashes);
-        }
+        allocator.free(self.header_hashes);
     }
 
     /// Serialize the message as bytes and write them to the Writer.

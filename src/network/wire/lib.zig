@@ -57,7 +57,7 @@ pub fn sendMessage(allocator: std.mem.Allocator, w: anytype, protocol_version: i
     const payload_len: u32 = @intCast(payload.len);
 
     // Calculate total message size
-    const precomputed_total_size = 18; // network (4 bytes) + command (12 bytes) + payload size (4 bytes) + checksum (4 bytes)
+    const precomputed_total_size = 24; // network (4 bytes) + command (12 bytes) + payload size (4 bytes) + checksum (4 bytes)
     const total_message_size = precomputed_total_size + payload_len;
 
     if (total_message_size > MAX_SIZE) {
