@@ -14,8 +14,8 @@ pub const Peer = struct {
     config: *const Config,
     stream: net.Stream,
     address: net.Address,
-    protocol_version: ?i32,
-    services: ?u64,
+    protocol_version: ?i32 = null,
+    services: ?u64 = null,
     last_seen: i64,
 
     /// Initialize a new peer
@@ -32,8 +32,6 @@ pub const Peer = struct {
             .config = config,
             .stream = stream,
             .address = address,
-            .protocol_version = null,
-            .services = null,
             .last_seen = std.time.timestamp(),
         };
         return peer;

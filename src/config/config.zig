@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const dns_seed = [:0]const u8;
+const DnsSeed = struct { inner: [:0]const u8 };
 
 /// Global configuration for the node
 ///
@@ -20,25 +20,27 @@ pub const Config = struct {
         pub const SIGNET: [4]u8 = .{ 0x0a, 0x03, 0xcf, 0x40 };
     };
 
-    const DNS_SEEDS = [1]dns_seed{
-        "seed.bitcoin.sipa.be",
+    const DNS_SEEDS = [1]DnsSeed{
+        .{ .inner = "seed.bitcoin.sipa.be" },
+        // Those are two other seeds that we will keep here for later.
+        // We are still building and I don't want to spam the whole network everytime I reboot.
         // "seed.bitcoin.sprovoost.nl",
         // "seed.btc.petertodd.net",
     };
 
     allocator: std.mem.Allocator,
     /// RPC port
-    rpc_port: u16,
+    rpc_port: u16 = 8332,
     /// P2P port
-    p2p_port: u16,
-    /// Network Id
-    network_id: [4]u8,
+    p2p_port: u16 = 8333,
     /// Data directory
-    datadir: [:0]const u8,
+    datadir: [:0]const u8 = ".bitcoin",
     /// Services supported
-    services: u64,
+    services: u64 = 0,
     /// Protocol version supported
-    protocol_version: i32,
+    protocol_version: i32 = PROTOCOL_VERSION,
+    /// Network Id
+    network_id: [4]u8 = BitcoinNetworkId.MAINNET,
 
     /// Load the configuration from a file
     ///
@@ -60,12 +62,6 @@ pub const Config = struct {
 
         var config = Config{
             .allocator = allocator,
-            .rpc_port = 8332,
-            .p2p_port = 8333,
-            .network_id = BitcoinNetworkId.MAINNET,
-            .datadir = ".bitcoin",
-            .services = 0,
-            .protocol_version = PROTOCOL_VERSION,
         };
 
         var buf: [1024]u8 = undefined;
@@ -102,7 +98,7 @@ pub const Config = struct {
         return config;
     }
 
-    pub inline fn dnsSeeds(self: *const Self) [1]dns_seed {
+    pub inline fn dnsSeeds(self: *const Self) [1]DnsSeed {
         _ = self;
         return DNS_SEEDS;
     }

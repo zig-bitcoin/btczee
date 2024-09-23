@@ -24,8 +24,8 @@ pub const VersionMessage = struct {
     start_height: i32,
     recv_port: u16,
     trans_port: u16,
-    user_agent: ?[]const u8,
-    relay: ?bool,
+    user_agent: ?[]const u8 = null,
+    relay: ?bool = null,
 
     const Self = @This();
 
@@ -95,8 +95,7 @@ pub const VersionMessage = struct {
     /// buffer.len must be >= than self.hintSerializedLen()
     pub fn serializeToSlice(self: *const Self, buffer: []u8) !void {
         var fbs = std.io.fixedBufferStream(buffer);
-        const writer = fbs.writer();
-        try self.serializeToWriter(writer);
+        try self.serializeToWriter(fbs.writer());
     }
 
     /// Serialize a message as bytes and return them.
@@ -152,8 +151,7 @@ pub const VersionMessage = struct {
     /// Deserialize bytes into a `VersionMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
         var fbs = std.io.fixedBufferStream(bytes);
-        const reader = fbs.reader();
-        return try Self.deserializeReader(allocator, reader);
+        return try Self.deserializeReader(allocator, fbs.reader());
     }
 
     pub fn hintSerializedLen(self: *const Self) usize {
@@ -217,9 +215,7 @@ pub const VersionMessage = struct {
             .recv_port = you.port,
             .trans_port = me.port,
             .nonce = nonce,
-            .user_agent = null,
             .start_height = last_block,
-            .relay = null,
         };
     }
 };

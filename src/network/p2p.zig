@@ -54,7 +54,7 @@ pub const P2P = struct {
         self.logger.infof("Starting P2P network on port {}", .{self.config.p2p_port});
 
         for (self.config.dnsSeeds()) |seed| {
-            const address_list = try std.net.getAddressList(self.allocator, seed, 8333);
+            const address_list = try std.net.getAddressList(self.allocator, seed.inner, 8333);
             for (address_list.addrs[0..5]) |address| {
                 const peer = Peer.init(self.allocator, self.config, address) catch continue;
                 try self.peers.append(peer);
