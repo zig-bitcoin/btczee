@@ -84,6 +84,8 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
         protocol.messages.Message{ .Mempool = try protocol.messages.MempoolMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.GetaddrMessage.name()))
         protocol.messages.Message{ .Getaddr = try protocol.messages.GetaddrMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.GetblocksMessage.name()))
+        protocol.messages.Message{ .Getblocks = try protocol.messages.GetblocksMessage.deserializeReader(allocator, r) }
     else
         return error.UnknownMessage;
     errdefer message.deinit(allocator);
@@ -140,6 +142,7 @@ test "ok_send_version_message" {
         .Verack => unreachable,
         .Mempool => unreachable,
         .Getaddr => unreachable,
+        .Getblocks => unreachable,
     }
 }
 
@@ -167,6 +170,7 @@ test "ok_send_verack_message" {
         .Version => unreachable,
         .Mempool => unreachable,
         .Getaddr => unreachable,
+        .Getblocks => unreachable,
     }
 }
 
@@ -194,8 +198,55 @@ test "ok_send_mempool_message" {
         .Verack => unreachable,
         .Version => unreachable,
         .Getaddr => unreachable,
+        .Getblocks => unreachable,
     }
 }
+
+
+test "ok_send_getblocks_message" {
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const GetblocksMessage = protocol.messages.GetblocksMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const message = GetblocksMessage{
+        .version = 42,
+        .hash_count = 2,
+        .header_hashes = try test_allocator.alloc([32]u8, 2),
+        .stop_hash = [_]u8{0} ** 32,
+    };
+
+    defer test_allocator.free(message.header_hashes);
+
+    // Fill in the header_hashes
+    for (message.header_hashes) |*hash| {
+        for (hash) |*byte| {
+            byte.* = 0xab;
+        }
+    }
+
+    const writer = list.writer();
+    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
+    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
+    const reader = fbs.reader();
+
+    const received_message = try receiveMessage(test_allocator, reader);
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .Getblocks => |rm| {
+            try std.testing.expect(message.eql(&rm));
+            defer test_allocator.free(rm.header_hashes);
+        },
+        .Verack => unreachable,
+        .Version => unreachable,
+        .Mempool => unreachable,
+        .Getaddr => unreachable,
+    }
+}
+
 
 test "ko_receive_invalid_payload_length" {
     const Config = @import("../../config/config.zig").Config;

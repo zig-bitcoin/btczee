@@ -3,12 +3,14 @@ pub const VersionMessage = @import("version.zig").VersionMessage;
 pub const VerackMessage = @import("verack.zig").VerackMessage;
 pub const MempoolMessage = @import("mempool.zig").MempoolMessage;
 pub const GetaddrMessage = @import("getaddr.zig").GetaddrMessage;
+pub const GetblocksMessage = @import("getblocks.zig").GetblocksMessage;
 
 pub const MessageTypes = enum {
     Version,
     Verack,
     Mempool,
     Getaddr,
+    Getblocks,
 };
 
 pub const Message = union(MessageTypes) {
@@ -16,6 +18,7 @@ pub const Message = union(MessageTypes) {
     Verack: VerackMessage,
     Mempool: MempoolMessage,
     Getaddr: GetaddrMessage,
+    Getblocks: GetblocksMessage,
 
     pub fn deinit(self: Message, allocator: std.mem.Allocator) void {
         switch (self) {
@@ -23,6 +26,7 @@ pub const Message = union(MessageTypes) {
             .Verack => {},
             .Mempool => {},
             .Getaddr => {},
+            .Getblocks => {},
         }
     }
     pub fn checksum(self: Message) [4]u8 {
@@ -31,6 +35,7 @@ pub const Message = union(MessageTypes) {
             .Verack => |m| m.checksum(),
             .Mempool => |m| m.checksum(),
             .Getaddr => |m| m.checksum(),
+            .Getblocks => |m| m.checksum(),
         };
     }
 
@@ -40,6 +45,7 @@ pub const Message = union(MessageTypes) {
             .Verack => |m| m.hintSerializedLen(),
             .Mempool => |m| m.hintSerializedLen(),
             .Getaddr => |m| m.hintSerializedLen(),
+            .Getblocks => |m| m.hintSerializedLen(),
         };
     }
 };
