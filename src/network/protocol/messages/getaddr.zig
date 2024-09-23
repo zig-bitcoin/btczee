@@ -9,36 +9,36 @@ const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 
-/// VerackMessage represents the "verack" message
+/// GetaddrMessage represents the "getaddr" message
 ///
-/// https://developer.bitcoin.org/reference/p2p_networking.html#verack
-pub const VerackMessage = struct {
-    // verack message do not contain any payload, thus there is no field
+/// https://developer.bitcoin.org/reference/p2p_networking.html#getaddr
+pub const GetaddrMessage = struct {
+    // getaddr message do not contain any payload, thus there is no field
 
     pub inline fn name() *const [12]u8 {
-        return protocol.CommandNames.VERACK ++ [_]u8{0} ** 6;
+        return protocol.CommandNames.GETADDR ++ [_]u8{0} ** 5;
     }
 
-    pub fn checksum(self: VerackMessage) [4]u8 {
+    pub fn checksum(self: GetaddrMessage) [4]u8 {
         _ = self;
         // If payload is empty, the checksum is always 0x5df6e0e2 (SHA256(SHA256("")))
         return [4]u8{ 0x5d, 0xf6, 0xe0, 0xe2 };
     }
 
     /// Serialize a message as bytes and return them.
-    pub fn serialize(self: *const VerackMessage, allocator: std.mem.Allocator) ![]u8 {
+    pub fn serialize(self: *const GetaddrMessage, allocator: std.mem.Allocator) ![]u8 {
         _ = self;
         _ = allocator;
         return &.{};
     }
 
-    pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !VerackMessage {
+    pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !GetaddrMessage {
         _ = allocator;
         _ = r;
-        return VerackMessage{};
+        return GetaddrMessage{};
     }
 
-    pub fn hintSerializedLen(self: VerackMessage) usize {
+    pub fn hintSerializedLen(self: GetaddrMessage) usize {
         _ = self;
         return 0;
     }
@@ -46,15 +46,15 @@ pub const VerackMessage = struct {
 
 // TESTS
 
-test "ok_full_flow_VerackMessage" {
+test "ok_full_flow_GetaddrMessage" {
     const allocator = std.testing.allocator;
 
     {
-        const msg = VerackMessage{};
+        const msg = GetaddrMessage{};
 
         const payload = try msg.serialize(allocator);
         defer allocator.free(payload);
-        const deserialized_msg = try VerackMessage.deserializeReader(allocator, payload);
+        const deserialized_msg = try GetaddrMessage.deserializeReader(allocator, payload);
         _ = deserialized_msg;
 
         try std.testing.expect(payload.len == 0);
