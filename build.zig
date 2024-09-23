@@ -43,6 +43,10 @@ pub fn build(b: *std.Build) !void {
     const deps = build_helpers.generateModuleDependencies(
         b,
         &external_dependencies,
+        .{
+            .optimize = optimize,
+            .target = target,
+        },
     ) catch unreachable;
 
     // **************************************************************
@@ -72,6 +76,40 @@ pub fn build(b: *std.Build) !void {
     // location when the user invokes the "install" step (the default step when
     // running `zig build`).
     b.installArtifact(lib);
+
+    // **************************************************************
+    // *              VANITYGEN AS AN EXECUTABLE                    *
+    // **************************************************************
+    {
+        const exe = b.addExecutable(.{
+            .name = "vanitygen",
+            .root_source_file = b.path("src/vanitygen.zig"),
+            .target = target,
+            .optimize = optimize,
+            .single_threaded = false,
+            .omit_frame_pointer = true,
+            .strip = false,
+        });
+        // Add dependency modules to the executable.
+        for (deps) |mod| exe.root_module.addImport(
+            mod.name,
+            mod.module,
+        );
+
+        exe.root_module.addImport("btczee", &lib.root_module);
+
+        b.installArtifact(exe);
+
+        const run_cmd = b.addRunArtifact(exe);
+        run_cmd.step.dependOn(b.getInstallStep());
+
+        if (b.args) |args| {
+            run_cmd.addArgs(args);
+        }
+
+        const run_step = b.step("vanitygen-run", "Run the app");
+        run_step.dependOn(&run_cmd.step);
+    }
 
     // **************************************************************
     // *              BTCZEE AS AN EXECUTABLE                    *
@@ -118,9 +156,16 @@ pub fn build(b: *std.Build) !void {
             mod.name,
             mod.module,
         );
+
+        const check_test = b.addTest(.{
+            .root_source_file = b.path("src/lib.zig"),
+            .target = target,
+        });
+
         // This step is used to check if btczee compiles, it helps to provide a faster feedback loop when developing.
         const check = b.step("check", "Check if btczee compiles");
         check.dependOn(&exe_check.step);
+        check.dependOn(&check_test.step);
     }
 
     // **************************************************************
