@@ -313,23 +313,22 @@ pub const Engine = struct {
 
     // OP_2OVER: Copies the pair of items two spaces back in the stack to the front
     fn op2Over(self: *Engine) !void {
-        const stack_length = self.stack.len();
-        const last_element1 = try self.stack.peek(stack_length - 1);
-        const last_element2 = try self.stack.peek(stack_length - 2);
-        try self.stack.pushByteArray(last_element1);
-        try self.stack.pushByteArray(last_element2);
+        const fourth = try self.stack.peek(3);
+        const third = try self.stack.peek(2);
+        try self.stack.pushByteArray(fourth);
+        try self.stack.pushByteArray(third);
     }
 
     // OP_2SWAP: Swaps the top two pairs of items
     fn op2Swap(self: *Engine) !void {
-        const a = try self.stack.pop();
-        const b = try self.stack.pop();
-        const c = try self.stack.pop();
-        const d = try self.stack.pop();
-        try self.stack.pushElement(b);
-        try self.stack.pushElement(a);
-        try self.stack.pushElement(d);
-        try self.stack.pushElement(c);
+        const first = try self.stack.pop();
+        const second = try self.stack.pop();
+        const third = try self.stack.pop();
+        const fourth = try self.stack.pop();
+        try self.stack.pushElement(second);
+        try self.stack.pushElement(first);
+        try self.stack.pushElement(fourth);
+        try self.stack.pushElement(third);
     }
 
     /// OP_DEPTH: Puts the number of stack items onto the stack.
