@@ -321,14 +321,8 @@ pub const Engine = struct {
 
     // OP_2SWAP: Swaps the top two pairs of items
     fn op2Swap(self: *Engine) !void {
-        const first = try self.stack.pop();
-        const second = try self.stack.pop();
-        const third = try self.stack.pop();
-        const fourth = try self.stack.pop();
-        try self.stack.pushElement(second);
-        try self.stack.pushElement(first);
-        try self.stack.pushElement(fourth);
-        try self.stack.pushElement(third);
+        try self.stack.swap(0, 2);
+        try self.stack.swap(1, 3);
     }
 
     /// OP_DEPTH: Puts the number of stack items onto the stack.
