@@ -158,25 +158,6 @@ pub const Stack = struct {
         return std.mem.readVarInt(i64, elem, native_endian);
     }
 
-    /// Removes an item from the stack at the specified index
-    ///
-    /// # Arguments
-    /// - `index`: The index of the item to remove (0 is the top of the stack)
-    ///
-    /// # Returns
-    /// - `StackError` if the index is out of bounds
-    /// - `[]u8`: The removed item
-    pub fn removeAt(self: *Stack, index: usize) StackError![]u8 {
-    if (index >= self.items.items.len) {
-        return StackError.StackUnderflow; 
-    }
-
-    const actualIndex = self.items.items.len - 1 - index;
-
-    // Use orderedRemove to get the item
-    return self.items.orderedRemove(actualIndex);
-    }
-
     /// Get the number of items in the stack
     ///
     /// # Returns

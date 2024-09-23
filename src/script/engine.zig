@@ -386,7 +386,17 @@ pub const Engine = struct {
     /// - `EngineError`: If an error occurs during execution
     fn opRoll(self: *Engine) !void {
         const n = try self.stack.popInt();
-        const value = try self.stack.removeAt(@intCast(n));
+
+        const index : usize = @intCast(n);
+        if (index >= self.stack.items.items.len) {
+            return error.StackUnderflow; 
+        }
+    
+        const actualIndex = self.stack.items.items.len - 1 - index;
+    
+        // Use orderedRemove to get the item
+        const value = self.stack.items.orderedRemove(actualIndex);
+
         try self.stack.pushElement(value);
     }
 
