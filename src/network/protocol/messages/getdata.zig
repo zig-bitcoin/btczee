@@ -20,7 +20,7 @@ pub const GetdataMessage = struct {
     /// Returns the message checksum
     ///
     /// Computed as `Sha256(Sha256(self.serialize()))[0..4]`
-    pub fn checksum(self: GetdataMessage) [4]u8 {
+    pub fn checksum(self: *const GetdataMessage) [4]u8 {
         var digest: [32]u8 = undefined;
         var hasher = Sha256.init(.{});
         const writer = hasher.writer();
@@ -30,6 +30,11 @@ pub const GetdataMessage = struct {
         Sha256.hash(&digest, &digest, .{});
 
         return digest[0..4].*;
+    }
+
+    /// Free the `inventory`
+    pub fn deinit(self: GetdataMessage, allocator: std.mem.Allocator) void {
+        allocator.free(self.inventory);
     }
 
     /// Serialize the message as bytes and write them to the Writer.
@@ -105,6 +110,7 @@ pub const GetdataMessage = struct {
         };
     }
 
+    /// Deserialize bytes into a `GetdataMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !GetdataMessage {
         var fbs = std.io.fixedBufferStream(bytes);
         const reader = fbs.reader();
@@ -115,12 +121,15 @@ pub const GetdataMessage = struct {
     pub fn eql(self: *const GetdataMessage, other: *const GetdataMessage) bool {
         if (self.inventory.len != other.inventory.len) return false;
 
-        var i: usize = 0;
-        for (self.inventory) |item| {
-            if (item.type != other.inventory[i].type) return false;
-            if (!std.mem.eql(u8, &item.hash, &other.inventory[i].hash)) return false;
-            i += 1;
+        for (0..self.inventory.len) |i| {
+            if (self.inventory[i].type != other.inventory[i].type) {
+                return false;
+            }
+            if (!std.mem.eql(u8, &self.inventory[i].hash, &other.inventory[i].hash)) {
+                return false;
+            }
         }
+
         return true;
     }
 };
