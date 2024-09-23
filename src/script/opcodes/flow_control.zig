@@ -4,6 +4,7 @@ const Engine = @import("../engine.zig").Engine;
 const Script = @import("../lib.zig").Script;
 const ScriptFlags = @import("../lib.zig").ScriptFlags;
 const ConditionalStackError = @import("../cond_stack.zig").ConditionalStackError;
+const Opcode = @import("./constant.zig").Opcode;
 
 /// OP_IF: Conditionally executes the following statements
 /// If the current branch is executing:
@@ -81,7 +82,7 @@ pub fn opEndIf(engine: *Engine) !void {
 test "OP_IF - true condition" {
     const allocator = testing.allocator;
 
-    const script_bytes = [_]u8{ 0x51, 0x63 }; // OP_1 OP_IF
+    const script_bytes = [_]u8{ Opcode.OP_1.toBytes(), Opcode.OP_IF.toBytes() };
     const script = Script.init(&script_bytes);
 
     var engine = Engine.init(allocator, script, ScriptFlags{});
@@ -89,7 +90,7 @@ test "OP_IF - true condition" {
 
     try engine.execute();
 
-    try std.testing.expectEqual(@as(usize, 1), engine.cond_stack.len());
+    try std.testing.expectEqual(1, engine.cond_stack.len());
     try std.testing.expect(engine.cond_stack.isBranchExecuting());
 }
 
@@ -98,7 +99,7 @@ test "OP_IF - true condition" {
 test "OP_IF - false condition" {
     const allocator = testing.allocator;
 
-    const script_bytes = [_]u8{ 0x00, 0x63 }; // OP_0 OP_IF
+    const script_bytes = [_]u8{ Opcode.OP_0.toBytes(), Opcode.OP_IF.toBytes() };
     const script = Script.init(&script_bytes);
 
     var engine = Engine.init(allocator, script, ScriptFlags{});
@@ -106,7 +107,7 @@ test "OP_IF - false condition" {
 
     try engine.execute();
 
-    try testing.expectEqual(@as(usize, 1), engine.cond_stack.len());
+    try testing.expectEqual(1, engine.cond_stack.len());
     try testing.expect(!engine.cond_stack.isBranchExecuting());
 }
 
@@ -115,7 +116,7 @@ test "OP_IF - false condition" {
 test "OP_NOTIF - true condition" {
     const allocator = std.testing.allocator;
 
-    const script_bytes = [_]u8{ 0x51, 0x64 }; // OP_1 OP_NOTIF
+    const script_bytes = [_]u8{ Opcode.OP_1.toBytes(), Opcode.OP_NOTIF.toBytes() };
     const script = Script.init(&script_bytes);
 
     var engine = Engine.init(allocator, script, ScriptFlags{});
@@ -123,7 +124,7 @@ test "OP_NOTIF - true condition" {
 
     try engine.execute();
 
-    try std.testing.expectEqual(@as(usize, 1), engine.cond_stack.len());
+    try std.testing.expectEqual(1, engine.cond_stack.len());
     try std.testing.expect(!engine.cond_stack.isBranchExecuting());
 }
 
@@ -132,7 +133,7 @@ test "OP_NOTIF - true condition" {
 test "OP_NOTIF - false condition" {
     const allocator = std.testing.allocator;
 
-    const script_bytes = [_]u8{ 0x00, 0x64 }; // OP_0 OP_NOTIF
+    const script_bytes = [_]u8{ Opcode.OP_0.toBytes(), Opcode.OP_NOTIF.toBytes() };
     const script = Script.init(&script_bytes);
 
     var engine = Engine.init(allocator, script, ScriptFlags{});
@@ -140,7 +141,7 @@ test "OP_NOTIF - false condition" {
 
     try engine.execute();
 
-    try std.testing.expectEqual(@as(usize, 1), engine.cond_stack.len());
+    try std.testing.expectEqual(1, engine.cond_stack.len());
     try std.testing.expect(engine.cond_stack.isBranchExecuting());
 }
 
@@ -150,20 +151,20 @@ test "OP_ELSE" {
     // Test OP_ELSE with a matching OP_IF
     // Expect: Conditional stack state is toggled correctly
     {
-        const script_bytes = [_]u8{ 0x63, 0x67 }; // OP_IF OP_ELSE
+        const script_bytes = [_]u8{ Opcode.OP_IF.toBytes(), Opcode.OP_ELSE.toBytes() };
         const script = Script.init(&script_bytes);
         var engine = Engine.init(allocator, script, ScriptFlags{});
         defer engine.deinit();
 
         try opIf(&engine);
         try opElse(&engine);
-        try std.testing.expectEqual(@as(usize, 1), engine.cond_stack.len());
+        try std.testing.expectEqual(1, engine.cond_stack.len());
     }
 
     // Test OP_ELSE without a matching OP_IF
     // Expect: Error due to empty conditional stack
     {
-        const script_bytes = [_]u8{0x67}; // OP_ELSE
+        const script_bytes = [_]u8{Opcode.OP_ELSE.toBytes()};
         const script = Script.init(&script_bytes);
         var engine = Engine.init(allocator, script, ScriptFlags{});
         defer engine.deinit();
@@ -179,23 +180,23 @@ test "OP_ENDIF" {
 
     // Test OP_ENDIF with matching OP_IF
     {
-        const script_bytes = [_]u8{ 0x63, 0x68 }; // OP_IF OP_ENDIF
+        const script_bytes = [_]u8{ Opcode.OP_IF.toBytes(), Opcode.OP_ENDIF.toBytes() };
         const script = Script.init(&script_bytes);
         var engine = Engine.init(allocator, script, ScriptFlags{});
         defer engine.deinit();
 
-        try engine.stack.pushByteArray(&[_]u8{1}); // Push a true value onto the stack
+        try engine.stack.pushBool(true); // Push a true value onto the stack
         try opIf(&engine);
-        try std.testing.expectEqual(@as(usize, 1), engine.cond_stack.len());
+        try std.testing.expectEqual(1, engine.cond_stack.len());
 
         try opEndIf(&engine);
-        try std.testing.expectEqual(@as(usize, 0), engine.cond_stack.len());
+        try std.testing.expectEqual(0, engine.cond_stack.len());
     }
 
     // Test OP_ENDIF without a matching OP_IF
     // Expect: Error due to empty conditional stack
     {
-        const script_bytes = [_]u8{0x68}; // OP_ENDIF
+        const script_bytes = [_]u8{Opcode.OP_ENDIF.toBytes()};
         const script = Script.init(&script_bytes);
         var engine = Engine.init(allocator, script, ScriptFlags{});
         defer engine.deinit();

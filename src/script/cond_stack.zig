@@ -89,7 +89,7 @@ test "ConditionalStack - initialization and deinitialization" {
     var cond_stack = ConditionalStack.init(allocator);
     defer cond_stack.deinit();
 
-    try testing.expectEqual(@as(usize, 0), cond_stack.len());
+    try testing.expectEqual(0, cond_stack.len());
 }
 
 test "ConditionalStack - push and pop" {
@@ -98,18 +98,18 @@ test "ConditionalStack - push and pop" {
     defer cond_stack.deinit();
 
     try cond_stack.push(1);
-    try testing.expectEqual(@as(usize, 1), cond_stack.len());
+    try testing.expectEqual(1, cond_stack.len());
 
     try cond_stack.push(0);
-    try testing.expectEqual(@as(usize, 2), cond_stack.len());
+    try testing.expectEqual(2, cond_stack.len());
 
     const popped1 = try cond_stack.pop();
-    try testing.expectEqual(@as(u8, 0), popped1);
-    try testing.expectEqual(@as(usize, 1), cond_stack.len());
+    try testing.expectEqual(0, popped1);
+    try testing.expectEqual(1, cond_stack.len());
 
     const popped2 = try cond_stack.pop();
-    try testing.expectEqual(@as(u8, 1), popped2);
-    try testing.expectEqual(@as(usize, 0), cond_stack.len());
+    try testing.expectEqual(1, popped2);
+    try testing.expectEqual(0, cond_stack.len());
 
     try testing.expectError(ConditionalStackError.EmptyConditionalStack, cond_stack.pop());
 }
@@ -140,14 +140,14 @@ test "ConditionalStack - multiple operations" {
     try cond_stack.push(0);
     try cond_stack.push(2);
 
-    try testing.expectEqual(@as(usize, 3), cond_stack.len());
+    try testing.expectEqual(3, cond_stack.len());
     try testing.expect(!cond_stack.isBranchExecuting());
 
     _ = try cond_stack.pop();  // Use _ to explicitly discard the return value
-    try testing.expectEqual(@as(usize, 2), cond_stack.len());
+    try testing.expectEqual(2, cond_stack.len());
     try testing.expect(!cond_stack.isBranchExecuting());
 
     _ = try cond_stack.pop();  // Use _ to explicitly discard the return value
-    try testing.expectEqual(@as(usize, 1), cond_stack.len());
+    try testing.expectEqual(1, cond_stack.len());
     try testing.expect(cond_stack.isBranchExecuting());
 }

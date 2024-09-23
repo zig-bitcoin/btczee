@@ -118,7 +118,7 @@ pub const Engine = struct {
             Opcode.OP_PUSHDATA2 => try self.opPushData2(),
             Opcode.OP_PUSHDATA4 => try self.opPushData4(),
             Opcode.OP_1NEGATE => try self.op1Negate(),
-            Opcode.OP_RESERVED => try self.opReserved(@intFromEnum(opcode)),
+            Opcode.OP_RESERVED => try self.opReserved(Opcode.OP_RESERVED),
             .OP_1, .OP_2, .OP_3, .OP_4, .OP_5, .OP_6, .OP_7, .OP_8, .OP_9, .OP_10, .OP_11, .OP_12, .OP_13, .OP_14, .OP_15, .OP_16 => try self.opN(opcode),
             Opcode.OP_NOP => try self.opNop(),
             Opcode.OP_VER => try self.opVer(),
@@ -249,16 +249,39 @@ pub const Engine = struct {
         try self.stack.pushByteArray(&[_]u8{0x81});
     }
 
-    /// OP_RESERVED: Reserved opcode
-    fn opReserved(self: *Engine, opcode: u8) !void {
+    /// Handles the execution of reserved opcodes.
+    ///
+    /// Reserved opcodes are not meant to be executed in valid scripts.
+    /// This function logs the attempt to execute a reserved opcode and
+    /// then returns an error to halt script execution.
+    ///
+    /// Arguments:
+    ///     self: *Engine - Pointer to the current Engine instance.
+    ///     opcode: Opcode - The reserved opcode that was encountered.
+    ///
+    /// Returns:
+    ///     !void - Always returns an error to indicate invalid execution.
+    ///
+    /// Errors:
+    ///     error.ReservedOpcode - Always thrown to indicate that a reserved opcode was encountered.
+    fn opReserved(self: *Engine, opcode: Opcode) !void {
         _ = self;
-        // Use std.debug.print to log the message directly
-        std.debug.print("Attempt to execute reserved opcode: 0x{x}\n", .{opcode});
+        std.debug.print("Attempt to execute reserved opcode: {s}\n", .{@tagName(opcode)});
         return error.ReservedOpcode;
     }
 
+    /// OP_VER: Reserved opcode
+    ///
+    /// This opcode is reserved and should not be used in scripts.
+    /// If encountered, it triggers the same behavior as OP_RESERVED.
+    ///
+    /// # Arguments
+    /// * `self` - Pointer to the Engine instance
+    ///
+    /// # Errors
+    /// Returns `error.ReservedOpcode` to indicate that a reserved opcode was encountered.
     fn opVer(self: *Engine) !void {
-      try self.opReserved(0x62);
+      try self.opReserved(Opcode.OP_VER);
     }
 
     /// OP_1 to OP_16: Push the value (opcode - 0x50) onto the stack
@@ -286,7 +309,7 @@ pub const Engine = struct {
     ///
     /// # Returns
     /// - `EngineError`: If verification fails or an error occurs
-    
+
     fn opVerify(self: *Engine) !void {
         const value = try self.stack.popBool();
         if (!value) {
@@ -459,7 +482,7 @@ pub const Engine = struct {
     }
 
     /// OP_PICK: The item idx back in the stack is copied to the top.
-    /// 
+    ///
     /// # Returns
     /// - `EngineError`: If an error occurs during execution
     fn opPick(self: *Engine) !void {
@@ -499,7 +522,7 @@ test "Script execution - OP_FALSE" {
     const allocator = std.testing.allocator;
 
     // Simple script: OP_FALSE
-    const script_bytes = [_]u8{0x00};
+    const script_bytes = [_]u8{Opcode.OP_0.toBytes()};
     const script = Script.init(&script_bytes);
 
     var engine = Engine.init(allocator, script, .{});
@@ -508,7 +531,7 @@ test "Script execution - OP_FALSE" {
     try engine.opFalse();
 
     // Check if the stack has one item (should be an empty array)
-    try std.testing.expectEqual(@as(usize, 1), engine.stack.len());
+    try std.testing.expectEqual(1, engine.stack.len());
 
     // Check the item on the stack (should be an empty array)
     {
@@ -540,7 +563,7 @@ test "Script execution - OP_1 OP_1 OP_EQUAL" {
     // Ensure the stack is empty after popping the result
     try std.testing.expectEqual(0, engine.stack.len());
 }
-    
+
 // Testing SHA1 against known vectors
 test "opSha1 function test" {
     const test_cases = [_]struct {
@@ -606,17 +629,18 @@ test "Script execution - OP_RETURN" {
 
 test "Script execution - OP_RESERVED" {
     const allocator = std.testing.allocator;
-    const script_bytes = [_]u8{0x00};
+    const script_bytes = [_]u8{@intFromEnum(Opcode.OP_VER)};
     const script = Script.init(&script_bytes);
 
     var engine = Engine.init(allocator, script, ScriptFlags{});
     defer engine.deinit();
 
-    const reserved_opcode: u8 = 0x50;
-
-    // Expect the ReservedOpcode error when executing the reserved opcode
-    try std.testing.expectError(error.ReservedOpcode, engine.opReserved(reserved_opcode));
+    // Instead of calling opReserved directly, we should trigger the script execution
+    // that will encounter the OP_RESERVED opcode
+    try std.testing.expectError(error.ReservedOpcode, engine.execute());
 }
+
+
 
 test "Script execution - OP_1 OP_1 OP_1 OP_2Drop" {
     const allocator = std.testing.allocator;
@@ -725,7 +749,7 @@ test "Script execution - OP_OVER" {
     try engine.execute();
 
     // Ensure the stack has the expected number of elements
-    try std.testing.expectEqual(@as(usize, 4), engine.stack.len());
+    try std.testing.expectEqual(4, engine.stack.len());
 
     // Check the stack elements
     const element0 = try engine.stack.peekInt(0);
@@ -780,7 +804,7 @@ test "Script execution - OP_PICK" {
     const allocator = std.testing.allocator;
 
     // Simple script: OP_1 OP_2 OP_3 OP_2 OP_PICK
-    const script_bytes = [_]u8{ 
+    const script_bytes = [_]u8{
         Opcode.OP_1.toBytes(),
         Opcode.OP_2.toBytes(),
         Opcode.OP_3.toBytes(),
