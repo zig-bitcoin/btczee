@@ -188,7 +188,9 @@ test "Mempool" {
         .allocator = allocator,
         .rpc_port = 8332,
         .p2p_port = 8333,
-        .testnet = false,
+        .protocol_version = Config.PROTOCOL_VERSION,
+        .network_id = Config.BitcoinNetworkId.MAINNET,
+        .services = 1,
         .datadir = "/tmp/btczee",
     };
     var mempool = try Mempool.init(allocator, &config);

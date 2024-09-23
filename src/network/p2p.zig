@@ -3,9 +3,14 @@
 //! It can receive and send messages to other nodes, based on the Bitcoin protocol.
 const std = @import("std");
 const net = std.net;
+const posix = std.posix;
 const Config = @import("../config/config.zig").Config;
 const Peer = @import("peer.zig").Peer;
 const Logger = @import("../util/trace/log.zig").Logger;
+const wire = @import("wire/lib.zig");
+const protocol = @import("protocol/lib.zig");
+const VersionMessage = protocol.messages.VersionMessage;
+const NetworkAddress = protocol.NetworkAddress;
 
 /// P2P network handler.
 pub const P2P = struct {
@@ -48,24 +53,15 @@ pub const P2P = struct {
     pub fn start(self: *P2P) !void {
         self.logger.infof("Starting P2P network on port {}", .{self.config.p2p_port});
 
-        // TODO: Implement the P2P network handler
-        // Initialize the listener
-        // const address = try net.Address.parseIp4("0.0.0.0", self.config.p2p_port);
-        // std.debug.panic("{any}", .{address});
-        // const stream = try net.tcpConnectToAddress(address);
-
-        // self.listener = net.Server{
-        //     .listen_address = address,
-        //     .stream = stream,
-        // };
-
-        // // Start accepting connections
-        // try self.acceptConnections();
-
-        // // Connect to seed nodes
-        // try self.connectToSeedNodes();
+        for (self.config.dnsSeeds()) |seed| {
+            const address_list = try std.net.getAddressList(self.allocator, seed.inner, 8333);
+            for (address_list.addrs[0..5]) |address| {
+                const peer = Peer.init(self.allocator, self.config, address) catch continue;
+                try self.peers.append(peer);
+                peer.start(true) catch continue;
+            }
+        }
     }
-
     /// Accept incoming connections.
     /// The P2P network handler will accept incoming connections and handle them in a separate thread.
     fn acceptConnections(self: *P2P) !void {
