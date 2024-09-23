@@ -141,6 +141,8 @@ pub fn receiveMessage(
         protocol.messages.Message{ .sendheaders = try protocol.messages.SendHeadersMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.FilterLoadMessage.name()))
         protocol.messages.Message{ .filterload = try protocol.messages.FilterLoadMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.GetdataMessage.name()))
+        protocol.messages.Message{ .Getdata = try protocol.messages.GetdataMessage.deserializeReader(allocator, r) }
     else {
         try r.skipBytes(payload_len, .{}); // Purge the wire
         return error.UnknownMessage;
