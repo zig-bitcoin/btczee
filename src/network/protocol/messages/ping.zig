@@ -7,18 +7,16 @@ const ServiceFlags = protocol.ServiceFlags;
 const Endian = std.builtin.Endian;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
-const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
-
-/// GetaddrMessage represents the "getaddr" message
+/// PingMessage represents the "Ping" message
 ///
-/// https://developer.bitcoin.org/reference/p2p_networking.html#getaddr
+/// https://developer.bitcoin.org/reference/p2p_networking.html#ping
 pub const PingMessage = struct {
     nonce: u64,
 
     const Self = @This();
 
     pub inline fn name() *const [12]u8 {
-        return protocol.CommandNames.PING ++ [_]u8{0} ** 5;
+        return protocol.CommandNames.PING ++ [_]u8{0} ** 8;
     }
 
     /// Returns the message checksum
@@ -56,6 +54,23 @@ pub const PingMessage = struct {
         return ret;
     }
 
+    /// Serialize the message as bytes and write them to the Writer.
+    ///
+    /// `w` should be a valid `Writer`.
+    pub fn serializeToWriter(self: *const Self, w: anytype) !void {
+        comptime {
+            if (!std.meta.hasFn(@TypeOf(w), "writeInt")) @compileError("Expects r to have fn 'writeInt'.");
+        }
+
+        try w.writeInt(u64, self.nonce, .little);
+    }
+
+    /// Returns the hint of the serialized length of the message
+    pub fn hintSerializedLen(_: *const Self) usize {
+        // 8 bytes for nonce
+        return 8;
+    }
+
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
         var fbs = std.io.fixedBufferStream(bytes);
         return try Self.deserializeReader(allocator, fbs.reader());
@@ -71,22 +86,6 @@ pub const PingMessage = struct {
 
         vm.nonce = try r.readInt(u64, .little);
         return vm;
-    }
-
-    pub fn hintSerializedLen(_: *const Self) usize {
-        // 8 bytes for nonce
-        return 8;
-    }
-
-    /// Serialize the message as bytes and write them to the Writer.
-    ///
-    /// `w` should be a valid `Writer`.
-    pub fn serializeToWriter(self: *const Self, w: anytype) !void {
-        comptime {
-            if (!std.meta.hasFn(@TypeOf(w), "writeInt")) @compileError("Expects r to have fn 'writeInt'.");
-        }
-
-        try w.writeInt(u64, self.nonce, .little);
     }
 
     pub fn new(nonce: u64) Self {

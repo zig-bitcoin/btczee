@@ -139,10 +139,7 @@ test "ok_send_version_message" {
 
     switch (received_message) {
         .Version => |rm| try std.testing.expect(message.eql(&rm)),
-        .Verack => unreachable,
-        .Mempool => unreachable,
-        .Getaddr => unreachable,
-        .Ping => unreachable,
+        else => unreachable,
     }
 }
 
@@ -167,10 +164,7 @@ test "ok_send_verack_message" {
 
     switch (received_message) {
         .Verack => {},
-        .Version => unreachable,
-        .Mempool => unreachable,
-        .Getaddr => unreachable,
-        .Ping => unreachable,
+        else => unreachable,
     }
 }
 
@@ -195,10 +189,7 @@ test "ok_send_mempool_message" {
 
     switch (received_message) {
         .Mempool => {},
-        .Verack => unreachable,
-        .Version => unreachable,
-        .Getaddr => unreachable,
-        .Ping => unreachable,
+        else => unreachable,
     }
 }
 
@@ -222,12 +213,10 @@ test "ok_send_ping_message" {
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
-        .Mempool => unreachable,
-        .Verack => unreachable,
-        .Version => unreachable,
-        .Getaddr => unreachable,
         .Ping => {},
+        else => unreachable,
     }
+    try std.testing.expectEqual(message.nonce, received_message.Ping.nonce);
 }
 
 test "ko_receive_invalid_payload_length" {
