@@ -12,7 +12,7 @@ const OpConditional = @import("./constant.zig").OpConditional;
 ///   - If the stack is empty, treat as false
 ///   - Otherwise, pop the top stack value and use it as the condition
 /// If the current branch is not executing, mark as skip
-/// Pushes the resulting condition (0: false, 1: true, 2: skip) onto the conditional stack
+/// Pushes the resulting condition (0: OpConditional.False, 1: OpConditional.True, 2: OpConditional.Skip) onto the conditional stack
 pub fn opIf(engine: *Engine) !void {
     var cond_val: u8 = OpConditional.False.toU8(); // Initialize as false
     if (engine.cond_stack.isBranchExecuting()) {
@@ -36,7 +36,7 @@ pub fn opIf(engine: *Engine) !void {
 /// If the current branch is executing:
 ///   - Pop the top stack value and invert its truthiness
 /// If the current branch is not executing, mark as skip
-/// Pushes the resulting condition (0: false, 1: true, 2: skip) onto the conditional stack
+/// Pushes the resulting condition (0: OpConditional.False, 1: OpConditional.True, 2: OpConditional.Skip) onto the conditional stack
 pub fn opNotIf(engine: *Engine) !void {
     var cond_val: u8 = OpConditional.True.toU8(); // true (inverted)
     if (engine.cond_stack.isBranchExecuting()) {
@@ -52,11 +52,6 @@ pub fn opNotIf(engine: *Engine) !void {
 
 /// OP_ELSE: Toggles the execution state of the current conditional block
 /// If the conditional stack is empty, returns an error
-/// Otherwise, flips the condition on top of the stack:
-///   - 0 (false) becomes 1 (true)
-///   - 1 (true) becomes 0 (false)
-///   - 2 (skip) remains unchanged
-/// Returns an error for any other condition value
 pub fn opElse(engine: *Engine) !void {
     if (engine.cond_stack.len() == 0) {
         return ConditionalStackError.UnbalancedConditional;
