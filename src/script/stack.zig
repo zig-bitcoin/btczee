@@ -116,8 +116,6 @@ pub const Stack = struct {
         return ScriptNum.new(try asInt(value));
     }
 
-    
-
     /// Pop an integer from the stack
     pub fn popInt(self: *Stack) !i32 {
         const value = try self.pop();

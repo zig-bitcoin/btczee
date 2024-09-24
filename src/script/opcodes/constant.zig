@@ -363,28 +363,6 @@ pub const Opcode = enum(u8) {
             return EngineError.UnknownOpcode;
         };
     }
-
-    pub fn pushOpcode(num: u8) Opcode {
-        return switch (num) {
-            1 => Opcode.OP_1,
-            2 => Opcode.OP_2,
-            3 => Opcode.OP_3,
-            4 => Opcode.OP_4,
-            5 => Opcode.OP_5,
-            6 => Opcode.OP_6,
-            7 => Opcode.OP_7,
-            8 => Opcode.OP_8,
-            9 => Opcode.OP_9,
-            10 => Opcode.OP_10,
-            11 => Opcode.OP_11,
-            12 => Opcode.OP_12,
-            13 => Opcode.OP_13,
-            14 => Opcode.OP_14,
-            15 => Opcode.OP_15,
-            16 => Opcode.OP_16,
-            else => Opcode.OP_0,
-        };
-    }
 };
 
 // Helper function to get all opcodes
