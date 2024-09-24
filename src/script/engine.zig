@@ -353,9 +353,6 @@ pub const Engine = struct {
     }
 
     /// OP_ROLL: Pop the top stack element as N. Move the Nth stack element to the top.
-    ///
-    /// # Returns
-    /// - `EngineError`: If an error occurs during execution
     fn opRoll(self: *Engine) !void {
         const n = try self.stack.popInt();
 
