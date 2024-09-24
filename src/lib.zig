@@ -12,11 +12,13 @@ pub const config = @import("config/config.zig");
 pub const mempool = @import("core/mempool.zig");
 pub const p2p = @import("network/p2p.zig");
 pub const rpc = @import("network/rpc.zig");
+pub const network = @import("network/network.zig");
 pub const storage = @import("storage/storage.zig");
 pub const wallet = @import("wallet/wallet.zig");
 pub const miner = @import("miner/miner.zig");
 pub const node = @import("node/node.zig");
 pub const script = @import("script/lib.zig");
+pub const address = @import("address/address.zig");
 pub const wire = @import("network/wire/lib.zig");
 
 test {

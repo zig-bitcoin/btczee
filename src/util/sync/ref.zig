@@ -400,7 +400,7 @@ pub fn Arc(comptime T: type) type {
         }
 
         inline fn innerPtr(self: *const Self) *Inner {
-            return @fieldParentPtr("value", self.value);
+            return @alignCast(@fieldParentPtr("value", self.value));
         }
 
         /// A multi-threaded, weak reference to a reference-counted value.
