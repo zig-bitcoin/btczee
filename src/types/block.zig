@@ -11,3 +11,12 @@ pub const Block = struct {
         return ret;
     }
 };
+
+pub const BlockHeader = struct {
+    version: i32,
+    prev_block: [32]u8,
+    merkle_root: [32]u8,
+    timestamp: i32,
+    nbits: i32,
+    nonce: i32,
+};

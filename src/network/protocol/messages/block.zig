@@ -58,10 +58,10 @@ pub const BlockMessage = struct {
         try w.writeInt(i32, self.block_header.nbits, .little);
         try w.writeInt(i32, self.block_header.nonce, .little);
 
-        const compact_tx_count = CompactSizeUint.new(self.txns.len);
+        const compact_tx_count = CompactSizeUint.new(self.txns.items.len);
         try compact_tx_count.encodeToWriter(w);
 
-        for (self.txns) |txn| {
+        for (self.txns.items) |txn| {
             try txn.serializeToWriter(w);
         }
     }
@@ -124,7 +124,7 @@ pub const BlockMessage = struct {
         const header_length = @sizeOf(BlockHeader);
         const txs_number_length = @sizeOf(CompactSizeUint);
         var txs_length: usize = 0;
-        for (self.txns) |txn| {
+        for (self.txns.items) |txn| {
             txs_length += txn.virtual_size();
         }
         return header_length + txs_number_length + txs_length;
