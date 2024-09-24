@@ -84,6 +84,8 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
         protocol.messages.Message{ .Mempool = try protocol.messages.MempoolMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.GetaddrMessage.name()))
         protocol.messages.Message{ .Getaddr = try protocol.messages.GetaddrMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.MerkleBlockMessage.name()))
+        protocol.messages.Message{ .MerkleBlock = try protocol.messages.MerkleBlockMessage.deserializeReader(allocator, r) }
     else
         return error.UnknownMessage;
     errdefer message.deinit(allocator);
@@ -137,9 +139,7 @@ test "ok_send_version_message" {
 
     switch (received_message) {
         .Version => |rm| try std.testing.expect(message.eql(&rm)),
-        .Verack => unreachable,
-        .Mempool => unreachable,
-        .Getaddr => unreachable,
+        else => unreachable,
     }
 }
 
