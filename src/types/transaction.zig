@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
+
 /// Represents a transaction hash
 pub const Hash = struct {
     bytes: [32]u8,
@@ -68,6 +70,81 @@ pub const Transaction = struct {
     lock_time: u32,
     allocator: std.mem.Allocator,
 
+    const Self = @This();
+
+    pub fn serializeToWriter(self: *const Transaction, w: anytype) !void {
+        comptime {
+            if (!std.meta.hasFn(@TypeOf(w), "writeInt")) @compileError("Expects w to have field 'writeInt'.");
+            if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects w to have field 'writeAll'.");
+        }
+
+        const compact_input_len = CompactSizeUint.new(self.inputs.items.len);
+        const compact_output_len = CompactSizeUint.new(self.outputs.items.len);
+
+        try w.writeInt(i32, self.version, .little);
+
+        try compact_input_len.encodeToWriter(w);
+        for (self.inputs.items) |input| {
+            const compact_script_len = CompactSizeUint.new(input.script_sig.bytes.len);
+
+            try w.writeAll(&input.previous_outpoint.hash.bytes);
+            try w.writeInt(u32, input.previous_outpoint.index, .little);
+            try compact_script_len.encodeToWriter(w);
+            try w.writeAll(input.script_sig.bytes);
+            try w.writeInt(u32, input.sequence, .little);
+        }
+
+        try compact_output_len.encodeToWriter(w);
+        for (self.outputs.items) |output| {
+            const compact_script_len = CompactSizeUint.new(output.script_pubkey.bytes.len);
+
+            try w.writeInt(i64, output.value, .little);
+            try compact_script_len.encodeToWriter(w);
+            try w.writeAll(output.script_pubkey.bytes);
+        }
+
+        try w.writeInt(u32, self.lock_time, .little);
+    }
+
+    pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
+        comptime {
+            if (!std.meta.hasFn(@TypeOf(r), "readInt")) @compileError("Expects r to have fn 'readInt'.");
+            if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects r to have fn 'readNoEof'.");
+            if (!std.meta.hasFn(@TypeOf(r), "readAll")) @compileError("Expects r to have fn 'readAll'.");
+            if (!std.meta.hasFn(@TypeOf(r), "readByte")) @compileError("Expects r to have fn 'readByte'.");
+        }
+
+        var tx: Self = undefined;
+
+        tx.version = try r.readInt(i32, .little);
+
+        const compact_input_len = try CompactSizeUint.decodeFromReader(r);
+        var inputs = std.ArrayList(Input).init(allocator);
+        errdefer allocator.free(inputs);
+        while (inputs.len < compact_input_len) {
+            var input: Input = undefined;
+            input.previous_outpoint.hash = Hash{ .bytes = try read_bytes_exact(allocator, r, 32) };
+            input.previous_outpoint.index = try r.readInt(u32, .little);
+            const compact_script_len = (try CompactSizeUint.decodeFromReader(r)).value();
+            input.script_sig = Script{ .bytes = try read_bytes_exact(allocator, r, compact_script_len), .allocator = allocator };
+            input.sequence = try r.readInt(u32, .little);
+
+            inputs.append(input);
+        }
+
+        const compact_output_len = try CompactSizeUint.decodeFromReader(r);
+        var outputs = std.ArrayList(Output).init(allocator);
+        errdefer allocator.free(outputs);
+        while (outputs.len < compact_output_len) {
+            var output: Output = undefined;
+            output.value = try r.readInt(i64, .little);
+            const compact_script_len = (try CompactSizeUint.decodeFromReader(r)).value();
+            output.script_pubkey = Script{ .bytes = try read_bytes_exact(allocator, r, compact_script_len), .allocator = allocator };
+
+            outputs.append(output);
+        }
+    }
+
     /// Initialize a new transaction
     pub fn init(allocator: std.mem.Allocator) !Transaction {
         return Transaction{
@@ -128,6 +205,28 @@ pub const Transaction = struct {
         return size;
     }
 };
+
+pub const RawTransaction = struct {
+    version: u32,
+    tx_in_count: CompactSizeUint, // maximum is 10 000 inputs
+    tx_in: []Input,
+    tx_out_count: CompactSizeUint, // maximum is 10 000 outputs
+    tx_out: []Output,
+    lock_time: u32,
+
+    allocator: std.mem.Allocator,
+};
+
+pub fn read_bytes_exact(allocator: std.mem.Allocator, r: anytype, bytes_nb: u32) ![]u8 {
+    comptime !{
+        if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects r to have fn 'readNoEof'.");
+    };
+
+    const bytes = try allocator.alloc(u8, bytes_nb);
+    errdefer allocator.free(bytes);
+    try r.readNoEof(bytes);
+    return bytes;
+}
 
 test "Transaction basics" {
     const testing = std.testing;
