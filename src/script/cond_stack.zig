@@ -1,4 +1,5 @@
 const std = @import("std");
+const OpConditional = @import("./opcodes/constant.zig").OpConditional;
 const testing = std.testing;
 const Allocator = std.mem.Allocator;
 
@@ -42,11 +43,9 @@ pub const ConditionalStack = struct {
     /// Push a conditional value onto the stack
     ///
     /// In Bitcoin script, conditional values are strictly limited to:
-    /// - 0: represents false
-    /// - 1: represents true
-    ///
-    /// Args:
-    ///     value: The conditional value to push (must be 0 or 1)
+    /// - OpConditional.False = 0
+    /// - OpConditional.True = 1
+    /// - OpConditional.Skip = 2
     ///
     /// Returns:
     ///     Possible error if allocation fails
@@ -55,7 +54,7 @@ pub const ConditionalStack = struct {
     }
 
     /// Pop a conditional value from the stack
-    pub fn pop(self: *ConditionalStack) !void {
+    pub fn pop(self: *Self) !void {
         if (self.stack.items.len == 0) {
             return ConditionalStackError.UnbalancedConditional;
         }
@@ -70,7 +69,7 @@ pub const ConditionalStack = struct {
         if (self.stack.items.len == 0) {
             return true;
         } else {
-            return self.stack.items[self.stack.items.len - 1] == 1;
+            return self.stack.items[self.stack.items.len - 1] == OpConditional.True.toU8();
         }
     }
 

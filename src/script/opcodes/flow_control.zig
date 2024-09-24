@@ -14,18 +14,18 @@ const OpConditional = @import("./constant.zig").OpConditional;
 /// If the current branch is not executing, mark as skip
 /// Pushes the resulting condition (0: false, 1: true, 2: skip) onto the conditional stack
 pub fn opIf(engine: *Engine) !void {
-    var cond_val: u8 = 0; // Initialize as false
+    var cond_val: u8 = OpConditional.False.toU8(); // Initialize as false
     if (engine.cond_stack.isBranchExecuting()) {
         if (engine.stack.len() == 0) {
-            cond_val = 0; // Treat empty stack as false
+            cond_val = OpConditional.False.toU8(); // Treat empty stack as false
         } else {
             const is_truthy = try engine.stack.popBool();
             if (is_truthy) {
-                cond_val = 1; // Set to true if top stack value is truthy
+                cond_val = OpConditional.True.toU8(); // Set to true if top stack value is truthy
             }
         }
     } else {
-        cond_val = 2; // Set to skip if current branch is not executing
+        cond_val = OpConditional.Skip.toU8(); // Set to skip if current branch is not executing
     }
     // Push the condition value onto the conditional stack
     // 0: false, 1: true, 2: skip
@@ -64,9 +64,9 @@ pub fn opElse(engine: *Engine) !void {
 
     const cond_idx = engine.cond_stack.len() - 1;
     switch (engine.cond_stack.stack.items[cond_idx]) {
-        0 => engine.cond_stack.stack.items[cond_idx] = 1,
-        1 => engine.cond_stack.stack.items[cond_idx] = 0,
-        2 => {}, // Leave unchanged
+        OpConditional.False.toU8() => engine.cond_stack.stack.items[cond_idx] = OpConditional.True.toU8(),
+        OpConditional.True.toU8() => engine.cond_stack.stack.items[cond_idx] = OpConditional.False.toU8(),
+        OpConditional.Skip.toU8() => {}, // Leave unchanged
         else => return ConditionalStackError.InvalidCondition,
     }
 }
