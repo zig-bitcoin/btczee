@@ -225,7 +225,6 @@ test "ok_send_getblocks_message" {
 
     const message = GetblocksMessage{
         .version = 42,
-        .hash_count = 2,
         .header_hashes = try test_allocator.alloc([32]u8, 2),
         .stop_hash = [_]u8{0} ** 32,
     };

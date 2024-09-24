@@ -15,7 +15,6 @@ const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 pub const GetblocksMessage = struct {
 
     version: i32,
-    hash_count: u64,
     header_hashes: [] [32]u8,
     stop_hash: [32]u8,
 
@@ -53,7 +52,7 @@ pub const GetblocksMessage = struct {
         }
 
         try w.writeInt(i32, self.version, .little);
-        const compact_hash_count = CompactSizeUint.new(self.hash_count);
+        const compact_hash_count = CompactSizeUint.new(self.header_hashes.len);
         try compact_hash_count.encodeToWriter(w);
         for (self.header_hashes) |header_hash| {
             try w.writeAll(&header_hash);
@@ -94,10 +93,9 @@ pub const GetblocksMessage = struct {
 
         // Read CompactSize hash_count
         const compact_hash_count = try CompactSizeUint.decodeReader(r);
-        gb.hash_count = compact_hash_count.value();
 
         // Allocate space for header_hashes based on hash_count
-        const header_hashes = try allocator.alloc([32]u8, gb.hash_count);
+        const header_hashes = try allocator.alloc([32]u8, compact_hash_count.value());
 
         for (header_hashes) |*hash| {
             try r.readNoEof(hash);
@@ -119,13 +117,13 @@ pub const GetblocksMessage = struct {
 
     pub fn hintSerializedLen(self: *const GetblocksMessage) usize {
         const fixed_length = 4 + 32; // version (4 bytes) + stop_hash (32 bytes)
-        const compact_hash_count_len = CompactSizeUint.new(self.hash_count).hint_encoded_len();
+        const compact_hash_count_len = CompactSizeUint.new(self.header_hashes.len).hint_encoded_len();
         const header_hashes_len = self.header_hashes.len * 32; // hash (32 bytes)
         return fixed_length + compact_hash_count_len + header_hashes_len;
     }
 
     pub fn eql(self: *const GetblocksMessage, other: *const GetblocksMessage) bool {
-        if (self.version != other.version or self.hash_count != other.hash_count) {
+        if (self.version != other.version or self.header_hashes.len != other.header_hashes.len) {
             return false;
         }
 
@@ -157,7 +155,6 @@ test "ok_full_flow_GetBlocksMessage" {
 
         const gb = GetblocksMessage{
             .version = 42,
-            .hash_count = 2,
             .header_hashes = try allocator.alloc([32]u8, 2),
             .stop_hash = [_]u8{0} ** 32,
         };
