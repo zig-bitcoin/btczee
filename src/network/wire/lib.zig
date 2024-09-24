@@ -100,6 +100,8 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
         protocol.messages.Message{ .Getblocks = try protocol.messages.GetblocksMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.PingMessage.name()))
         protocol.messages.Message{ .Ping = try protocol.messages.PingMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.MerkleBlockMessage.name()))
+        protocol.messages.Message{ .MerkleBlock = try protocol.messages.MerkleBlockMessage.deserializeReader(allocator, r) }
     else
         return error.UnknownMessage;
     errdefer message.deinit(allocator);
@@ -207,7 +209,6 @@ test "ok_send_mempool_message" {
     }
 }
 
-
 test "ok_send_getblocks_message" {
     const Config = @import("../../config/config.zig").Config;
 
@@ -271,7 +272,6 @@ test "ok_send_ping_message" {
         else => unreachable,
     }
 }
-
 
 test "ko_receive_invalid_payload_length" {
     const Config = @import("../../config/config.zig").Config;
