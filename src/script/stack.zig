@@ -183,6 +183,11 @@ pub const Stack = struct {
         return asBool(bytes);
     }
 
+    pub fn swap(self: *Stack, idx1: usize, idx2: usize) StackError!void {
+        if (self.len() <= @max(idx1, idx2)) { return StackError.StackUnderflow; }
+        std.mem.swap([]u8, &self.items.items[idx1], &self.items.items[idx2]);
+    }
+
     /// Get the number of items in the stack
     ///
     /// # Returns
