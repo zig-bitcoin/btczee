@@ -9,6 +9,7 @@ pub const MessageTypes = enum {
     Verack,
     Mempool,
     Getaddr,
+    MerkleBlock,
 };
 
 pub const Message = union(MessageTypes) {
