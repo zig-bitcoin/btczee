@@ -134,7 +134,7 @@ test "ok_send_version_message" {
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
-    const received_message = try receiveMessage(test_allocator, reader);
+    var received_message = try receiveMessage(test_allocator, reader);
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
@@ -159,7 +159,7 @@ test "ok_send_verack_message" {
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
-    const received_message = try receiveMessage(test_allocator, reader);
+    var received_message = try receiveMessage(test_allocator, reader);
     defer received_message.deinit(test_allocator);
 
     try std.testing.expect(received_message == .Verack);
@@ -181,7 +181,7 @@ test "ok_send_mempool_message" {
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
-    const received_message = try receiveMessage(test_allocator, reader);
+    var received_message = try receiveMessage(test_allocator, reader);
     defer received_message.deinit(test_allocator);
 
     try std.testing.expect(received_message == .Mempool);
