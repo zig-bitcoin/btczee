@@ -203,42 +203,88 @@ test "ok_send_mempool_message" {
     }
 }
 
+//test "ok_send_addr_message" {
+//    const ArrayList = std.ArrayList;
+//    const test_allocator = std.testing.allocator;
+//    const AddrMessage = protocol.messages.AddrMessage;
+//    //const ServiceFlags = protocol.ServiceFlags;
+//
+//    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+//    defer list.deinit();
+//
+//    // Create an ArrayList for NetworkIPAddr
+//    //var ips = ArrayList(NetworkIPAddr).init(test_allocator);
+//    //defer ips.deinit();
+//
+//    //try ips.append(
+//    //    NetworkIPAddr{
+//    //    .time = 42,
+//    //    .services = ServiceFlags.NODE_NETWORK,
+//    //    .ip = [_]u8{13} ** 16,
+//    //    .port = 33,
+//    //    
+//    //    });
+//    //const message = AddrMessage{
+//    //    //.ip_address_count = CompactSizeUint.new(1),
+//    //    .ip_addresses = ips,
+//    //};
+//    var message = AddrMessage.init(test_allocator);
+//    defer message.deinit();
+//
+//    try message.ip_addresses.append(NetworkIPAddr{
+//        .time = 1414012889,
+//        .services = 1,
+//        .ip = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 192, 0, 2, 51 },
+//        .port = 8333,
+//    //        .time = 42,
+//    //        .services = ServiceFlags.NODE_NETWORK,
+//    //        .ip = [_]u8{13} ** 16,
+//    //        .port = 33,
+//    });
+//
+//
+//    const writer = list.writer();
+//    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
+//    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
+//    const reader = fbs.reader();
+//
+//    const received_message = try receiveMessage(test_allocator, reader);
+//    defer received_message.deinit(test_allocator);
+//
+//    switch (received_message) {
+//        .Addr => |rm| try std.testing.expect(message.eql(&rm)),
+//        .Version => unreachable,
+//        .Verack => unreachable,
+//        .Mempool => unreachable,
+//        .Getaddr => unreachable,
+//    }
+//}
+
 test "ok_send_addr_message" {
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const AddrMessage = protocol.messages.AddrMessage;
-    const ServiceFlags = protocol.ServiceFlags;
+    //const ServiceFlags = protocol.ServiceFlags;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
 
-    // Create an ArrayList for NetworkIPAddr
-    //var ips = ArrayList(NetworkIPAddr).init(test_allocator);
-    //defer ips.deinit();
-
-    //try ips.append(
-    //    NetworkIPAddr{
-    //    .time = 42,
-    //    .services = ServiceFlags.NODE_NETWORK,
-    //    .ip = [_]u8{13} ** 16,
-    //    .port = 33,
-    //    
-    //    });
-    //const message = AddrMessage{
-    //    //.ip_address_count = CompactSizeUint.new(1),
-    //    .ip_addresses = ips,
+    //var message = AddrMessage{
+    //    .ip_addresses = try test_allocator.alloc(NetworkIPAddr, 1),
     //};
-    var message = AddrMessage.init(test_allocator);
-    defer message.deinit();
+    const ip_addresses = try test_allocator.alloc(NetworkIPAddr, 1);
+    defer test_allocator.free(ip_addresses);
 
-    try message.ip_addresses.append(NetworkIPAddr{
-        .time = 42,
-        .services = ServiceFlags.NODE_NETWORK,
-        .ip = [_]u8{13} ** 16,
-        .port = 33,
-    });
-//
+    ip_addresses[0] = NetworkIPAddr{
+        .time = 1414012889,
+        .services = 1,
+        .ip = [16]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0, 2, 51 },
+        .port = 8080,
+    };
 
+    var message = AddrMessage{
+        .ip_addresses = ip_addresses,
+    };
 
     const writer = list.writer();
     try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);

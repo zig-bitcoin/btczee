@@ -1,51 +1,35 @@
 const std = @import("std");
+const native_endian = @import("builtin").target.cpu.arch.endian();
 const protocol = @import("../lib.zig");
-const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 
+const ServiceFlags = protocol.ServiceFlags;
+
+const Endian = std.builtin.Endian;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
+const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
+
+/// AddrMessage represents the "addr" message
+///
+/// https://developer.bitcoin.org/reference/p2p_networking.html#addr
 pub const NetworkIPAddr = struct {
-    time: u32,
-    services: u64,
-    ip: [16]u8,
-    port: u16,
+    time: u32, // Unix epoch time
+    services: u64, // Services offered by the node
+    ip: [16]u8, // IPv6 address (including IPv4-mapped)
+    port: u16, // Port number
 
-    pub fn eql(self: *const NetworkIPAddr, other: *const NetworkIPAddr) bool {
-        return self.time == other.time
-            and self.services == other.services
-            and std.mem.eql(u8, &self.ip, &other.ip)
-            and self.port == other.port;
-    }
-
-    pub fn serialize(self: *const NetworkIPAddr, writer: anytype) !void {
-        try writer.writeInt(u32, self.time, .little);
-        try writer.writeInt(u64, self.services, .little);
-        try writer.writeAll(&self.ip);
-        try writer.writeInt(u16, self.port, .big);
-    }
-
-    pub fn deserialize(reader: anytype) !NetworkIPAddr {
-        return NetworkIPAddr{
-            .time = try reader.readInt(u32, .little),
-            .services = try reader.readInt(u64, .little),
-            .ip = try reader.readBytesNoEof(16),
-            .port = try reader.readInt(u16, .big),
-        };
-    }
+// NetworkIPAddr eql
+pub fn eql(self: *const NetworkIPAddr, other: *const NetworkIPAddr) bool {
+    return self.time == other.time
+        and self.services == other.services
+        and std.mem.eql(u8, &self.ip, &other.ip)
+        and self.port == other.port;
+}
 };
 
 pub const AddrMessage = struct {
-    ip_addresses: std.ArrayList(NetworkIPAddr),
+    ip_addresses: []NetworkIPAddr,
 
-    pub fn init(allocator: std.mem.Allocator) AddrMessage {
-        return AddrMessage{
-            .ip_addresses = std.ArrayList(NetworkIPAddr).init(allocator),
-        };
-    }
-
-    pub fn deinit(self: *AddrMessage) void {
-        self.ip_addresses.deinit();
-    }
 
     pub inline fn name() *const [12]u8 {
         return protocol.CommandNames.ADDR ++ [_]u8{0} ** 8;
@@ -66,11 +50,36 @@ pub const AddrMessage = struct {
         return digest[0..4].*;
     }
 
-    pub fn serializeToWriter(self: *const AddrMessage, writer: anytype) !void {
-        try CompactSizeUint.new(@intCast(self.ip_addresses.items.len)).encodeToWriter(writer);
-        for (self.ip_addresses.items) |*addr| {
-            try addr.serialize(writer);
+    /// Free the `user_agent` if there is one
+    pub fn deinit(self: AddrMessage, allocator: std.mem.Allocator) void {
+            allocator.free(self.ip_addresses);
+    }
+
+    /// Serialize the message as bytes and write them to the Writer.
+    ///
+    /// `w` should be a valid `Writer`.
+    pub fn serializeToWriter(self: *const AddrMessage, w: anytype) !void {
+        comptime {
+            if (!std.meta.hasFn(@TypeOf(w), "writeInt")) @compileError("Expects r to have fn 'writeInt'.");
+            if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects r to have fn 'writeAll'.");
         }
+        //try CompactSizeUint.new(@intCast(self.ip_addresses.len)).encodeToWriter(w);
+        try CompactSizeUint.new(self.ip_addresses.len).encodeToWriter(w);
+
+std.debug.print("Serailize ip addresses: {any}\n", .{self.ip_addresses});
+
+        // Serialize each IP address
+        for (self.ip_addresses) |*ip_address| {
+            try w.writeInt(u32, ip_address.time, .little);
+            try w.writeInt(u64, ip_address.services, .little);
+        try w.writeAll(std.mem.asBytes(&ip_address.ip));
+            try w.writeInt(u16, ip_address.port, .big);
+std.debug.print("Serailze Read time: {}\n", .{ip_address.time});
+std.debug.print("Serailze Read services: {}\n", .{ip_address.services});
+std.debug.print("Serailze Read IP: {any}\n", .{ip_address.ip});
+std.debug.print("Serailze Read port: {}\n", .{ip_address.port});
+        }
+        std.debug.print("seerialize to writer: {any}\n", .{w});
     }
 
     /// Serialize a message as bytes and write them to the buffer.
@@ -94,20 +103,41 @@ pub const AddrMessage = struct {
         return ret;
     }
 
-    pub fn deserializeReader(allocator: std.mem.Allocator, reader: anytype) !AddrMessage {
-        var msg = AddrMessage.init(allocator);
-        errdefer msg.deinit();
-
-        const count = try CompactSizeUint.decodeReader(reader);
-        try msg.ip_addresses.ensureTotalCapacity(@intCast(count.value()));
-
-        var i: usize = 0;
-        while (i < count.value()) : (i += 1) {
-            const addr = try NetworkIPAddr.deserialize(reader);
-            try msg.ip_addresses.append(addr);
+    /// Deserialize a Reader bytes as a `AddrMessage`
+    pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !AddrMessage {
+        comptime {
+            if (!std.meta.hasFn(@TypeOf(r), "readInt")) @compileError("Expects r to have fn 'readInt'.");
+            if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects r to have fn 'readNoEof'.");
+            if (!std.meta.hasFn(@TypeOf(r), "readAll")) @compileError("Expects r to have fn 'readAll'.");
         }
 
-        return msg;
+        std.debug.print("deserailize reader: {any}\n", .{r});
+
+        var vm: AddrMessage = undefined;
+        const ip_address_count = try CompactSizeUint.decodeReader(r);
+
+        // Allocate space for IP addresses
+        const ip_addresses = try allocator.alloc(NetworkIPAddr, ip_address_count.value());
+       // errdefer allocator.free(ip_addresses);
+        defer allocator.free(ip_addresses); // Ensure memory is freed on exit
+                                                   
+        vm.ip_addresses = ip_addresses;
+        std.debug.print("ip_addresses: {any}\n", .{ip_addresses});
+
+        for (vm.ip_addresses) |*ip_address| {
+            ip_address.time = try r.readInt(u32, .little);
+            ip_address.services = try r.readInt(u64, .little);
+            try r.readNoEof(&ip_address.ip);
+            ip_address.port = try r.readInt(u16, .big);
+
+std.debug.print("Read time: {}\n", .{ip_address.time});
+std.debug.print("Read services: {}\n", .{ip_address.services});
+std.debug.print("Read IP: {any}\n", .{ip_address.ip});
+std.debug.print("Read port: {}\n", .{ip_address.port});
+        }
+
+std.debug.print("Deserialized AddrMessage: {any}\n", .{vm});
+        return vm;
     }
 
     /// Deserialize bytes into a `AddrMessage`
@@ -120,47 +150,82 @@ pub const AddrMessage = struct {
     pub fn hintSerializedLen(self: AddrMessage) usize {
         // 4 + 8 + 16 + 2
         const fixed_length_per_ip = 30;
-        return 1 +  self.ip_addresses.items.len * fixed_length_per_ip;// 1 for CompactSizeUint
+        return 1 +  self.ip_addresses.len * fixed_length_per_ip;// 1 for CompactSizeUint
 
     }
 
     pub fn eql(self: *const AddrMessage, other: *const AddrMessage) bool {
-        if (self.ip_addresses.items.len != other.ip_addresses.items.len) return false;
-        for (self.ip_addresses.items, other.ip_addresses.items) |addr1, addr2| {
-            if (!addr1.eql(&addr2)) return false;
-        }
-        return true;
+        if (self.ip_addresses.len != other.ip_addresses.len) return false;
+
+    const count = @as(usize, self.ip_addresses.len); 
+    for (0..count) |i| {
+        if (!self.ip_addresses[i].eql(&other.ip_addresses[i])) return false;
+    }
+
+    return true;
     }
 };
 
-// Test
-test "AddrMessage serialization and deserialization" {
-    const allocator = std.testing.allocator;
+// TESTS
 
-    var msg = AddrMessage.init(allocator);
-    defer msg.deinit();
+//reworked
+//test "ok_full_flow_AddrMessage" {
+//    const test_allocator = std.testing.allocator;
+//    const AddrMessage = protocol.messages.AddrMessage;
+//    {
+//        const ips = [_]NetworkIPAddr{
+//        .time = 1414012889,
+//        .services = 1,
+//        .ip = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 192, 0, 2, 51 },
+//        .port = 8333,
+//        };
+//
+//        const am = AddrMessage{
+//            .ip_addresses = ips[0..],
+//        };
+//
+//        // Serialize
+//        const payload = try am.serialize(allocator);
+//        defer allocator.free(payload);
+//
+//        // Deserialize
+//        const deserialized_am = try AddrMessage.deserializeSlice(allocator, payload);
+//
+//        // Test equality
+//        try std.testing.expect(am.eql(&deserialized_am));
+//
+//        // Free allocated memory for deserialized inventory
+//        defer allocator.free(deserialized_am.inventory);
+//    }
+//}
 
-    try msg.ip_addresses.append(.{
-        .time = 1414012889,
-        .services = 1,
-        .ip = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 192, 0, 2, 51 },
-        .port = 8333,
-    });
-
-    var buf = std.ArrayList(u8).init(allocator);
-    defer buf.deinit();
-
-    try msg.serializeToWriter(buf.writer());
-
-    // Create a mutable FixedBufferStream from the buffer
-    var fbs = std.io.fixedBufferStream(buf.items);
-    const reader = fbs.reader(); // Get the reader
-
-    //var deserializedMsg = try AddrMessage.deserialize(allocator, std.io.fixedBufferStream(buf.items).reader());
-    //defer deserializedMsg.deinit();
-    // Deserialize the message
-    var deserializedMsg = try AddrMessage.deserializeReader(allocator, reader);
-    defer deserializedMsg.deinit(); // Ensure to free memory
-                                             //
-    try std.testing.expect(msg.eql(&deserializedMsg));
-}
+//test "ok_full_flow_AddrMessage" {
+//    const allocator = std.testing.allocator;
+//
+//    {
+//    const ips = [_]NetworkIPAddr{
+//        NetworkIPAddr{
+//        .time = 1414012889,
+//        .services = ServiceFlags.NODE_NETWORK,
+//        .ip = [_]u8{13} ** 16,
+//        .port = 33,
+//        
+//        }, 
+//    };
+//    const am = AddrMessage{
+//        .ip_address_count = CompactSizeUint.new(1),
+//        .ip_addresses = try allocator.alloc(NetworkIPAddr, 1),
+//    };
+//        defer allocator.free(am.ip_addresses); // Ensure to free the allocated memory
+//
+//        am.ip_addresses[0] = ips[0];
+//
+//        const payload = try am.serialize(allocator);
+//        defer allocator.free(payload);
+//        const deserialized_am = try AddrMessage.deserializeSlice(allocator, payload);
+//        defer deserialized_am.deinit(allocator);
+//
+//        try std.testing.expect(am.eql(&deserialized_am));
+//    }
+//
+//}
