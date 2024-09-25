@@ -26,7 +26,7 @@ pub const Message = union(MessageTypes) {
             .Verack => {},
             .Mempool => {},
             .Getaddr => {},
-            .Block => |*m| @constCast(m).deinit(allocator),
+            .Block => |*m| m.deinit(allocator),
         }
     }
     pub fn checksum(self: Message) [4]u8 {

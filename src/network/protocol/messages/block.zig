@@ -39,9 +39,9 @@ pub const BlockMessage = struct {
 
     pub fn deinit(self: *BlockMessage, allocator: std.mem.Allocator) void {
         _ = allocator;
-        // for (self.txns.items) |txn| {
-        //     txn.deinit();
-        // }
+        for (self.txns.items) |*txn| {
+            txn.deinit();
+        }
         self.txns.deinit();
     }
 

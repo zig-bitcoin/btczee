@@ -334,11 +334,9 @@ test "Transaction serialization" {
 
     const payload = try tx.serialize(allocator);
     defer allocator.free(payload);
-    const deserialized_tx = try Transaction.deserializeSlice(allocator, payload);
 
-    // try tx.serializeToWriter(fbs.writer());
-
-    // const deserialized_tx = try Transaction.deserializeReader(allocator, fbs.reader());
+    var deserialized_tx = try Transaction.deserializeSlice(allocator, payload);
+    defer deserialized_tx.deinit();
 
     // version: i32,
     // inputs: std.ArrayList(Input),
