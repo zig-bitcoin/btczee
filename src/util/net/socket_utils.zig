@@ -5,7 +5,6 @@ const Packet = @import("packet.zig").Packet;
 const PACKET_DATA_SIZE = @import("packet.zig").PACKET_DATA_SIZE;
 const Channel = @import("../sync/channel.zig").Channel;
 const std = @import("std");
-const Logger = @import("../util/trace/log.zig").Logger;
 
 pub const SOCKET_TIMEOUT_US: usize = 1 * std.time.us_per_s;
 pub const PACKETS_PER_BATCH: usize = 64;
@@ -15,7 +14,6 @@ pub fn readSocket(
     socket_: UdpSocket,
     incoming_channel: *Channel(std.ArrayList(Packet)),
     exit: *const std.atomic.Value(bool),
-    logger: Logger,
 ) !void {
     // NOTE: we set to non-blocking to periodically check if we should exit
     var socket = socket_;
@@ -54,14 +52,13 @@ pub fn readSocket(
         try incoming_channel.send(packet_batch);
     }
 
-    logger.debugf("readSocket loop closed", .{});
+    std.log.debug("readSocket loop closed", .{});
 }
 
 pub fn sendSocket(
     socket: UdpSocket,
     outgoing_channel: *Channel(std.ArrayList(Packet)),
     exit: *const std.atomic.Value(bool),
-    logger: Logger,
 ) error{ SocketSendError, OutOfMemory, ChannelClosed }!void {
     var packets_sent: u64 = 0;
 
@@ -82,7 +79,7 @@ pub fn sendSocket(
         for (packet_batches) |*packet_batch| {
             for (packet_batch.items) |*p| {
                 const bytes_sent = socket.sendTo(p.addr, p.data[0..p.size]) catch |e| {
-                    logger.debugf("send_socket error: {s}", .{@errorName(e)});
+                    std.log.debug("send_socket error: {s}", .{@errorName(e)});
                     continue;
                 };
                 packets_sent +|= 1;
@@ -90,7 +87,7 @@ pub fn sendSocket(
             }
         }
     }
-    logger.debugf("sendSocket loop closed", .{});
+    std.log.debug("sendSocket loop closed", .{});
 }
 
 /// A thread that is dedicated to either sending or receiving data over a socket.
@@ -106,21 +103,21 @@ pub const SocketThread = struct {
 
     const Self = @This();
 
-    pub fn initSender(allocator: Allocator, logger: Logger, socket: UdpSocket, exit: *Atomic(bool)) !Self {
+    pub fn initSender(allocator: Allocator, socket: UdpSocket, exit: *Atomic(bool)) !Self {
         const channel = Channel(std.ArrayList(Packet)).init(allocator, 0);
         return .{
             .channel = channel,
             .exit = exit,
-            .handle = try std.Thread.spawn(.{}, sendSocket, .{ socket, channel, exit, logger }),
+            .handle = try std.Thread.spawn(.{}, sendSocket, .{ socket, channel, exit }),
         };
     }
 
-    pub fn initReceiver(allocator: Allocator, logger: Logger, socket: UdpSocket, exit: *Atomic(bool)) !Self {
+    pub fn initReceiver(allocator: Allocator, socket: UdpSocket, exit: *Atomic(bool)) !Self {
         const channel = Channel(std.ArrayList(Packet)).init(allocator, 0);
         return .{
             .channel = channel,
             .exit = exit,
-            .handle = try std.Thread.spawn(.{}, readSocket, .{ allocator, socket, channel, exit, logger }),
+            .handle = try std.Thread.spawn(.{}, readSocket, .{ allocator, socket, channel, exit }),
         };
     }
 
