@@ -209,7 +209,6 @@ test "ok_send_mempool_message" {
     }
 }
 
-
 test "ok_send_getblocks_message" {
     const Config = @import("../../config/config.zig").Config;
 
@@ -240,7 +239,7 @@ test "ok_send_getblocks_message" {
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
-    const received_message = try receiveMessage(test_allocator, reader);
+    var received_message = try receiveMessage(test_allocator, reader);
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
@@ -265,7 +264,7 @@ test "ok_send_ping_message" {
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
-    const received_message = try receiveMessage(test_allocator, reader);
+    var received_message = try receiveMessage(test_allocator, reader);
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
@@ -273,7 +272,6 @@ test "ok_send_ping_message" {
         else => unreachable,
     }
 }
-
 
 test "ko_receive_invalid_payload_length" {
     const Config = @import("../../config/config.zig").Config;

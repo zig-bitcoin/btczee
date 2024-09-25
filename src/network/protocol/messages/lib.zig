@@ -37,6 +37,7 @@ pub const Message = union(MessageTypes) {
             .Ping => {},
         }
     }
+
     pub fn checksum(self: Message) [4]u8 {
         return switch (self) {
             .Version => |m| m.checksum(),
