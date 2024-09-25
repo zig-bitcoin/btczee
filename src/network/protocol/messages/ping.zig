@@ -1,10 +1,5 @@
 const std = @import("std");
-const native_endian = @import("builtin").target.cpu.arch.endian();
 const protocol = @import("../lib.zig");
-
-const ServiceFlags = protocol.ServiceFlags;
-
-const Endian = std.builtin.Endian;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
 /// PingMessage represents the "Ping" message
@@ -66,7 +61,7 @@ pub const PingMessage = struct {
     }
 
     /// Returns the hint of the serialized length of the message
-    pub fn hintSerializedLen(_: *const Self) usize {
+    pub inline fn hintSerializedLen(_: *const Self) usize {
         // 8 bytes for nonce
         return 8;
     }
@@ -88,7 +83,7 @@ pub const PingMessage = struct {
         return vm;
     }
 
-    pub fn new(nonce: u64) Self {
+    pub inline fn new(nonce: u64) Self {
         return .{
             .nonce = nonce,
         };
@@ -104,6 +99,6 @@ test "ok_fullflow_ping_message" {
         const payload = try msg.serialize(allocator);
         defer allocator.free(payload);
         const deserialized_msg = try PingMessage.deserializeSlice(allocator, payload);
-        try std.testing.expect(msg.nonce == deserialized_msg.nonce);
+        try std.testing.expectEqual(msg.nonce, deserialized_msg.nonce);
     }
 }
