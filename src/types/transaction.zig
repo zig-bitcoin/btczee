@@ -281,17 +281,6 @@ pub const Transaction = struct {
     }
 };
 
-pub const RawTransaction = struct {
-    version: u32,
-    tx_in_count: CompactSizeUint, // maximum is 10 000 inputs
-    tx_in: []Input,
-    tx_out_count: CompactSizeUint, // maximum is 10 000 outputs
-    tx_out: []Output,
-    lock_time: u32,
-
-    allocator: std.mem.Allocator,
-};
-
 test "Transaction basics" {
     const testing = std.testing;
     const allocator = testing.allocator;
