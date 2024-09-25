@@ -5,6 +5,7 @@ pub const MempoolMessage = @import("mempool.zig").MempoolMessage;
 pub const GetaddrMessage = @import("getaddr.zig").GetaddrMessage;
 pub const GetblocksMessage = @import("getblocks.zig").GetblocksMessage;
 pub const PingMessage = @import("ping.zig").PingMessage;
+pub const PongMessage = @import("pong.zig").PongMessage;
 
 pub const MessageTypes = enum {
     Version,
@@ -22,6 +23,7 @@ pub const Message = union(MessageTypes) {
     Getaddr: GetaddrMessage,
     Getblocks: GetblocksMessage,
     Ping: PingMessage,
+    Pong: PongMessage,
 
     pub fn deinit(self: Message, allocator: std.mem.Allocator) void {
         switch (self) {
@@ -31,6 +33,7 @@ pub const Message = union(MessageTypes) {
             .Getaddr => {},
             .Getblocks => |m| m.deinit(allocator),
             .Ping => {},
+            .Pong => {},
         }
     }
     pub fn checksum(self: Message) [4]u8 {
@@ -41,6 +44,7 @@ pub const Message = union(MessageTypes) {
             .Getaddr => |m| m.checksum(),
             .Getblocks => |m| m.checksum(),
             .Ping => |m| m.checksum(),
+            .Pong => |m| m.checksum(),
         };
     }
 
@@ -52,6 +56,7 @@ pub const Message = union(MessageTypes) {
             .Getaddr => |m| m.hintSerializedLen(),
             .Getblocks => |m| m.hintSerializedLen(),
             .Ping => |m| m.hintSerializedLen(),
+            .Pong => |m| m.hintSerializedLen(),
         };
     }
 };

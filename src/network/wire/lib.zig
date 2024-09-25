@@ -100,6 +100,8 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
         protocol.messages.Message{ .Getblocks = try protocol.messages.GetblocksMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.PingMessage.name()))
         protocol.messages.Message{ .Ping = try protocol.messages.PingMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.PongMessage.name()))
+        protocol.messages.Message{ .Pong = try protocol.messages.PongMessage.deserializeReader(allocator, r) }
     else
         return error.UnknownMessage;
     errdefer message.deinit(allocator);
@@ -207,7 +209,6 @@ test "ok_send_mempool_message" {
     }
 }
 
-
 test "ok_send_getblocks_message" {
     const Config = @import("../../config/config.zig").Config;
 
@@ -272,6 +273,30 @@ test "ok_send_ping_message" {
     }
 }
 
+test "ok_send_pong_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const PongMessage = protocol.messages.PongMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const message = PongMessage.new(21000000);
+
+    const writer = list.writer();
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
+    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
+    const reader = fbs.reader();
+
+    const received_message = try receiveMessage(test_allocator, reader);
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .Pong => |pong_message| try std.testing.expectEqual(message.nonce, pong_message.nonce),
+        else => unreachable,
+    }
+}
 
 test "ko_receive_invalid_payload_length" {
     const Config = @import("../../config/config.zig").Config;
