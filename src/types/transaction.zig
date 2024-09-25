@@ -137,7 +137,6 @@ pub const Transaction = struct {
         }
 
         var tx: Self = undefined;
-        // errdefer tx.deinit();
 
         tx.version = try r.readInt(i32, .little);
 
@@ -341,20 +340,5 @@ test "Transaction serialization" {
     var deserialized_tx = try Transaction.deserializeSlice(allocator, payload);
     defer deserialized_tx.deinit();
 
-    // version: i32,
-    // inputs: std.ArrayList(Input),
-    // outputs: std.ArrayList(Output),
-    // lock_time: u32,
     try testing.expect(tx.eql(deserialized_tx));
-    // for (tx.inputs.items, 0..) |input, i| {
-    //     try testing.expectEqual(input.previous_outpoint.hash.bytes, deserialized_tx.inputs.items[i].previous_outpoint.hash.bytes);
-    //     try testing.expectEqual(input.previous_outpoint.index, deserialized_tx.inputs.items[i].previous_outpoint.index);
-    //     try testing.expect(std.mem.eql(u8, input.script_sig.bytes, deserialized_tx.inputs.items[i].script_sig.bytes));
-    //     try testing.expectEqual(input.sequence, deserialized_tx.inputs.items[i].sequence);
-    // }
-    // for (tx.outputs.items, 0..) |output, i| {
-    //     try testing.expectEqual(output.value, deserialized_tx.outputs.items[i].value);
-    //     try testing.expect(std.mem.eql(u8, output.script_pubkey.bytes, deserialized_tx.outputs.items[i].script_pubkey.bytes));
-    // }
-    // try testing.expectEqual(tx.lock_time, deserialized_tx.lock_time);
 }
