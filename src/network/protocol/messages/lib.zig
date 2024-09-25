@@ -14,6 +14,7 @@ pub const MessageTypes = enum {
     Getaddr,
     Getblocks,
     Ping,
+    Pong,
 };
 
 pub const Message = union(MessageTypes) {
