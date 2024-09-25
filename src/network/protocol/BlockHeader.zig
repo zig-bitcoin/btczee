@@ -10,27 +10,25 @@ pub const BlockHeader = struct {
 
     const Self = @This();
 
-    pub fn serializeToWriter(self: *BlockHeader, writer: anytype) !void {
+    pub fn serializeToWriter(self: *const Self, writer: anytype) !void {
         comptime {
             if (!std.meta.hasFn(@TypeOf(writer), "writeInt")) @compileError("Expects r to have fn 'writeInt'.");
             if (!std.meta.hasFn(@TypeOf(writer), "writeAll")) @compileError("Expects r to have fn 'writeAll'.");
         }
 
-        writer.writeInt(self.version, .little);
-        writer.writeAll(std.mem.asBytes(&self.prev_block));
-        writer.writeAll(std.mem.asBytes(&self.merkle_root));
-        writer.writeInt(self.timestamp, .little);
-        writer.writeInt(self.bits, .little);
-        writer.writeInt(self.nonce, .little);
-
-        return void;
+        try writer.writeInt(i32, self.version, .little);
+        try writer.writeAll(std.mem.asBytes(&self.prev_block));
+        try writer.writeAll(std.mem.asBytes(&self.merkle_root));
+        try writer.writeInt(i32, self.timestamp, .little);
+        try writer.writeInt(i32, self.bits, .little);
+        try writer.writeInt(i32, self.nonce, .little);
     }
 
-    pub fn deserializeReader(_: std.mem.Allocator, r: anytype) !BlockHeader {
+    pub fn deserializeReader(r: anytype) !BlockHeader {
         var bh: Self = undefined;
         bh.version = try r.readInt(i32, .little);
-        try r.readAll(&bh.prev_block);
-        try r.readAll(&bh.merkle_root);
+        try r.readNoEof(&bh.prev_block);
+        try r.readNoEof(&bh.merkle_root);
         bh.timestamp = try r.readInt(i32, .little);
         bh.bits = try r.readInt(i32, .little);
         bh.nonce = try r.readInt(i32, .little);
