@@ -4,6 +4,8 @@ const protocol = @import("../lib.zig");
 
 const ServiceFlags = protocol.ServiceFlags;
 
+const read_bytes_exact = @import("../../../util/mem/read.zig").read_bytes_exact;
+
 const Endian = std.builtin.Endian;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
@@ -55,14 +57,13 @@ pub const BlockMessage = struct {
         }
 
         try w.writeInt(i32, self.block_header.version, .little);
-        try w.writeAll(self.block_header.prev_block[0..32]);
-        try w.writeAll(self.block_header.merkle_root[0..32]);
+        try w.writeAll(&self.block_header.prev_block);
+        try w.writeAll(&self.block_header.merkle_root);
         try w.writeInt(i32, self.block_header.timestamp, .little);
         try w.writeInt(i32, self.block_header.nbits, .little);
         try w.writeInt(i32, self.block_header.nonce, .little);
 
-        const compact_tx_count = CompactSizeUint.new(self.txns.items.len);
-        try compact_tx_count.encodeToWriter(w);
+        try self.txn_count.encodeToWriter(w);
 
         for (self.txns.items) |txn| {
             try txn.serializeToWriter(w);
@@ -100,20 +101,19 @@ pub const BlockMessage = struct {
         var bm: Self = undefined;
 
         bm.block_header.version = try r.readInt(i32, .little);
-        const prev_block = try allocator.alloc(u8, 32);
-        errdefer allocator.free(prev_block);
-        try r.readNoEof(prev_block);
-        @memcpy(&bm.block_header.prev_block, prev_block[0..32]);
 
-        const merkle_root = try allocator.alloc(u8, 32);
-        errdefer allocator.free(merkle_root);
-        try r.readNoEof(merkle_root);
-        @memcpy(&bm.block_header.merkle_root, merkle_root[0..32]);
+        const prev_block_raw_bytes = try read_bytes_exact(allocator, r, 32);
+        defer allocator.free(prev_block_raw_bytes);
+        @memcpy(&bm.block_header.prev_block, prev_block_raw_bytes);
+
+        const merkle_root_raw_bytes = try read_bytes_exact(allocator, r, 32);
+        defer allocator.free(merkle_root_raw_bytes);
+        @memcpy(&bm.block_header.merkle_root, merkle_root_raw_bytes);
 
         bm.block_header.timestamp = try r.readInt(i32, .little);
         bm.block_header.nbits = try r.readInt(i32, .little);
         bm.block_header.nonce = try r.readInt(i32, .little);
-        bm.txn_count = (try CompactSizeUint.decodeReader(r));
+        bm.txn_count = try CompactSizeUint.decodeReader(r);
 
         bm.txns = std.ArrayList(Transaction).init(allocator);
         errdefer bm.txns.deinit();
@@ -124,6 +124,12 @@ pub const BlockMessage = struct {
         }
 
         return bm;
+    }
+
+    /// Deserialize bytes into a `VersionMessage`
+    pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
+        var fbs = std.io.fixedBufferStream(bytes);
+        return try Self.deserializeReader(allocator, fbs.reader());
     }
 
     pub fn hintSerializedLen(self: BlockMessage) usize {
@@ -139,17 +145,57 @@ pub const BlockMessage = struct {
 
 // TESTS
 
-// test "ok_full_flow_BlockMessage" {
-//     const allocator = std.testing.allocator;
-//
-//     {
-//         const msg = BlockMessage{};
-//
-//         const payload = try msg.serialize(allocator);
-//         defer allocator.free(payload);
-//         const deserialized_msg = try BlockMessage.deserializeReader(allocator, payload);
-//         _ = deserialized_msg;
-//
-//         try std.testing.expect(payload.len == 0);
-//     }
-// }
+test "ok_full_flow_BlockMessage" {
+    const allocator = std.testing.allocator;
+    const OutPoint = @import("../../../types/transaction.zig").OutPoint;
+    const Hash = @import("../../../types/transaction.zig").Hash;
+    const Script = @import("../../../types/transaction.zig").Script;
+
+    {
+        var tx = try Transaction.init(allocator);
+
+        try tx.addInput(OutPoint{ .hash = Hash.zero(), .index = 0 });
+
+        {
+            var script_pubkey = try Script.init(allocator);
+            defer script_pubkey.deinit();
+            try script_pubkey.push(&[_]u8{ 0x76, 0xa9, 0x14 }); // OP_DUP OP_HASH160 Push14
+            try tx.addOutput(50000, script_pubkey);
+        }
+
+        var txns = std.ArrayList(Transaction).init(allocator);
+        try txns.append(tx);
+
+        var msg = BlockMessage{
+            .block_header = BlockHeader{
+                .version = 1,
+                .prev_block = [_]u8{0} ** 32,
+                .merkle_root = [_]u8{0} ** 32,
+                .timestamp = 1,
+                .nbits = 1,
+                .nonce = 1,
+            },
+            .txn_count = CompactSizeUint.new(1),
+            .txns = txns,
+        };
+        defer msg.deinit(allocator);
+
+        const payload = try msg.serialize(allocator);
+        defer allocator.free(payload);
+        var deserialized_msg = try BlockMessage.deserializeSlice(allocator, payload);
+        defer deserialized_msg.deinit(allocator);
+
+        try std.testing.expectEqual(msg.block_header.version, deserialized_msg.block_header.version);
+        try std.testing.expect(std.mem.eql(u8, &msg.block_header.prev_block, &deserialized_msg.block_header.prev_block));
+        try std.testing.expect(std.mem.eql(u8, &msg.block_header.merkle_root, &deserialized_msg.block_header.merkle_root));
+        try std.testing.expect(msg.block_header.timestamp == deserialized_msg.block_header.timestamp);
+        try std.testing.expect(msg.block_header.nbits == deserialized_msg.block_header.nbits);
+        try std.testing.expect(msg.block_header.nonce == deserialized_msg.block_header.nonce);
+        try std.testing.expect(msg.txn_count.value() == deserialized_msg.txn_count.value());
+
+        for (msg.txns.items, 0..) |txn, i| {
+            const deserialized_txn = deserialized_msg.txns.items[i];
+            try std.testing.expect(txn.eql(deserialized_txn));
+        }
+    }
+}

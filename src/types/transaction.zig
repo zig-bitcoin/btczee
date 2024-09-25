@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
+const read_bytes_exact = @import("../util/mem/read.zig").read_bytes_exact;
 
 /// Represents a transaction hash
 pub const Hash = struct {
@@ -82,19 +83,14 @@ pub const Transaction = struct {
         const compact_output_len = CompactSizeUint.new(self.outputs.items.len);
 
         try w.writeInt(i32, self.version, .little);
-        std.debug.print("SERIALIZING VERSION {d}\n", .{self.version});
 
         try compact_input_len.encodeToWriter(w);
 
-        std.debug.print("THERE IS {d} SERIALIZED INPUTS\n", .{compact_input_len.value()});
         for (self.inputs.items) |input| {
             const compact_script_len = CompactSizeUint.new(input.script_sig.bytes.len);
-            std.debug.print("SERIALIZING SCRIPT SIG {d}\n", .{input.script_sig.bytes.len});
 
             try w.writeAll(&input.previous_outpoint.hash.bytes);
-            std.debug.print("SERIALIZING OUTPOINT HASH {s}\n", .{std.fmt.fmtSliceHexLower(&input.previous_outpoint.hash.bytes)});
             try w.writeInt(u32, input.previous_outpoint.index, .little);
-            std.debug.print("SERIALIZING OUTPOINT INDEX {d}\n", .{input.previous_outpoint.index});
             try compact_script_len.encodeToWriter(w);
             try w.writeAll(input.script_sig.bytes);
             try w.writeInt(u32, input.sequence, .little);
@@ -141,13 +137,11 @@ pub const Transaction = struct {
         }
 
         var tx: Self = undefined;
-        errdefer tx.deinit();
+        // errdefer tx.deinit();
 
         tx.version = try r.readInt(i32, .little);
-        std.debug.print("DESERIALIZING VERSION {d}\n", .{tx.version});
 
         const compact_input_len = try CompactSizeUint.decodeReader(r);
-        std.debug.print("THERE IS {d} DESERIALIZED INPUTS\n", .{compact_input_len.value()});
         var inputs = try std.ArrayList(Input).initCapacity(allocator, compact_input_len.value());
         errdefer inputs.deinit();
 
@@ -158,13 +152,10 @@ pub const Transaction = struct {
             defer allocator.free(hash_raw_bytes);
             @memcpy(&hash_bytes, hash_raw_bytes);
 
-            std.debug.print("SERIALIZING OUTPOINT HASH {s}\n", .{std.fmt.fmtSliceHexLower(&hash_bytes)});
             input.previous_outpoint.hash = Hash{ .bytes = hash_bytes };
             input.previous_outpoint.index = try r.readInt(u32, .little);
-            std.debug.print("SERIALIZING OUTPOINT INDEX {d}\n", .{input.previous_outpoint.index});
             const compact_script_len = (try CompactSizeUint.decodeReader(r)).value();
 
-            std.debug.print("DESERIALIZING SCRIPT SIG LEN {d}\n", .{compact_script_len});
             input.script_sig = Script{ .bytes = try read_bytes_exact(allocator, r, compact_script_len), .allocator = allocator };
             input.sequence = try r.readInt(u32, .little);
 
@@ -266,6 +257,29 @@ pub const Transaction = struct {
         size += self.outputs.items.len * 33; // Simplified output size
         return size;
     }
+
+    pub fn eql(self: Self, other: Self) bool {
+        // zig fmt: off
+        return self.version == other.version
+            and self.inputs.items.len == other.inputs.items.len
+            and self.outputs.items.len == other.outputs.items.len
+            and self.lock_time == other.lock_time
+            and for (self.inputs.items, other.inputs.items) |a, b| {
+                if (
+                    !a.previous_outpoint.hash.eql(b.previous_outpoint.hash)
+                    or a.previous_outpoint.index != b.previous_outpoint.index
+                    or !std.mem.eql(u8, a.script_sig.bytes, b.script_sig.bytes)
+                    or a.sequence != b.sequence
+                ) break false;
+            } else true
+            and for (self.outputs.items, other.outputs.items) |c, d| {
+                if (
+                    c.value != d.value
+                    or !std.mem.eql(u8, c.script_pubkey.bytes, d.script_pubkey.bytes)
+                ) break false;
+            } else true;
+        // zig fmt: on
+    }
 };
 
 pub const RawTransaction = struct {
@@ -278,17 +292,6 @@ pub const RawTransaction = struct {
 
     allocator: std.mem.Allocator,
 };
-
-pub fn read_bytes_exact(allocator: std.mem.Allocator, r: anytype, bytes_nb: u64) ![]u8 {
-    comptime {
-        if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects r to have fn 'readNoEof'.");
-    }
-
-    const bytes = try allocator.alloc(u8, bytes_nb);
-    errdefer allocator.free(bytes);
-    try r.readNoEof(bytes);
-    return bytes;
-}
 
 test "Transaction basics" {
     const testing = std.testing;
@@ -342,16 +345,16 @@ test "Transaction serialization" {
     // inputs: std.ArrayList(Input),
     // outputs: std.ArrayList(Output),
     // lock_time: u32,
-    try testing.expectEqual(tx.version, deserialized_tx.version);
-    for (tx.inputs.items, 0..) |input, i| {
-        try testing.expectEqual(input.previous_outpoint.hash.bytes, deserialized_tx.inputs.items[i].previous_outpoint.hash.bytes);
-        try testing.expectEqual(input.previous_outpoint.index, deserialized_tx.inputs.items[i].previous_outpoint.index);
-        try testing.expect(std.mem.eql(u8, input.script_sig.bytes, deserialized_tx.inputs.items[i].script_sig.bytes));
-        try testing.expectEqual(input.sequence, deserialized_tx.inputs.items[i].sequence);
-    }
-    for (tx.outputs.items, 0..) |output, i| {
-        try testing.expectEqual(output.value, deserialized_tx.outputs.items[i].value);
-        try testing.expect(std.mem.eql(u8, output.script_pubkey.bytes, deserialized_tx.outputs.items[i].script_pubkey.bytes));
-    }
-    try testing.expectEqual(tx.lock_time, deserialized_tx.lock_time);
+    try testing.expect(tx.eql(deserialized_tx));
+    // for (tx.inputs.items, 0..) |input, i| {
+    //     try testing.expectEqual(input.previous_outpoint.hash.bytes, deserialized_tx.inputs.items[i].previous_outpoint.hash.bytes);
+    //     try testing.expectEqual(input.previous_outpoint.index, deserialized_tx.inputs.items[i].previous_outpoint.index);
+    //     try testing.expect(std.mem.eql(u8, input.script_sig.bytes, deserialized_tx.inputs.items[i].script_sig.bytes));
+    //     try testing.expectEqual(input.sequence, deserialized_tx.inputs.items[i].sequence);
+    // }
+    // for (tx.outputs.items, 0..) |output, i| {
+    //     try testing.expectEqual(output.value, deserialized_tx.outputs.items[i].value);
+    //     try testing.expect(std.mem.eql(u8, output.script_pubkey.bytes, deserialized_tx.outputs.items[i].script_pubkey.bytes));
+    // }
+    // try testing.expectEqual(tx.lock_time, deserialized_tx.lock_time);
 }
