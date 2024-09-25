@@ -145,20 +145,18 @@ test "ok_full_flow_GetdataMessage" {
         const inventory_items = [_]GetdataMessage.InventoryItem{
             .{ .type = 1, .hash = [_]u8{0xab} ** 32 },
             .{ .type = 2, .hash = [_]u8{0xcd} ** 32 },
+            .{ .type = 2, .hash = [_]u8{0xef} ** 32 },
         };
 
         const gd = GetdataMessage{
             .inventory = inventory_items[0..],
         };
 
-        // Serialize
         const payload = try gd.serialize(allocator);
         defer allocator.free(payload);
 
-        // Deserialize
         const deserialized_gd = try GetdataMessage.deserializeSlice(allocator, payload);
 
-        // Test equality
         try std.testing.expect(gd.eql(&deserialized_gd));
 
         // Free allocated memory for deserialized inventory

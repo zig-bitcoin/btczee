@@ -263,6 +263,46 @@ test "ok_send_mempool_message" {
     }
 }
 
+test "ok_send_getdata_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const GetdataMessage = protocol.messages.GetdataMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const inventory = try test_allocator.alloc(GetdataMessage.InventoryItem, 5);
+    defer test_allocator.free(inventory);
+
+    for (inventory) |*item| {
+        item.type = 1;
+        for (&item.hash) |*byte| {
+            byte.* = 0xab;
+        }
+    }
+
+    const message = GetdataMessage{
+        .inventory = inventory,
+    };
+
+    const writer = list.writer();
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
+
+    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
+    const reader = fbs.reader();
+
+    const received_message = try receiveMessage(test_allocator, reader);
+
+    switch (received_message) {
+        .Getdata => |rm| {
+            try std.testing.expect(message.eql(&rm));
+            defer rm.deinit(test_allocator);
+        },
+        else => unreachable,
+    }
+}
+
 test "ok_send_getblocks_message" {
     const Config = @import("../../config/config.zig").Config;
 
