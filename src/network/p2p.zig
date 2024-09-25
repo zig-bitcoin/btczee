@@ -59,19 +59,4 @@ pub const P2P = struct {
             }
         }
     }
-    /// Accept incoming connections.
-    /// The P2P network handler will accept incoming connections and handle them in a separate thread.
-    fn acceptConnections(self: *P2P) !void {
-        while (true) {
-            const connection = self.listener.?.accept() catch |err| {
-                self.logger.errf("Failed to accept connection: {}", .{err});
-                continue;
-            };
-
-            // Handle the new connection in a separate thread
-            // TODO: Error handling
-            _ = try std.Thread.spawn(.{}, handleConnection, .{ self, connection });
-            
-        }
-    }
 };
