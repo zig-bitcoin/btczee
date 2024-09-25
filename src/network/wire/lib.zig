@@ -98,6 +98,8 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
         protocol.messages.Message{ .Getaddr = try protocol.messages.GetaddrMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.GetblocksMessage.name()))
         protocol.messages.Message{ .Getblocks = try protocol.messages.GetblocksMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.PingMessage.name()))
+        protocol.messages.Message{ .Ping = try protocol.messages.PingMessage.deserializeReader(allocator, r) }
     else
         return error.UnknownMessage;
     errdefer message.deinit(allocator);
@@ -151,10 +153,7 @@ test "ok_send_version_message" {
 
     switch (received_message) {
         .Version => |rm| try std.testing.expect(message.eql(&rm)),
-        .Verack => unreachable,
-        .Mempool => unreachable,
-        .Getaddr => unreachable,
-        .Getblocks => unreachable,
+        else => unreachable,
     }
 }
 
@@ -179,10 +178,7 @@ test "ok_send_verack_message" {
 
     switch (received_message) {
         .Verack => {},
-        .Version => unreachable,
-        .Mempool => unreachable,
-        .Getaddr => unreachable,
-        .Getblocks => unreachable,
+        else => unreachable,
     }
 }
 
@@ -207,10 +203,7 @@ test "ok_send_mempool_message" {
 
     switch (received_message) {
         .Mempool => {},
-        .Verack => unreachable,
-        .Version => unreachable,
-        .Getaddr => unreachable,
-        .Getblocks => unreachable,
+        else => unreachable,
     }
 }
 
@@ -250,10 +243,32 @@ test "ok_send_getblocks_message" {
 
     switch (received_message) {
         .Getblocks => |rm| try std.testing.expect(message.eql(&rm)),
-        .Verack => unreachable,
-        .Version => unreachable,
-        .Mempool => unreachable,
-        .Getaddr => unreachable,
+        else => unreachable,
+    }
+}
+
+test "ok_send_ping_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const PingMessage = protocol.messages.PingMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const message = PingMessage.new(21000000);
+
+    const writer = list.writer();
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
+    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
+    const reader = fbs.reader();
+
+    const received_message = try receiveMessage(test_allocator, reader);
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .Ping => |ping_message| try std.testing.expectEqual(message.nonce, ping_message.nonce),
+        else => unreachable,
     }
 }
 
