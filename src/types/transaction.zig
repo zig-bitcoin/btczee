@@ -82,13 +82,19 @@ pub const Transaction = struct {
         const compact_output_len = CompactSizeUint.new(self.outputs.items.len);
 
         try w.writeInt(i32, self.version, .little);
+        std.debug.print("SERIALIZING VERSION {d}\n", .{self.version});
 
         try compact_input_len.encodeToWriter(w);
+
+        std.debug.print("THERE IS {d} SERIALIZED INPUTS\n", .{compact_input_len.value()});
         for (self.inputs.items) |input| {
             const compact_script_len = CompactSizeUint.new(input.script_sig.bytes.len);
+            std.debug.print("SERIALIZING SCRIPT SIG {d}\n", .{input.script_sig.bytes.len});
 
             try w.writeAll(&input.previous_outpoint.hash.bytes);
+            std.debug.print("SERIALIZING OUTPOINT HASH {s}\n", .{std.fmt.fmtSliceHexLower(&input.previous_outpoint.hash.bytes)});
             try w.writeInt(u32, input.previous_outpoint.index, .little);
+            std.debug.print("SERIALIZING OUTPOINT INDEX {d}\n", .{input.previous_outpoint.index});
             try compact_script_len.encodeToWriter(w);
             try w.writeAll(input.script_sig.bytes);
             try w.writeInt(u32, input.sequence, .little);
@@ -106,6 +112,26 @@ pub const Transaction = struct {
         try w.writeInt(u32, self.lock_time, .little);
     }
 
+    /// Serialize a message as bytes and write them to the buffer.
+    ///
+    /// buffer.len must be >= than self.hintSerializedLen()
+    pub fn serializeToSlice(self: *const Self, buffer: []u8) !void {
+        var fbs = std.io.fixedBufferStream(buffer);
+        try self.serializeToWriter(fbs.writer());
+    }
+
+    /// Serialize a message as bytes and return them.
+    pub fn serialize(self: *const Self, allocator: std.mem.Allocator) ![]u8 {
+        const serialized_len = self.virtual_size();
+
+        const ret = try allocator.alloc(u8, serialized_len);
+        errdefer allocator.free(ret);
+
+        try self.serializeToSlice(ret);
+
+        return ret;
+    }
+
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
         comptime {
             if (!std.meta.hasFn(@TypeOf(r), "readInt")) @compileError("Expects r to have fn 'readInt'.");
@@ -115,34 +141,70 @@ pub const Transaction = struct {
         }
 
         var tx: Self = undefined;
+        errdefer tx.deinit();
 
         tx.version = try r.readInt(i32, .little);
+        std.debug.print("DESERIALIZING VERSION {d}\n", .{tx.version});
 
-        const compact_input_len = try CompactSizeUint.decodeFromReader(r);
-        var inputs = std.ArrayList(Input).init(allocator);
-        errdefer allocator.free(inputs);
-        while (inputs.len < compact_input_len) {
+        const compact_input_len = try CompactSizeUint.decodeReader(r);
+        std.debug.print("THERE IS {d} DESERIALIZED INPUTS\n", .{compact_input_len.value()});
+        var inputs = try std.ArrayList(Input).initCapacity(allocator, compact_input_len.value());
+        errdefer inputs.deinit();
+
+        while (inputs.items.len < compact_input_len.value()) {
             var input: Input = undefined;
-            input.previous_outpoint.hash = Hash{ .bytes = try read_bytes_exact(allocator, r, 32) };
+            var hash_bytes: [32]u8 = undefined;
+            const hash_raw_bytes = try read_bytes_exact(allocator, r, 32);
+            defer allocator.free(hash_raw_bytes);
+            @memcpy(&hash_bytes, hash_raw_bytes);
+
+            std.debug.print("SERIALIZING OUTPOINT HASH {s}\n", .{std.fmt.fmtSliceHexLower(&hash_bytes)});
+            input.previous_outpoint.hash = Hash{ .bytes = hash_bytes };
             input.previous_outpoint.index = try r.readInt(u32, .little);
-            const compact_script_len = (try CompactSizeUint.decodeFromReader(r)).value();
+            std.debug.print("SERIALIZING OUTPOINT INDEX {d}\n", .{input.previous_outpoint.index});
+            const compact_script_len = (try CompactSizeUint.decodeReader(r)).value();
+
+            std.debug.print("DESERIALIZING SCRIPT SIG LEN {d}\n", .{compact_script_len});
             input.script_sig = Script{ .bytes = try read_bytes_exact(allocator, r, compact_script_len), .allocator = allocator };
             input.sequence = try r.readInt(u32, .little);
 
-            inputs.append(input);
+            try inputs.append(input);
+            errdefer {
+                for (inputs.items) |i| {
+                    i.script_pubkey.deinit();
+                }
+                allocator.free(inputs);
+            }
         }
+        tx.inputs = inputs;
 
-        const compact_output_len = try CompactSizeUint.decodeFromReader(r);
-        var outputs = std.ArrayList(Output).init(allocator);
-        errdefer allocator.free(outputs);
-        while (outputs.len < compact_output_len) {
+        const compact_output_len = try CompactSizeUint.decodeReader(r);
+        var outputs = try std.ArrayList(Output).initCapacity(allocator, compact_output_len.value());
+        errdefer outputs.deinit();
+        while (outputs.items.len < compact_output_len.value()) {
             var output: Output = undefined;
             output.value = try r.readInt(i64, .little);
-            const compact_script_len = (try CompactSizeUint.decodeFromReader(r)).value();
+            const compact_script_len = (try CompactSizeUint.decodeReader(r)).value();
             output.script_pubkey = Script{ .bytes = try read_bytes_exact(allocator, r, compact_script_len), .allocator = allocator };
 
-            outputs.append(output);
+            try outputs.append(output);
+            errdefer {
+                for (outputs.items) |o| {
+                    o.script_pubkey.deinit();
+                }
+                allocator.free(outputs);
+            }
         }
+        tx.outputs = outputs;
+        tx.lock_time = try r.readInt(u32, .little);
+
+        return tx;
+    }
+
+    /// Deserialize bytes into a `VersionMessage`
+    pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
+        var fbs = std.io.fixedBufferStream(bytes);
+        return try Self.deserializeReader(allocator, fbs.reader());
     }
 
     /// Initialize a new transaction
@@ -217,10 +279,10 @@ pub const RawTransaction = struct {
     allocator: std.mem.Allocator,
 };
 
-pub fn read_bytes_exact(allocator: std.mem.Allocator, r: anytype, bytes_nb: u32) ![]u8 {
-    comptime !{
+pub fn read_bytes_exact(allocator: std.mem.Allocator, r: anytype, bytes_nb: u64) ![]u8 {
+    comptime {
         if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects r to have fn 'readNoEof'.");
-    };
+    }
 
     const bytes = try allocator.alloc(u8, bytes_nb);
     errdefer allocator.free(bytes);
@@ -252,4 +314,46 @@ test "Transaction basics" {
 
     const vsize = tx.virtual_size();
     try testing.expect(vsize > 0);
+}
+
+test "Transaction serialization" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    var tx = try Transaction.init(allocator);
+    defer tx.deinit();
+
+    try tx.addInput(OutPoint{ .hash = Hash.zero(), .index = 0 });
+
+    {
+        var script_pubkey = try Script.init(allocator);
+        defer script_pubkey.deinit();
+        try script_pubkey.push(&[_]u8{ 0x76, 0xa9, 0x14 }); // OP_DUP OP_HASH160 Push14
+        try tx.addOutput(50000, script_pubkey);
+    }
+
+    const payload = try tx.serialize(allocator);
+    defer allocator.free(payload);
+    const deserialized_tx = try Transaction.deserializeSlice(allocator, payload);
+
+    // try tx.serializeToWriter(fbs.writer());
+
+    // const deserialized_tx = try Transaction.deserializeReader(allocator, fbs.reader());
+
+    // version: i32,
+    // inputs: std.ArrayList(Input),
+    // outputs: std.ArrayList(Output),
+    // lock_time: u32,
+    try testing.expectEqual(tx.version, deserialized_tx.version);
+    for (tx.inputs.items, 0..) |input, i| {
+        try testing.expectEqual(input.previous_outpoint.hash.bytes, deserialized_tx.inputs.items[i].previous_outpoint.hash.bytes);
+        try testing.expectEqual(input.previous_outpoint.index, deserialized_tx.inputs.items[i].previous_outpoint.index);
+        try testing.expect(std.mem.eql(u8, input.script_sig.bytes, deserialized_tx.inputs.items[i].script_sig.bytes));
+        try testing.expectEqual(input.sequence, deserialized_tx.inputs.items[i].sequence);
+    }
+    for (tx.outputs.items, 0..) |output, i| {
+        try testing.expectEqual(output.value, deserialized_tx.outputs.items[i].value);
+        try testing.expect(std.mem.eql(u8, output.script_pubkey.bytes, deserialized_tx.outputs.items[i].script_pubkey.bytes));
+    }
+    try testing.expectEqual(tx.lock_time, deserialized_tx.lock_time);
 }

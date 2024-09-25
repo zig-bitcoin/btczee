@@ -76,7 +76,7 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
     const checksum = try r.readBytesNoEof(4);
 
     // Read payload
-    const message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name()))
+    var message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name()))
         protocol.messages.Message{ .Version = try protocol.messages.VersionMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.VerackMessage.name()))
         protocol.messages.Message{ .Verack = try protocol.messages.VerackMessage.deserializeReader(allocator, r) }
@@ -84,6 +84,8 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
         protocol.messages.Message{ .Mempool = try protocol.messages.MempoolMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.GetaddrMessage.name()))
         protocol.messages.Message{ .Getaddr = try protocol.messages.GetaddrMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.BlockMessage.name()))
+        protocol.messages.Message{ .Block = try protocol.messages.BlockMessage.deserializeReader(allocator, r) }
     else
         return error.UnknownMessage;
     errdefer message.deinit(allocator);
@@ -137,9 +139,7 @@ test "ok_send_version_message" {
 
     switch (received_message) {
         .Version => |rm| try std.testing.expect(message.eql(&rm)),
-        .Verack => unreachable,
-        .Mempool => unreachable,
-        .Getaddr => unreachable,
+        else => unreachable,
     }
 }
 
@@ -162,12 +162,7 @@ test "ok_send_verack_message" {
     const received_message = try receiveMessage(test_allocator, reader);
     defer received_message.deinit(test_allocator);
 
-    switch (received_message) {
-        .Verack => {},
-        .Version => unreachable,
-        .Mempool => unreachable,
-        .Getaddr => unreachable,
-    }
+    try std.testing.expect(received_message == .Verack);
 }
 
 test "ok_send_mempool_message" {
@@ -189,12 +184,7 @@ test "ok_send_mempool_message" {
     const received_message = try receiveMessage(test_allocator, reader);
     defer received_message.deinit(test_allocator);
 
-    switch (received_message) {
-        .Mempool => {},
-        .Verack => unreachable,
-        .Version => unreachable,
-        .Getaddr => unreachable,
-    }
+    try std.testing.expect(received_message == .Mempool);
 }
 
 test "ko_receive_invalid_payload_length" {

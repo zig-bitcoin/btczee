@@ -20,13 +20,13 @@ pub const Message = union(MessageTypes) {
     Getaddr: GetaddrMessage,
     Block: BlockMessage,
 
-    pub fn deinit(self: Message, allocator: std.mem.Allocator) void {
-        switch (self) {
+    pub fn deinit(self: *Message, allocator: std.mem.Allocator) void {
+        switch (self.*) {
             .Version => |m| m.deinit(allocator),
             .Verack => {},
             .Mempool => {},
             .Getaddr => {},
-            .Block => {},
+            .Block => |*m| @constCast(m).deinit(allocator),
         }
     }
     pub fn checksum(self: Message) [4]u8 {
