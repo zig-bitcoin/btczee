@@ -11,7 +11,6 @@
 
 //==== Imports ====//
 const std = @import("std");
-const logger = @import("util/trace/log.zig");
 
 const Config = @import("config/config.zig").Config;
 const Mempool = @import("core/mempool.zig").Mempool;
@@ -34,13 +33,6 @@ pub fn main() !void {
     var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa_state.allocator();
     defer _ = gpa_state.deinit();
-
-    // Set up logger
-    var our_logger = logger.Logger.init(allocator, .debug);
-    defer our_logger.deinit();
-    our_logger.spawn();
-
-    logger.default_logger.* = our_logger;
 
     // Parse command-line arguments
     const args = try std.process.argsAlloc(allocator);
@@ -171,12 +163,12 @@ fn runNodeCommand(program: *Program) !void {
     defer mempool.deinit();
     var storage = try Storage.init(&config);
     defer storage.deinit();
-    var p2p = try P2P.init(program.allocator, &config, logger.default_logger.*);
+    var p2p = try P2P.init(program.allocator, &config);
     defer p2p.deinit();
-    var rpc = try RPC.init(program.allocator, &config, &mempool, &storage, logger.default_logger.*);
+    var rpc = try RPC.init(program.allocator, &config, &mempool, &storage);
     defer rpc.deinit();
 
-    var node = try Node.init(program.allocator, logger.default_logger.*, &mempool, &storage, &p2p, &rpc);
+    var node = try Node.init(program.allocator, &mempool, &storage, &p2p, &rpc);
     defer node.deinit();
 
     // Start the node
