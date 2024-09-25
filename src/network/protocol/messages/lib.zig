@@ -4,6 +4,8 @@ pub const VerackMessage = @import("verack.zig").VerackMessage;
 pub const MempoolMessage = @import("mempool.zig").MempoolMessage;
 pub const GetaddrMessage = @import("getaddr.zig").GetaddrMessage;
 pub const BlockMessage = @import("block.zig").BlockMessage;
+pub const GetblocksMessage = @import("getblocks.zig").GetblocksMessage;
+pub const PingMessage = @import("ping.zig").PingMessage;
 
 pub const MessageTypes = enum {
     Version,
@@ -11,6 +13,8 @@ pub const MessageTypes = enum {
     Mempool,
     Getaddr,
     Block,
+    Getblocks,
+    Ping,
 };
 
 pub const Message = union(MessageTypes) {
@@ -19,6 +23,8 @@ pub const Message = union(MessageTypes) {
     Mempool: MempoolMessage,
     Getaddr: GetaddrMessage,
     Block: BlockMessage,
+    Getblocks: GetblocksMessage,
+    Ping: PingMessage,
 
     pub fn deinit(self: *Message, allocator: std.mem.Allocator) void {
         switch (self.*) {
@@ -27,6 +33,8 @@ pub const Message = union(MessageTypes) {
             .Mempool => {},
             .Getaddr => {},
             .Block => |*m| m.deinit(allocator),
+            .Getblocks => |m| m.deinit(allocator),
+            .Ping => {},
         }
     }
     pub fn checksum(self: Message) [4]u8 {
@@ -36,6 +44,8 @@ pub const Message = union(MessageTypes) {
             .Mempool => |m| m.checksum(),
             .Getaddr => |m| m.checksum(),
             .Block => |m| m.checksum(),
+            .Getblocks => |m| m.checksum(),
+            .Ping => |m| m.checksum(),
         };
     }
 
@@ -46,6 +56,8 @@ pub const Message = union(MessageTypes) {
             .Mempool => |m| m.hintSerializedLen(),
             .Getaddr => |m| m.hintSerializedLen(),
             .Block => |m| m.hintSerializedLen(),
+            .Getblocks => |m| m.hintSerializedLen(),
+            .Ping => |m| m.hintSerializedLen(),
         };
     }
 };
