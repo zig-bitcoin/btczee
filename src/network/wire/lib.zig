@@ -216,6 +216,8 @@ test "ok_send_mempool_message" {
 
 
 test "ok_send_getblocks_message" {
+    const Config = @import("../../config/config.zig").Config;
+
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const GetblocksMessage = protocol.messages.GetblocksMessage;
@@ -239,7 +241,7 @@ test "ok_send_getblocks_message" {
     }
 
     const writer = list.writer();
-    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
