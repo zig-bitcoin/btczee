@@ -1,13 +1,6 @@
 const std = @import("std");
-const native_endian = @import("builtin").target.cpu.arch.endian();
 const protocol = @import("../lib.zig");
 
-const ServiceFlags = protocol.ServiceFlags;
-
-const Endian = std.builtin.Endian;
-const Sha256 = std.crypto.hash.sha2.Sha256;
-
-const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 
 /// VerackMessage represents the "verack" message
 ///

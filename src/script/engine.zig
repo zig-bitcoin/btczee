@@ -3,7 +3,6 @@ const Allocator = std.mem.Allocator;
 const Stack = @import("stack.zig").Stack;
 const Script = @import("lib.zig").Script;
 const asBool = @import("lib.zig").asBool;
-const ScriptNum = @import("lib.zig").ScriptNum;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
 const arithmetic = @import("opcodes/arithmetic.zig");
 const Opcode = @import("opcodes/constant.zig").Opcode;

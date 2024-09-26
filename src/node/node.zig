@@ -1,14 +1,11 @@
 //! Contains functionalities to run a Bitcoin full node on the Bitcoin network.
 //! It enables the validation of transactions and blocks, the exchange of transactions and blocks with other peers.
 const std = @import("std");
-const Config = @import("../config/config.zig").Config;
 const Mempool = @import("../core/mempool.zig").Mempool;
 const Storage = @import("../storage/storage.zig").Storage;
 const P2P = @import("../network/p2p.zig").P2P;
 const RPC = @import("../network/rpc.zig").RPC;
 const IBD = @import("ibd.zig").IBD;
-const Block = @import("../types/block.zig").Block;
-const Transaction = @import("../types/transaction.zig").Transaction;
 
 /// Node is a struct that contains all the components of a Bitcoin full node.
 pub const Node = struct {
