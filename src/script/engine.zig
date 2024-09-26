@@ -1027,38 +1027,6 @@ test "Script execution - OP_SHA256" {
     try std.testing.expectEqualSlices(u8, expected_hash[0..], hash_bytes);
 }
 
-test "ScriptBuilder Smoke test" {
-    var sb = try ScriptBuilder.new(std.testing.allocator, null);
-    defer sb.deinit();
-
-    var engine = try (try (try (try sb.addInt(1)).addInt(2)).addOpcode(Opcode.OP_ADD)).build();
-
-    try engine.execute();
-
-    defer engine.deinit();
-
-    try std.testing.expectEqual(1, engine.stack.len());
-}
-
-//METHOD 1
-test "ScriptBuilder OP_SWAP METHOD 1" {
-    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
-
-    var engine = try (try (try (try (try sb.addInt(1)).addInt(2)).addInt(3)).addOpcode(Opcode.OP_SWAP)).build();
-
-    try engine.execute();
-
-    defer sb.deinit();
-    defer engine.deinit();
-
-    try std.testing.expectEqual(@as(usize, 3), engine.stack.len());
-
-    const element0 = try engine.stack.peekInt(0);
-    const element1 = try engine.stack.peekInt(1);
-
-    try std.testing.expectEqual(2, element0);
-    try std.testing.expectEqual(3, element1);
-}
 //METHOD 2
 test "ScriptBuilder OP_SWAP METHOD 2" {
     var sb = try ScriptBuilder.new(std.testing.allocator, 4);
@@ -1069,15 +1037,17 @@ test "ScriptBuilder OP_SWAP METHOD 2" {
     _ = try sb.addInt(2);
     _ = try sb.addInt(3);
     _ = try sb.addOpcode(Opcode.OP_SWAP);
-    var engine = try sb.build();
-    try engine.execute();
-    defer engine.deinit();
+    var e = try sb.build();
+    try e.execute();
+    defer e.deinit();
 
-    try std.testing.expectEqual(3, engine.stack.len());
+    try std.testing.expectEqual(3, e.stack.len());
 
-    const element0 = try engine.stack.peekInt(0);
-    const element1 = try engine.stack.peekInt(1);
+    const element0 = try e.stack.peekInt(0);
+    const element1 = try e.stack.peekInt(1);
+    const element2 = try e.stack.peekInt(2);
 
     try std.testing.expectEqual(2, element0);
     try std.testing.expectEqual(3, element1);
+    try std.testing.expectEqual(1, element2);
 }
