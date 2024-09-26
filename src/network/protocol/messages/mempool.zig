@@ -1,6 +1,5 @@
 
 const std = @import("std");
-const native_endian = @import("builtin").target.cpu.arch.endian();
 const protocol = @import("../lib.zig");
 
 /// MempoolMessage represents the "mempool" message

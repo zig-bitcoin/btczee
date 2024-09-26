@@ -12,8 +12,6 @@
 const std = @import("std");
 const protocol = @import("../protocol/lib.zig");
 
-const Stream = std.net.Stream;
-const io = std.io;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const MAX_SIZE: usize = 0x02000000; // 32 MB
 

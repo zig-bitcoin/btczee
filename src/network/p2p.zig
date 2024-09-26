@@ -3,14 +3,9 @@
 //! It can receive and send messages to other nodes, based on the Bitcoin protocol.
 const std = @import("std");
 const net = std.net;
-const posix = std.posix;
 const Config = @import("../config/config.zig").Config;
 const Peer = @import("peer.zig").Peer;
 const Boundness = @import("peer.zig").Boundness;
-const wire = @import("wire/lib.zig");
-const protocol = @import("protocol/lib.zig");
-const VersionMessage = protocol.messages.VersionMessage;
-const NetworkAddress = protocol.NetworkAddress;
 
 /// P2P network handler.
 pub const P2P = struct {
