@@ -1,6 +1,4 @@
-
 const std = @import("std");
-const native_endian = @import("builtin").target.cpu.arch.endian();
 const protocol = @import("../lib.zig");
 
 /// FilterClear represents the "filterclear" message
@@ -36,7 +34,6 @@ pub const FilterClearMessage = struct {
         _ = self;
         return 0;
     }
-
 };
 
 // TESTS
