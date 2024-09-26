@@ -98,12 +98,12 @@ pub const Config = struct {
         return config;
     }
 
-    pub inline fn dnsSeeds(self: *const Self) [1]DnsSeed {
+    pub fn dnsSeeds(self: *const Self) [1]DnsSeed {
         _ = self;
         return DNS_SEEDS;
     }
 
-    pub inline fn bestBlock(self: *const Self) i32 {
+    pub fn bestBlock(self: *const Self) i32 {
         _ = self;
         // Should probably read it from db in the future
         return 0;

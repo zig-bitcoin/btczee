@@ -1,14 +1,13 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
 
-
 /// GetaddrMessage represents the "getaddr" message
 ///
 /// https://developer.bitcoin.org/reference/p2p_networking.html#getaddr
 pub const GetaddrMessage = struct {
     // getaddr message do not contain any payload, thus there is no field
 
-    pub inline fn name() *const [12]u8 {
+    pub fn name() *const [12]u8 {
         return protocol.CommandNames.GETADDR ++ [_]u8{0} ** 5;
     }
 

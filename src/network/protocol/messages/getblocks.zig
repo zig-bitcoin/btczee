@@ -9,12 +9,11 @@ const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 ///
 /// https://developer.bitcoin.org/reference/p2p_networking.html#getblocks
 pub const GetblocksMessage = struct {
-
     version: i32,
-    header_hashes: [] [32]u8,
+    header_hashes: [][32]u8,
     stop_hash: [32]u8,
 
-    pub inline fn name() *const [12]u8 {
+    pub fn name() *const [12]u8 {
         return protocol.CommandNames.GETBLOCKS ++ [_]u8{0} ** 5;
     }
 
@@ -148,7 +147,6 @@ test "ok_full_flow_GetBlocksMessage" {
 
     // With some header_hashes
     {
-
         const gb = GetblocksMessage{
             .version = 42,
             .header_hashes = try allocator.alloc([32]u8, 2),
@@ -171,7 +169,5 @@ test "ok_full_flow_GetBlocksMessage" {
 
         try std.testing.expect(gb.eql(&deserialized_gb));
         defer allocator.free(deserialized_gb.header_hashes);
-
     }
-
 }
