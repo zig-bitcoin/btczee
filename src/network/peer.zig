@@ -4,8 +4,16 @@ const protocol = @import("./protocol/lib.zig");
 const wire = @import("./wire/lib.zig");
 const Config = @import("../config/config.zig").Config;
 
-const PeerError = error{
-    WeOnlySupportIPV6ForNow,
+pub const Boundness = enum {
+    inbound,
+    outbound,
+
+    pub inline fn isOutbound(self: Boundness) bool {
+        return self == Boundness.outbound;
+    }
+    pub inline fn isInbound(self: Boundness) bool {
+        return self == Boundness.inbound;
+    }
 };
 
 /// Represents a peer connection in the Bitcoin network
@@ -17,13 +25,11 @@ pub const Peer = struct {
     protocol_version: ?i32 = null,
     services: ?u64 = null,
     last_seen: i64,
+    boundness: Boundness,
+    should_listen: bool = false,
 
     /// Initialize a new peer
-    pub fn init(allocator: std.mem.Allocator, config: *const Config, address: std.net.Address) !*Peer {
-        if (address.any.family != std.posix.AF.INET6) {
-            return error.WeOnlySupportIPV6ForNow;
-        }
-
+    pub fn init(allocator: std.mem.Allocator, config: *const Config, address: std.net.Address, boundness: Boundness) !*Peer {
         const stream = try std.net.tcpConnectToAddress(address);
         const peer = try allocator.create(Peer);
 
@@ -33,6 +39,7 @@ pub const Peer = struct {
             .stream = stream,
             .address = address,
             .last_seen = std.time.timestamp(),
+            .boundness = boundness,
         };
         return peer;
     }
@@ -44,34 +51,38 @@ pub const Peer = struct {
     }
 
     /// Start peer operations
-    pub fn start(self: *Peer, is_outbound: bool) !void {
+    pub fn handshake(self: *Peer) !void {
         std.log.info("Starting peer connection with {}", .{self.address});
-        if (is_outbound) {
+        if (self.boundness.isOutbound()) {
             try self.negociateProtocolOutboundConnection();
         } else {
             // Not implemented yet
             unreachable;
         }
+
+        self.should_listen = true;
+        std.log.info("Connected to {}", .{self.address});
     }
 
     fn negociateProtocolOutboundConnection(self: *Peer) !void {
         try self.sendVersionMessage();
 
         while (true) {
-            const received_message = wire.receiveMessage(self.allocator, self.stream.reader()) catch |e| {
+            const received_message = wire.receiveMessage(self.allocator, self.stream.reader(), self.config.network_id) catch |e| {
                 switch (e) {
-                    error.EndOfStream, error.UnknownMessage => continue,
+                    // The node can be on another version of the protocol, using messages we are not aware of
+                    error.UnknownMessage => continue,
                     else => return e,
                 }
-            };
+            } orelse continue;
 
             switch (received_message) {
-                .Version => {
-                    self.protocol_version = @min(self.config.protocol_version, received_message.Version.version);
-                    self.services = received_message.Version.trans_services;
+                .version => |vm| {
+                    self.protocol_version = @min(self.config.protocol_version, vm.version);
+                    self.services = vm.trans_services;
                 },
 
-                .Verack => return,
+                .verack => return,
                 else => return error.InvalidHandshake,
             }
         }
@@ -94,5 +105,29 @@ pub const Peer = struct {
             self.config.network_id,
             message,
         );
+    }
+
+    pub fn listen(self: *Peer) void {
+        std.log.info("Listening for messages from {any}", .{self.address});
+        while (self.should_listen) {
+            const message = wire.receiveMessage(self.allocator, self.stream.reader(), self.config.network_id) catch |e| switch (e) {
+                // The node can be on another version of the protocol, using messages we are not aware of
+                error.UnknownMessage => continue,
+                else => {
+                    self.should_listen = false;
+                    continue;
+                },
+            } orelse continue;
+
+            switch (message) {
+                // We only received those during handshake, seeing them again is an error
+                .version, .verack => self.should_listen = false,
+                // TODO: handle other messages correctly
+                else => |m| {
+                    std.log.info("Peer {any} sent a `{s}` message", .{ self.address, m.name() });
+                    continue;
+                },
+            }
+        }
     }
 };
