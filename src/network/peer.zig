@@ -8,10 +8,10 @@ pub const Boundness = enum {
     inbound,
     outbound,
 
-    pub inline fn isOutbound(self: Boundness) bool {
+    pub fn isOutbound(self: Boundness) bool {
         return self == Boundness.outbound;
     }
-    pub inline fn isInbound(self: Boundness) bool {
+    pub fn isInbound(self: Boundness) bool {
         return self == Boundness.inbound;
     }
 };

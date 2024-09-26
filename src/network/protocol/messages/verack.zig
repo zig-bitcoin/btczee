@@ -1,14 +1,13 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
 
-
 /// VerackMessage represents the "verack" message
 ///
 /// https://developer.bitcoin.org/reference/p2p_networking.html#verack
 pub const VerackMessage = struct {
     // verack message do not contain any payload, thus there is no field
 
-    pub inline fn name() *const [12]u8 {
+    pub fn name() *const [12]u8 {
         return protocol.CommandNames.VERACK ++ [_]u8{0} ** 6;
     }
 

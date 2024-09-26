@@ -27,7 +27,7 @@ pub const VersionMessage = struct {
 
     const Self = @This();
 
-    pub inline fn name() *const [12]u8 {
+    pub fn name() *const [12]u8 {
         return protocol.CommandNames.VERSION ++ [_]u8{0} ** 5;
     }
 

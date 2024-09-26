@@ -10,7 +10,7 @@ pub const PongMessage = struct {
 
     const Self = @This();
 
-    pub inline fn name() *const [12]u8 {
+    pub fn name() *const [12]u8 {
         return protocol.CommandNames.PONG ++ [_]u8{0} ** 8;
     }
 
@@ -61,7 +61,7 @@ pub const PongMessage = struct {
     }
 
     /// Returns the hint of the serialized length of the message
-    pub inline fn hintSerializedLen(_: *const Self) usize {
+    pub fn hintSerializedLen(_: *const Self) usize {
         // 8 bytes for nonce
         return 8;
     }
@@ -83,7 +83,7 @@ pub const PongMessage = struct {
         return vm;
     }
 
-    pub inline fn new(nonce: u64) Self {
+    pub fn new(nonce: u64) Self {
         return .{
             .nonce = nonce,
         };
