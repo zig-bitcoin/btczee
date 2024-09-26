@@ -35,7 +35,7 @@ fn validateMessageSize(payload_len: usize) !void {
     const total_message_size = precomputed_total_size + payload_len;
 
     if (total_message_size > MAX_SIZE) {
-        return error.InvaliPayloadLen;
+        return error.InvalidPayloadLen;
     }
 }
 
@@ -72,7 +72,7 @@ pub fn sendMessage(allocator: std.mem.Allocator, w: anytype, protocol_version: i
     try w.writeAll(payload);
 }
 
-pub const ReceiveMessageError = error{ UnknownMessage, InvaliPayloadLen, InvalidChecksum, InvalidHandshake, InvalidNetwork };
+pub const ReceiveMessageError = error{ UnknownMessage, InvalidPayloadLen, InvalidChecksum, InvalidHandshake, InvalidNetwork };
 
 /// Read a message from the wire.
 ///
@@ -132,7 +132,7 @@ pub fn receiveMessage(
         return error.InvalidChecksum;
     }
     if (message.hintSerializedLen() != payload_len) {
-        return error.InvaliPayloadLen;
+        return error.InvalidPayloadLen;
     }
 
     return message;
@@ -371,7 +371,7 @@ test "ko_receive_invalid_payload_length" {
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
-    try std.testing.expectError(error.InvaliPayloadLen, receiveMessage(test_allocator, reader, network_id));
+    try std.testing.expectError(error.InvalidPayloadLen, receiveMessage(test_allocator, reader, network_id));
 }
 
 test "ko_receive_invalid_checksum" {
