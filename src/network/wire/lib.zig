@@ -117,6 +117,8 @@ pub fn receiveMessage(
         protocol.messages.Message{ .ping = try protocol.messages.PingMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.PongMessage.name()))
         protocol.messages.Message{ .pong = try protocol.messages.PongMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.FeeFilterMessage.name()))
+        protocol.messages.Message{ .feefilter = try protocol.messages.FeeFilterMessage.deserializeReader(allocator, r) }
     else {
         try r.skipBytes(payload_len, .{}); // Purge the wire
         return error.UnknownMessage;
