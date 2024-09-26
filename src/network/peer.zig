@@ -8,17 +8,11 @@ pub const Boundness = enum {
     inbound,
     outbound,
 
-    pub fn isOutbound(self: Boundness) bool {
-        return switch (self) {
-            .outbound => true,
-            .inbound => false,
-        };
+    pub inline fn isOutbound(self: Boundness) bool {
+        return self == Boundness.outbound;
     }
-    pub fn isInbound(self: Boundness) bool {
-        return switch (self) {
-            .inbound => true,
-            .outbound => false,
-        };
+    pub inline fn isInbound(self: Boundness) bool {
+        return self == Boundness.inbound;
     }
 };
 
@@ -32,7 +26,7 @@ pub const Peer = struct {
     services: ?u64 = null,
     last_seen: i64,
     boundness: Boundness,
-    should_listen: bool,
+    should_listen: bool = false,
 
     /// Initialize a new peer
     pub fn init(allocator: std.mem.Allocator, config: *const Config, address: std.net.Address, boundness: Boundness) !*Peer {
@@ -46,7 +40,6 @@ pub const Peer = struct {
             .address = address,
             .last_seen = std.time.timestamp(),
             .boundness = boundness,
-            .should_listen = false,
         };
         return peer;
     }
