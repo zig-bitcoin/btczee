@@ -6,7 +6,6 @@ const Config = @import("../config/config.zig").Config;
 const Mempool = @import("../core/mempool.zig").Mempool;
 const Storage = @import("../storage/storage.zig").Storage;
 const httpz = @import("httpz");
-const Logger = @import("../util/trace/log.zig").Logger;
 
 /// RPC Server handler.
 ///
@@ -21,7 +20,6 @@ pub const RPC = struct {
     mempool: *Mempool,
     /// Blockchain storage.
     storage: *Storage,
-    logger: Logger,
     /// Initialize the RPC server.
     /// # Arguments
     /// - `allocator`: Allocator.
@@ -35,14 +33,12 @@ pub const RPC = struct {
         config: *const Config,
         mempool: *Mempool,
         storage: *Storage,
-        logger: Logger,
     ) !RPC {
         const rpc = RPC{
             .allocator = allocator,
             .config = config,
             .mempool = mempool,
             .storage = storage,
-            .logger = logger,
         };
 
         return rpc;
@@ -57,7 +53,7 @@ pub const RPC = struct {
     /// Start the RPC server.
     /// The RPC server will start a HTTP server and listen on the RPC port.
     pub fn start(self: *RPC) !void {
-        self.logger.infof("Starting RPC server on port {}", .{self.config.rpc_port});
+        std.log.info("Starting RPC server on port {}", .{self.config.rpc_port});
         var handler = Handler{};
 
         var server = try httpz.Server(*Handler).init(self.allocator, .{ .port = self.config.rpc_port }, &handler);
@@ -66,7 +62,7 @@ pub const RPC = struct {
         router.get("/", index, .{});
         router.get("/error", @"error", .{});
 
-        self.logger.infof("RPC server listening on http://localhost:{d}/\n", .{self.config.rpc_port});
+        std.log.info("RPC server listening on http://localhost:{d}/\n", .{self.config.rpc_port});
 
         // Starts the server, this is blocking.
         // TODO: Make it non-blocking. cc @StringNick
