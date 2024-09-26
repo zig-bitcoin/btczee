@@ -102,6 +102,14 @@ pub fn receiveMessage(
     const payload_len = try r.readInt(u32, .little);
     const checksum = try r.readBytesNoEof(4);
 
+    // Calculate total message size
+    const precomputed_total_size = 24; // network (4 bytes) + command (12 bytes) + payload size (4 bytes) + checksum (4 bytes)
+    const total_message_size = precomputed_total_size + payload_len;
+
+    if (total_message_size > MAX_SIZE) {
+        return error.InvaliPayloadLen;
+    }
+
     // Read payload
     const message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name()))
         protocol.messages.Message{ .version = try protocol.messages.VersionMessage.deserializeReader(allocator, r) }
