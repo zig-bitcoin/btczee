@@ -60,7 +60,6 @@ pub const SubmitOrderMessage = struct {
 };
 
 // TESTS
-// TESTS
 test "ok_full_flow_SubmitOrderMessage" {
     const allocator = std.testing.allocator;
 
