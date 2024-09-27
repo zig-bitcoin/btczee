@@ -29,6 +29,7 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| @TypeOf(m).name(),
             .ping => |m| @TypeOf(m).name(),
             .pong => |m| @TypeOf(m).name(),
+            .merkleblock => |m| @TypeOf(m).name(),
         };
     }
 

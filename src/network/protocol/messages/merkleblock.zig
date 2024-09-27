@@ -11,10 +11,8 @@ const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 pub const MerkleBlockMessage = struct {
     block_header: BlockHeader,
     transaction_count: u32,
-    hash_count: CompactSizeUint,
-    hashes: []const [32]u8,
-    flag_bytes: CompactSizeUint,
-    flags: []const u8,
+    hashes: [][32]u8,
+    flags: []u8,
 
     const Self = @This();
 
@@ -46,12 +44,21 @@ pub const MerkleBlockMessage = struct {
         try w.writeInt(u32, self.transaction_count, .little);
         const hash_count = CompactSizeUint.new(self.hashes.len);
         try hash_count.encodeToWriter(w);
-        const flag_bytes = CompactSizeUint.new(self.flags.len);
-        for (self.hashes) |hash| {
-            try w.writeAll(&hash);
+
+        for (self.hashes) |*hash| {
+            try w.writeAll(hash);
         }
+        const flag_bytes = CompactSizeUint.new(self.flags.len);
+
         try flag_bytes.encodeToWriter(w);
         try w.writeAll(self.flags);
+    }
+    /// Serialize a message as bytes and write them to the buffer.
+    ///
+    /// buffer.len must be >= than self.hintSerializedLen()
+    pub fn serializeToSlice(self: *const Self, buffer: []u8) !void {
+        var fbs = std.io.fixedBufferStream(buffer);
+        try self.serializeToWriter(fbs.writer());
     }
 
     /// Serialize a message as bytes and return them.
@@ -77,15 +84,27 @@ pub const MerkleBlockMessage = struct {
         return fixed_length + variable_length;
     }
 
-    /// Deserialize a `MerkleBlockMessage` from a Reader.
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
-        _ = allocator;
-        var message: Self = undefined;
-        message.block_header = try BlockHeader.deserializeReader(r);
-        message.transaction_count = try r.readInt(u32, .little);
-        try r.readNoEof(message.hashes);
-        try r.readNoEof(message.flags);
-        return message;
+        var merkle_block_message: Self = undefined;
+        merkle_block_message.block_header = try BlockHeader.deserializeReader(r);
+        merkle_block_message.transaction_count = try r.readInt(u32, .little);
+
+        // Read CompactSize hash_count
+        const hash_count = try CompactSizeUint.decodeReader(r);
+        merkle_block_message.hashes = try allocator.alloc([32]u8, hash_count.value());
+        errdefer allocator.free(merkle_block_message.hashes);
+
+        for (merkle_block_message.hashes) |*hash| {
+            try r.readNoEof(hash);
+        }
+
+        // Read CompactSize flags_count
+        const flags_count = try CompactSizeUint.decodeReader(r);
+        merkle_block_message.flags = try allocator.alloc(u8, flags_count.value());
+        errdefer allocator.free(merkle_block_message.flags);
+
+        try r.readNoEof(merkle_block_message.flags);
+        return merkle_block_message;
     }
 
     /// Deserialize bytes into a `MerkleBlockMessage`
@@ -94,20 +113,18 @@ pub const MerkleBlockMessage = struct {
         return try Self.deserializeReader(allocator, fbs.reader());
     }
 
-    pub fn new(block_header: BlockHeader, transaction_count: u32, hashes: []const [32]u8, flags: []const u8) Self {
+    pub fn new(block_header: BlockHeader, transaction_count: u32, hashes: [][32]u8, flags: []u8) Self {
         return .{
             .block_header = block_header,
             .transaction_count = transaction_count,
-            .hash_count = CompactSizeUint.new(hashes.len),
             .hashes = hashes,
-            .flag_bytes = CompactSizeUint.new(flags.len),
             .flags = flags,
         };
     }
 };
 
 test "MerkleBlockMessage serialization and deserialization" {
-    const allocator = std.testing.allocator;
+    const test_allocator = std.testing.allocator;
 
     const block_header = BlockHeader{
         .version = 1,
@@ -117,21 +134,35 @@ test "MerkleBlockMessage serialization and deserialization" {
         .bits = 0x1d00ffff,
         .nonce = 987654321,
     };
-    const hashes = &[_][32]u8{[_]u8{2} ** 32};
-    const flags = &[_]u8{0b10101010};
+    const hashes = try test_allocator.alloc([32]u8, 3);
 
-    const msg = MerkleBlockMessage.new(block_header, 1, hashes, flags);
+    const flags = try test_allocator.alloc(u8, 1);
+    const transaction_count = 1;
+    const msg = MerkleBlockMessage.new(block_header, transaction_count, hashes, flags);
 
-    const serialized = try msg.serialize(allocator);
-    defer allocator.free(serialized);
+    defer test_allocator.free(msg.hashes);
+    defer test_allocator.free(flags);
 
-    const deserialized = try MerkleBlockMessage.deserializeSlice(allocator, serialized);
-    defer deserialized.deinit(allocator);
+    // Fill in the header_hashes
+    for (msg.hashes) |*hash| {
+        for (hash) |*byte| {
+            byte.* = 0xab;
+        }
+    }
+
+    for (flags) |*f| {
+        f.* = 0x1;
+    }
+    const serialized = try msg.serialize(test_allocator);
+    defer test_allocator.free(serialized);
+
+    const deserialized = try MerkleBlockMessage.deserializeSlice(test_allocator, serialized);
+    defer deserialized.deinit(test_allocator);
 
     try std.testing.expectEqual(msg.block_header, deserialized.block_header);
     try std.testing.expectEqual(msg.transaction_count, deserialized.transaction_count);
     try std.testing.expectEqualSlices([32]u8, msg.hashes, deserialized.hashes);
     try std.testing.expectEqualSlices(u8, msg.flags, deserialized.flags);
 
-    try std.testing.expectEqual(msg.hintSerializedLen(), 84 + 1 + 32 + 1 + 1);
+    try std.testing.expectEqual(msg.hintSerializedLen(), 84 + 1 + 32 * 3 + 1 + 1);
 }

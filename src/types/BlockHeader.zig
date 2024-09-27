@@ -29,9 +29,9 @@ pub const BlockHeader = struct {
         bh.version = try r.readInt(i32, .little);
         try r.readNoEof(&bh.prev_block);
         try r.readNoEof(&bh.merkle_root);
-        bh.timestamp = try r.readInt(i32, .little);
-        bh.bits = try r.readInt(i32, .little);
-        bh.nonce = try r.readInt(i32, .little);
+        bh.timestamp = try r.readInt(u32, .little);
+        bh.bits = try r.readInt(u32, .little);
+        bh.nonce = try r.readInt(u32, .little);
 
         return bh;
     }
