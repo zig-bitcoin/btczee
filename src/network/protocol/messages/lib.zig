@@ -38,6 +38,12 @@ pub const MessageTypes = enum {
     filterload,
 };
 
+pub const InventoryItem = struct {
+    type: u32,
+    hash: [32]u8,
+};
+
+
 pub const Message = union(MessageTypes) {
     version: VersionMessage,
     verack: VerackMessage,

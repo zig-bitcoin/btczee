@@ -8,10 +8,6 @@ const protocol = @import("../lib.zig");
 pub const GetdataMessage = struct {
     inventory: []const InventoryItem,
 
-    pub const InventoryItem = struct {
-        type: u32,
-        hash: [32]u8,
-    };
 
     pub inline fn name() *const [12]u8 {
         return protocol.CommandNames.GETDATA ++ [_]u8{0} ** 5;
@@ -121,13 +117,8 @@ pub const GetdataMessage = struct {
     pub fn eql(self: *const GetdataMessage, other: *const GetdataMessage) bool {
         if (self.inventory.len != other.inventory.len) return false;
 
-        for (0..self.inventory.len) |i| {
-            if (self.inventory[i].type != other.inventory[i].type) {
-                return false;
-            }
-            if (!std.mem.eql(u8, &self.inventory[i].hash, &other.inventory[i].hash)) {
-                return false;
-            }
+        if(!std.mem.eql(Inventory, self.inventory, other.inventory)) {
+            return false;
         }
 
         return true;
