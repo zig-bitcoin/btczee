@@ -33,7 +33,7 @@ pub const GetblocksMessage = struct {
     }
 
     /// Free the `header_hashes`
-    pub fn deinit(self: GetblocksMessage, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *GetblocksMessage, allocator: std.mem.Allocator) void {
         allocator.free(self.header_hashes);
     }
 

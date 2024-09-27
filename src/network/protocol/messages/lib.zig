@@ -10,6 +10,7 @@ pub const PongMessage = @import("pong.zig").PongMessage;
 pub const FeeFilterMessage = @import("feefilter.zig").FeeFilterMessage;
 pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
 pub const FilterClearMessage = @import("filterclear.zig").FilterClearMessage;
+pub const Block = @import("block.zig").BlockMessage;
 
 pub const MessageTypes = enum {
     version,
@@ -22,6 +23,7 @@ pub const MessageTypes = enum {
     sendcmpct,
     feefilter,
     filterclear,
+    block,
 };
 
 pub const Message = union(MessageTypes) {
@@ -35,9 +37,10 @@ pub const Message = union(MessageTypes) {
     sendcmpct: SendCmpctMessage,
     feefilter: FeeFilterMessage,
     filterclear: FilterClearMessage,
+    block: Block,
 
-    pub fn name(self: *Message) *const [12]u8 {
-        return switch (self.*) {
+    pub fn name(self: Message) *const [12]u8 {
+        return switch (self) {
             .version => |m| @TypeOf(m).name(),
             .verack => |m| @TypeOf(m).name(),
             .mempool => |m| @TypeOf(m).name(),
@@ -48,6 +51,7 @@ pub const Message = union(MessageTypes) {
             .sendcmpct => |m| @TypeOf(m).name(),
             .feefilter => |m| @TypeOf(m).name(),
             .filterclear => |m| @TypeOf(m).name(),
+            .block => |m| @TypeOf(m).name(),
         };
     }
 
@@ -63,6 +67,7 @@ pub const Message = union(MessageTypes) {
             .sendcmpct => {},
             .feefilter => {},
             .filterclear => {},
+            .block => |*m| m.deinit(allocator),
         }
     }
 
@@ -78,6 +83,7 @@ pub const Message = union(MessageTypes) {
             .sendcmpct => |*m| m.checksum(),
             .feefilter => |*m| m.checksum(),
             .filterclear => |*m| m.checksum(),
+            .block => |*m| m.checksum(),
         };
     }
 
@@ -93,6 +99,7 @@ pub const Message = union(MessageTypes) {
             .sendcmpct => |*m| m.hintSerializedLen(),
             .feefilter => |*m| m.hintSerializedLen(),
             .filterclear => |*m| m.hintSerializedLen(),
+            .block => |*m| m.hintSerializedLen(),
         };
     }
 };

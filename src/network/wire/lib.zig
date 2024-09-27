@@ -109,7 +109,7 @@ pub fn receiveMessage(
 
     // Read payload
     var message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name()))
-        protocol.messages.Message{ .Version = try protocol.messages.VersionMessage.deserializeReader(allocator, r) }
+        protocol.messages.Message{ .version = try protocol.messages.VersionMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.VerackMessage.name()))
         protocol.messages.Message{ .verack = try protocol.messages.VerackMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.MempoolMessage.name()))
@@ -181,7 +181,7 @@ test "ok_send_version_message" {
         .start_height = 1000,
         .relay = false,
     };
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
@@ -207,7 +207,7 @@ test "ok_send_verack_message" {
 
     const message = VerackMessage{};
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
@@ -233,7 +233,7 @@ test "ok_send_mempool_message" {
 
     const message = MempoolMessage{};
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
@@ -273,7 +273,7 @@ test "ok_send_getblocks_message" {
         }
     }
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
@@ -299,7 +299,7 @@ test "ok_send_ping_message" {
 
     const message = PingMessage.new(21000000);
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
@@ -325,7 +325,7 @@ test "ok_send_pong_message" {
 
     const message = PongMessage.new(21000000);
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
@@ -474,7 +474,7 @@ test "ok_send_sendcmpct_message" {
         .version = 1,
     };
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
