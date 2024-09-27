@@ -1,35 +1,28 @@
 const std = @import("std");
-const native_endian = @import("builtin").target.cpu.arch.endian();
 const protocol = @import("../lib.zig");
-
-const ServiceFlags = protocol.ServiceFlags;
 
 const Endian = std.builtin.Endian;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 
-/// AddrMessage represents the "addr" message
-///
-/// https://developer.bitcoin.org/reference/p2p_networking.html#addr
 pub const NetworkIPAddr = struct {
     time: u32, // Unix epoch time
     services: u64, // Services offered by the node
     ip: [16]u8, // IPv6 address (including IPv4-mapped)
     port: u16, // Port number
 
-// NetworkIPAddr eql
-pub fn eql(self: *const NetworkIPAddr, other: *const NetworkIPAddr) bool {
-    return self.time == other.time
-        and self.services == other.services
-        and std.mem.eql(u8, &self.ip, &other.ip)
-        and self.port == other.port;
-}
+    // NetworkIPAddr eql
+    pub fn eql(self: *const NetworkIPAddr, other: *const NetworkIPAddr) bool {
+        return self.time == other.time and self.services == other.services and std.mem.eql(u8, &self.ip, &other.ip) and self.port == other.port;
+    }
 };
 
+/// AddrMessage represents the "addr" message
+///
+/// https://developer.bitcoin.org/reference/p2p_networking.html#addr
 pub const AddrMessage = struct {
     ip_addresses: []NetworkIPAddr,
-
 
     pub inline fn name() *const [12]u8 {
         return protocol.CommandNames.ADDR ++ [_]u8{0} ** 8;
@@ -52,7 +45,7 @@ pub const AddrMessage = struct {
 
     /// Free the `user_agent` if there is one
     pub fn deinit(self: AddrMessage, allocator: std.mem.Allocator) void {
-            allocator.free(self.ip_addresses);
+        allocator.free(self.ip_addresses);
     }
 
     /// Serialize the message as bytes and write them to the Writer.
@@ -70,7 +63,7 @@ pub const AddrMessage = struct {
         for (self.ip_addresses) |*ip_address| {
             try w.writeInt(u32, ip_address.time, .little);
             try w.writeInt(u64, ip_address.services, .little);
-        try w.writeAll(std.mem.asBytes(&ip_address.ip));
+            try w.writeAll(std.mem.asBytes(&ip_address.ip));
             try w.writeInt(u16, ip_address.port, .big);
         }
     }
@@ -132,19 +125,19 @@ pub const AddrMessage = struct {
     pub fn hintSerializedLen(self: AddrMessage) usize {
         // 4 + 8 + 16 + 2
         const fixed_length_per_ip = 30;
-        return 1 +  self.ip_addresses.len * fixed_length_per_ip;// 1 for CompactSizeUint
-
+        const count = CompactSizeUint.new(self.ip_addresses.len).hint_encoded_len();
+        return count + self.ip_addresses.len * fixed_length_per_ip;  
     }
 
     pub fn eql(self: *const AddrMessage, other: *const AddrMessage) bool {
         if (self.ip_addresses.len != other.ip_addresses.len) return false;
 
-    const count = @as(usize, self.ip_addresses.len); 
-    for (0..count) |i| {
-        if (!self.ip_addresses[i].eql(&other.ip_addresses[i])) return false;
-    }
+        const count = @as(usize, self.ip_addresses.len);
+        for (0..count) |i| {
+            if (!self.ip_addresses[i].eql(&other.ip_addresses[i])) return false;
+        }
 
-    return true;
+        return true;
     }
 };
 
@@ -152,15 +145,15 @@ pub const AddrMessage = struct {
 test "ok_full_flow_AddrMessage" {
     const test_allocator = std.testing.allocator;
     {
-  const ip_addresses = try test_allocator.alloc(NetworkIPAddr, 1);
-  defer test_allocator.free(ip_addresses);
+        const ip_addresses = try test_allocator.alloc(NetworkIPAddr, 1);
+        defer test_allocator.free(ip_addresses);
 
-  ip_addresses[0] = NetworkIPAddr{
-      .time = 1414012889,
-      .services = 1,
-      .ip = [16]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0, 2, 51 },
-      .port = 8080,
-  };
+        ip_addresses[0] = NetworkIPAddr{
+            .time = 1414012889,
+            .services = 1,
+            .ip = [16]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0, 2, 51 },
+            .port = 8080,
+        };
         const am = AddrMessage{
             .ip_addresses = ip_addresses[0..],
         };

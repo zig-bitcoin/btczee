@@ -19,9 +19,6 @@ pub const Error = error{
     MessageTooLarge,
 };
 
-pub const NetworkIPAddr = @import("../protocol/messages/addr.zig").NetworkIPAddr;
-const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
-
 /// Return the checksum of a slice
 ///
 /// Use it on serialized messages to compute the header's value
@@ -336,11 +333,11 @@ test "ok_send_pong_message" {
 
 test "ok_send_addr_message" {
     const Config = @import("../../config/config.zig").Config;
+    const NetworkIPAddr = @import("../protocol/messages/addr.zig").NetworkIPAddr;
 
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const AddrMessage = protocol.messages.AddrMessage;
-    //const ServiceFlags = protocol.ServiceFlags;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -372,22 +369,6 @@ test "ok_send_addr_message" {
         .addr => |rm| try std.testing.expect(message.eql(&rm)),
         else => unreachable,
     }
-
-//    const writer = list.writer();
-//    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
-//    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
-//    const reader = fbs.reader();
-//
-//    const received_message = try receiveMessage(test_allocator, reader);
-//    defer received_message.deinit(test_allocator);
-//
-//    switch (received_message) {
-//        .Addr => |rm| try std.testing.expect(message.eql(&rm)),
-//        .Version => unreachable,
-//        .Verack => unreachable,
-//        .Mempool => unreachable,
-//        .Getaddr => unreachable,
-//    }
 }
 
 test "ko_receive_invalid_payload_length" {
