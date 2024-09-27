@@ -6,6 +6,7 @@ pub const GetaddrMessage = @import("getaddr.zig").GetaddrMessage;
 pub const GetblocksMessage = @import("getblocks.zig").GetblocksMessage;
 pub const PingMessage = @import("ping.zig").PingMessage;
 pub const PongMessage = @import("pong.zig").PongMessage;
+pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
 
 pub const MessageTypes = enum {
     version,
@@ -15,6 +16,7 @@ pub const MessageTypes = enum {
     getblocks,
     ping,
     pong,
+    sendcmpct,
 };
 
 pub const Message = union(MessageTypes) {
@@ -25,6 +27,7 @@ pub const Message = union(MessageTypes) {
     getblocks: GetblocksMessage,
     ping: PingMessage,
     pong: PongMessage,
+    sendcmpct: SendCmpctMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -35,6 +38,7 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| @TypeOf(m).name(),
             .ping => |m| @TypeOf(m).name(),
             .pong => |m| @TypeOf(m).name(),
+            .sendcmpct => |m| @TypeOf(m).name(),
         };
     }
 
@@ -47,6 +51,7 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| m.deinit(allocator),
             .ping => {},
             .pong => {},
+            .sendcmpct => {},
         }
     }
     pub fn checksum(self: Message) [4]u8 {
@@ -58,6 +63,7 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| m.checksum(),
             .ping => |m| m.checksum(),
             .pong => |m| m.checksum(),
+            .sendcmpct => |m| m.checksum(),
         };
     }
 
@@ -70,6 +76,7 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| m.hintSerializedLen(),
             .ping => |m| m.hintSerializedLen(),
             .pong => |m| m.hintSerializedLen(),
+            .sendcmpct => |m| m.hintSerializedLen(),
         };
     }
 };
