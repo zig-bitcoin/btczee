@@ -126,6 +126,11 @@ pub const Peer = struct {
                     std.log.info("Received feefilter message with feerate: {}", .{feefilter_message.feerate});
                     // TODO: Implement logic to filter transactions based on the received feerate
                 },
+                .checkorder => {
+                    std.log.info("Received deprecated checkorder message", .{});
+                    // As this message is deprecated, we don't need to handle it
+                    continue;
+                },
                 // TODO: handle other messages correctly
                 else => |m| {
                     std.log.info("Peer {any} sent a `{s}` message", .{ self.address, m.name() });
