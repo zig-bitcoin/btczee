@@ -8,7 +8,7 @@ pub const FilterClearMessage = struct {
     // FilterClear message do not contain any payload, thus there is no field
 
     pub inline fn name() *const [12]u8 {
-        return protocol.CommandNames.FILTERCLEAR ++ [_]u8{0} ** 5;
+        return protocol.CommandNames.FILTERCLEAR;
     }
 
     pub fn checksum(self: FilterClearMessage) [4]u8 {
