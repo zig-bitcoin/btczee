@@ -4,9 +4,9 @@ pub const BlockHeader = struct {
     version: i32,
     prev_block: [32]u8,
     merkle_root: [32]u8,
-    timestamp: i32,
-    bits: i32,
-    nonce: i32,
+    timestamp: u32,
+    bits: u32,
+    nonce: u32,
 
     const Self = @This();
 
@@ -19,9 +19,9 @@ pub const BlockHeader = struct {
         try writer.writeInt(i32, self.version, .little);
         try writer.writeAll(std.mem.asBytes(&self.prev_block));
         try writer.writeAll(std.mem.asBytes(&self.merkle_root));
-        try writer.writeInt(i32, self.timestamp, .little);
-        try writer.writeInt(i32, self.bits, .little);
-        try writer.writeInt(i32, self.nonce, .little);
+        try writer.writeInt(u32, self.timestamp, .little);
+        try writer.writeInt(u32, self.bits, .little);
+        try writer.writeInt(u32, self.nonce, .little);
     }
 
     pub fn deserializeReader(r: anytype) !BlockHeader {

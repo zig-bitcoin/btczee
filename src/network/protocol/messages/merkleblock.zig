@@ -2,7 +2,7 @@ const std = @import("std");
 const protocol = @import("../lib.zig");
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
-const BlockHeader = protocol.BlockHeader;
+const BlockHeader = @import("../../../types/BlockHeader.zig").BlockHeader;
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 
 /// MerkleBlockMessage represents the "MerkleBlock" message
@@ -18,8 +18,8 @@ pub const MerkleBlockMessage = struct {
 
     const Self = @This();
 
-    pub inline fn name() *const [12]u8 {
-        return protocol.CommandNames.MERKLEBLOCK ++ [_]u8{0} ** 6;
+    pub fn name() *const [12]u8 {
+        return protocol.CommandNames.MERKLEBLOCK;
     }
 
     /// Returns the message checksum
@@ -44,29 +44,34 @@ pub const MerkleBlockMessage = struct {
     pub fn serializeToWriter(self: *const Self, w: anytype) !void {
         try self.block_header.serializeToWriter(w);
         try w.writeInt(u32, self.transaction_count, .little);
-        try self.hash_count.encodeToWriter(w);
+        const hash_count = CompactSizeUint.new(self.hashes.len);
+        try hash_count.encodeToWriter(w);
+        const flag_bytes = CompactSizeUint.new(self.flags.len);
         for (self.hashes) |hash| {
             try w.writeAll(&hash);
         }
-        try self.flag_bytes.encodeToWriter(w);
+        try flag_bytes.encodeToWriter(w);
         try w.writeAll(self.flags);
     }
 
     /// Serialize a message as bytes and return them.
     pub fn serialize(self: *const Self, allocator: std.mem.Allocator) ![]u8 {
-        var list = std.ArrayList(u8).init(allocator);
-        errdefer list.deinit();
-        try self.serializeToWriter(list.writer());
-        return list.toOwnedSlice();
+        const serialized_len = self.hintSerializedLen();
+        const ret = try allocator.alloc(u8, serialized_len);
+        errdefer allocator.free(ret);
+
+        try self.serializeToSlice(ret);
+
+        return ret;
     }
 
     /// Returns the hint of the serialized length of the message.
     pub fn hintSerializedLen(self: *const Self) usize {
         // 80 bytes for the block header, 4 bytes for the transaction count
         const fixed_length = 84;
-        const hash_count_len: usize = self.hash_count.hint_encoded_len();
+        const hash_count_len: usize = CompactSizeUint.new(self.hashes.len).hint_encoded_len();
         const compact_hashes_len = 32 * self.hashes.len;
-        const flags_byte_ken: usize = self.flag_bytes.hint_encoded_len();
+        const flags_byte_ken: usize = CompactSizeUint.new(self.flags.len).hint_encoded_len();
         const flags_len = self.flags.len;
         const variable_length = hash_count_len + compact_hashes_len + flags_byte_ken + flags_len;
         return fixed_length + variable_length;
@@ -74,26 +79,12 @@ pub const MerkleBlockMessage = struct {
 
     /// Deserialize a `MerkleBlockMessage` from a Reader.
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
-        var mb: Self = undefined;
-        mb.block_header = try BlockHeader.deserializeReader(r);
-        mb.transaction_count = try r.readInt(u32, .little);
-        mb.hash_count = try CompactSizeUint.decodeReader(r);
-
-        const hash_count = mb.hash_count.value();
-        const hashes = try allocator.alloc([32]u8, hash_count);
-        errdefer allocator.free(hashes);
-
-        for (hashes) |*hash| {
-            try r.readNoEof(hash);
-        }
-        mb.hashes = hashes;
-
-        mb.flag_bytes = try CompactSizeUint.decodeReader(r);
-        const flag_count = mb.flag_bytes.value();
-
-        const flags = try allocator.alloc(u8, flag_count);
-        try r.readNoEof(flags);
-        mb.flags = flags;
+        _ = allocator;
+        var message: Self = undefined;
+        message.block_header = try BlockHeader.deserializeReader(r);
+        message.transaction_count = try r.readInt(u32, .little);
+        try r.readNoEof(message.hashes);
+        try r.readNoEof(message.flags);
         return mb;
     }
 

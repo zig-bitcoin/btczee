@@ -15,15 +15,12 @@ const protocol = @import("../protocol/lib.zig");
 const Stream = std.net.Stream;
 const io = std.io;
 const Sha256 = std.crypto.hash.sha2.Sha256;
-<<<<<<< HEAD
-=======
 const MAX_SIZE: usize = 0x02000000; // 32 MB
 
 pub const Error = error{
     MessageTooLarge,
 };
 
->>>>>>> 6244a99fc80995b4d3995aca211fa3c2ae572604
 const BlockHeader = @import("../protocol/BlockHeader.zig").BlockHeader;
 /// Return the checksum of a slice
 ///
@@ -213,8 +210,6 @@ test "ok_send_mempool_message" {
     }
 }
 
-<<<<<<< HEAD
-=======
 test "ok_send_getblocks_message" {
     const Config = @import("../../config/config.zig").Config;
 
@@ -279,7 +274,6 @@ test "ok_send_ping_message" {
     }
 }
 
->>>>>>> 6244a99fc80995b4d3995aca211fa3c2ae572604
 test "ok_send_merkleblock_message" {
     const Config = @import("../../config/config.zig").Config;
     const ArrayList = std.ArrayList;

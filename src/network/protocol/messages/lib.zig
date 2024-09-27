@@ -60,4 +60,4 @@ pub const Message = union(MessageTypes) {
             .MerkleBlock => |m| m.hintSerializedLen(),
         };
     }
-};
+}
