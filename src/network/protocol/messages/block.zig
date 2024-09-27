@@ -4,7 +4,7 @@ const protocol = @import("../lib.zig");
 
 const ServiceFlags = protocol.ServiceFlags;
 
-const read_bytes_exact = @import("../../../util/mem/read.zig").read_bytes_exact;
+const readBytesExact = @import("../../../util/mem/read.zig").readBytesExact;
 
 const Endian = std.builtin.Endian;
 const Sha256 = std.crypto.hash.sha2.Sha256;
@@ -18,13 +18,12 @@ const Transaction = @import("../../../types/transaction.zig").Transaction;
 /// https://developer.bitcoin.org/reference/p2p_networking.html#block
 pub const BlockMessage = struct {
     block_header: BlockHeader,
-    txn_count: CompactSizeUint,
     txns: std.ArrayList(Transaction),
 
     const Self = @This();
 
     pub inline fn name() *const [12]u8 {
-        return protocol.CommandNames.BLOCK ++ [_]u8{0} ** 8;
+        return protocol.CommandNames.BLOCK ++ [_]u8{0} ** 7;
     }
 
     pub fn checksum(self: BlockMessage) [4]u8 {
@@ -56,14 +55,10 @@ pub const BlockMessage = struct {
             if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects r to have fn 'writeAll'.");
         }
 
-        try w.writeInt(i32, self.block_header.version, .little);
-        try w.writeAll(&self.block_header.prev_block);
-        try w.writeAll(&self.block_header.merkle_root);
-        try w.writeInt(i32, self.block_header.timestamp, .little);
-        try w.writeInt(i32, self.block_header.nbits, .little);
-        try w.writeInt(i32, self.block_header.nonce, .little);
+        try self.block_header.serializeToWriter(w);
 
-        try self.txn_count.encodeToWriter(w);
+        try CompactSizeUint.new(self.txns.items.len).encodeToWriter(w);
+        // try .encodeToWriter(w);
 
         for (self.txns.items) |txn| {
             try txn.serializeToWriter(w);
@@ -98,32 +93,21 @@ pub const BlockMessage = struct {
             if (!std.meta.hasFn(@TypeOf(r), "readByte")) @compileError("Expects r to have fn 'readByte'.");
         }
 
-        var bm: Self = undefined;
+        var block_message: Self = undefined;
 
-        bm.block_header.version = try r.readInt(i32, .little);
+        block_message.block_header = try BlockHeader.deserializeReader(allocator, r);
 
-        const prev_block_raw_bytes = try read_bytes_exact(allocator, r, 32);
-        defer allocator.free(prev_block_raw_bytes);
-        @memcpy(&bm.block_header.prev_block, prev_block_raw_bytes);
+        const txns_count = try CompactSizeUint.decodeReader(r);
 
-        const merkle_root_raw_bytes = try read_bytes_exact(allocator, r, 32);
-        defer allocator.free(merkle_root_raw_bytes);
-        @memcpy(&bm.block_header.merkle_root, merkle_root_raw_bytes);
+        block_message.txns = std.ArrayList(Transaction).init(allocator);
+        errdefer block_message.txns.deinit();
 
-        bm.block_header.timestamp = try r.readInt(i32, .little);
-        bm.block_header.nbits = try r.readInt(i32, .little);
-        bm.block_header.nonce = try r.readInt(i32, .little);
-        bm.txn_count = try CompactSizeUint.decodeReader(r);
-
-        bm.txns = std.ArrayList(Transaction).init(allocator);
-        errdefer bm.txns.deinit();
-
-        const txns_count_u32 = bm.txn_count.value();
-        while (bm.txns.items.len < txns_count_u32) {
-            try bm.txns.append(try Transaction.deserializeReader(allocator, r));
+        const txns_count_u32 = txns_count.value();
+        while (block_message.txns.items.len < txns_count_u32) {
+            try block_message.txns.append(try Transaction.deserializeReader(allocator, r));
         }
 
-        return bm;
+        return block_message;
     }
 
     /// Deserialize bytes into a `VersionMessage`
@@ -134,7 +118,7 @@ pub const BlockMessage = struct {
 
     pub fn hintSerializedLen(self: BlockMessage) usize {
         const header_length = @sizeOf(BlockHeader);
-        const txs_number_length = @sizeOf(CompactSizeUint);
+        const txs_number_length = CompactSizeUint.new(self.txns.items.len).hint_encoded_len();
         var txs_length: usize = 0;
         for (self.txns.items) |txn| {
             txs_length += txn.virtual_size();
@@ -175,7 +159,6 @@ test "ok_full_flow_BlockMessage" {
                 .nbits = 1,
                 .nonce = 1,
             },
-            .txn_count = CompactSizeUint.new(1),
             .txns = txns,
         };
         defer msg.deinit(allocator);
@@ -191,7 +174,6 @@ test "ok_full_flow_BlockMessage" {
         try std.testing.expect(msg.block_header.timestamp == deserialized_msg.block_header.timestamp);
         try std.testing.expect(msg.block_header.nbits == deserialized_msg.block_header.nbits);
         try std.testing.expect(msg.block_header.nonce == deserialized_msg.block_header.nonce);
-        try std.testing.expect(msg.txn_count.value() == deserialized_msg.txn_count.value());
 
         for (msg.txns.items, 0..) |txn, i| {
             const deserialized_txn = deserialized_msg.txns.items[i];

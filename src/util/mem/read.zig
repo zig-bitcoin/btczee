@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub fn read_bytes_exact(allocator: std.mem.Allocator, r: anytype, bytes_nb: u64) ![]u8 {
+pub fn readBytesExact(allocator: std.mem.Allocator, r: anytype, bytes_nb: u64) ![]u8 {
     comptime {
         if (!std.meta.hasFn(@TypeOf(r), "readAll")) @compileError("Expects r to have fn 'readNoEof'.");
     }
