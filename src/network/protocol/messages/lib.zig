@@ -36,6 +36,7 @@ pub const MessageTypes = enum {
     notfound,
     sendheaders,
     filterload,
+    getdata,
 };
 
 pub const InventoryItem = struct {
@@ -61,6 +62,7 @@ pub const Message = union(MessageTypes) {
     notfound: NotFoundMessage,
     sendheaders: SendHeadersMessage,
     filterload: FilterLoadMessage,
+    getdata: GetdataMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -80,6 +82,7 @@ pub const Message = union(MessageTypes) {
             .notfound => |m| @TypeOf(m).name(),
             .sendheaders => |m| @TypeOf(m).name(),
             .filterload => |m| @TypeOf(m).name(),
+            .getdata => |m| @TypeOf(m).name(),
         };
     }
 
@@ -122,6 +125,7 @@ pub const Message = union(MessageTypes) {
             .notfound => |*m| m.checksum(),
             .sendheaders => |*m| m.checksum(),
             .filterload => |*m| m.checksum(),
+            .getdata => |m| m.deinit(allocator),
         };
     }
 

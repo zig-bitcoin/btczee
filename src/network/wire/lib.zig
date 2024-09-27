@@ -143,7 +143,7 @@ pub fn receiveMessage(
     else if (std.mem.eql(u8, &command, protocol.messages.FilterLoadMessage.name()))
         protocol.messages.Message{ .filterload = try protocol.messages.FilterLoadMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.GetdataMessage.name()))
-        protocol.messages.Message{ .Getdata = try protocol.messages.GetdataMessage.deserializeReader(allocator, r) }
+        protocol.messages.Message{ .getdata = try protocol.messages.GetdataMessage.deserializeReader(allocator, r) }
     else {
         try r.skipBytes(payload_len, .{}); // Purge the wire
         return error.UnknownMessage;
@@ -287,19 +287,17 @@ test "ok_send_getdata_message" {
         .inventory = inventory,
     };
 
-    const writer = list.writer();
-    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
-
-    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
-    const reader = fbs.reader();
-
-    const received_message = try receiveMessage(test_allocator, reader);
+    const received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
+    defer received_message.deinit(test_allocator);
 
     switch (received_message) {
-        .Getdata => |rm| {
-            try std.testing.expect(message.eql(&rm));
-            defer rm.deinit(test_allocator);
-        },
+        .getdata => |rm| try std.testing.expect(message.eql(&rm)),
         else => unreachable,
     }
 }
