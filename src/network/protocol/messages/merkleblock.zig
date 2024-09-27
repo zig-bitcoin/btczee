@@ -2,7 +2,7 @@ const std = @import("std");
 const protocol = @import("../lib.zig");
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
-const BlockHeader = @import("../../../types/BlockHeader.zig").BlockHeader;
+const BlockHeader = @import("../../../types/BlockHeader.zig");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 
 /// MerkleBlockMessage represents the "MerkleBlock" message
@@ -78,9 +78,9 @@ pub const MerkleBlockMessage = struct {
         const fixed_length = 84;
         const hash_count_len: usize = CompactSizeUint.new(self.hashes.len).hint_encoded_len();
         const compact_hashes_len = 32 * self.hashes.len;
-        const flags_byte_ken: usize = CompactSizeUint.new(self.flags.len).hint_encoded_len();
+        const flag_bytes_len: usize = CompactSizeUint.new(self.flags.len).hint_encoded_len();
         const flags_len = self.flags.len;
-        const variable_length = hash_count_len + compact_hashes_len + flags_byte_ken + flags_len;
+        const variable_length = hash_count_len + compact_hashes_len + flag_bytes_len + flags_len;
         return fixed_length + variable_length;
     }
 

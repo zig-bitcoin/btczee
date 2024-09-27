@@ -18,7 +18,7 @@ pub const Error = error{
     MessageTooLarge,
 };
 
-const BlockHeader = @import("../../types/BlockHeader.zig").BlockHeader;
+const BlockHeader = @import("../../types/BlockHeader.zig");
 /// Return the checksum of a slice
 ///
 /// Use it on serialized messages to compute the header's value
@@ -316,7 +316,6 @@ test "ok_send_merkleblock_message" {
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const MerkleBlockMessage = protocol.messages.MerkleBlockMessage;
-    const network_id = Config.BitcoinNetworkId.MAINNET;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -335,29 +334,22 @@ test "ok_send_merkleblock_message" {
     const transaction_count = 1;
     const message = MerkleBlockMessage.new(block_header, transaction_count, hashes, flags);
 
-    defer test_allocator.free(hashes);
-    defer test_allocator.free(flags);
+    defer message.deinit(test_allocator);
     // Fill in the header_hashes
     for (message.hashes) |*hash| {
         for (hash) |*byte| {
             byte.* = 0xab;
         }
     }
-    for (flags) |*f| {
-        f.* = 0x1;
-    }
+    flags[0] = 0x1;
+
     const serialized = try message.serialize(test_allocator);
     defer test_allocator.free(serialized);
 
     const deserialized = try MerkleBlockMessage.deserializeSlice(test_allocator, serialized);
     defer deserialized.deinit(test_allocator);
 
-    const writer = list.writer();
-    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
-    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
-    const reader = fbs.reader();
-
-    const received_message = try receiveMessage(test_allocator, reader, network_id) orelse unreachable;
+    const received_message = try write_and_read_message(test_allocator, &list, Config.BitcoinNetworkId.MAINNET, Config.PROTOCOL_VERSION, message) orelse unreachable;
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
