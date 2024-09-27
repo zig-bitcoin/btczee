@@ -35,15 +35,12 @@ pub const SendCmpctMessage = struct {
         return digest[0..4].*;
     }
     /// Serialize the message as bytes and write them to the Writer.
-    ///
-    /// `w` should be a valid `Writer`.
-    /// Serialize the message as bytes and write them to the Writer.
     pub fn serializeToWriter(self: *const SendCmpctMessage, w: anytype) !void {
         comptime {
             if (!std.meta.hasFn(@TypeOf(w), "writeInt")) @compileError("Expects writer to have 'writeInt'.");
         }
         // Write announce (1 byte)
-        try w.writeInt(u8, self.announce);
+        try w.writeInt(u8, if (self.announce) 0x01 else 0x00, .little);
         // Write version (8 bytes, little-endian)
         try w.writeInt(u64, self.version, .little);
     }
@@ -52,10 +49,13 @@ pub const SendCmpctMessage = struct {
     pub fn serialize(self: *const SendCmpctMessage, allocator: std.mem.Allocator) ![]u8 {
         const serialized_len = self.hintSerializedLen();
 
-        const ret = try allocator.alloc(u8, serialized_len);
-        errdefer allocator.free(ret);
+        const buffer = try allocator.alloc(u8, serialized_len);
+        errdefer allocator.free(buffer);
 
-        return ret;
+        var fbs = std.io.fixedBufferStream(buffer);
+        try self.serializeToWriter(fbs.writer());
+
+        return buffer;
     }
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !SendCmpctMessage {
         _ = allocator;
@@ -66,18 +66,21 @@ pub const SendCmpctMessage = struct {
         var msg: SendCmpctMessage = undefined;
 
         // Read announce (1 byte)
-        msg.announce = try r.readByte();
+        const announce_byte = try r.readByte();
 
         // Validate announce (must be 0x00 or 0x01)
-        if (msg.announce != 0x00 and msg.announce != 0x01) {
+        if (announce_byte != 0x00 and announce_byte != 0x01) {
             return SendCmpctMessage.Error.InvalidAnnounceValue;
         }
+
+        msg.announce = announce_byte == 0x01;
 
         // Read version (8 bytes, little-endian)
         msg.version = try r.readInt(u64, .little);
 
         return msg;
     }
+
     pub fn hintSerializedLen(self: *const SendCmpctMessage) usize {
         _ = self;
         return 1 + 8;
@@ -96,17 +99,15 @@ test "ok_full_flow_SendCmpctMessage" {
         .announce = true,
         .version = 1,
     };
-    defer allocator.free(msg);
 
     // Serialize the message
-    var buffer: [9]u8 = undefined;
-    const writer = std.io.fixedBufferStream(buffer[0..]).writer();
-    const payload = try msg.serialize(writer);
+    const payload = try msg.serialize(allocator);
     defer allocator.free(payload);
 
-    // deserialize the message
-    const reader = std.io.fixedBufferStream(buffer[0..]).reader();
-    const deserialized_msg = try SendCmpctMessage.deserializeReader(reader);
+    // Deserialize the message
+    var fbs = std.io.fixedBufferStream(payload);
+    const reader = fbs.reader();
+    const deserialized_msg = try SendCmpctMessage.deserializeReader(allocator, reader);
+
     try std.testing.expect(msg.eql(&deserialized_msg));
-    defer allocator.free(deserialized_msg);
 }
