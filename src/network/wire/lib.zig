@@ -15,6 +15,15 @@ const protocol = @import("../protocol/lib.zig");
 const Stream = std.net.Stream;
 const io = std.io;
 const Sha256 = std.crypto.hash.sha2.Sha256;
+<<<<<<< HEAD
+=======
+const MAX_SIZE: usize = 0x02000000; // 32 MB
+
+pub const Error = error{
+    MessageTooLarge,
+};
+
+>>>>>>> 6244a99fc80995b4d3995aca211fa3c2ae572604
 const BlockHeader = @import("../protocol/BlockHeader.zig").BlockHeader;
 /// Return the checksum of a slice
 ///
@@ -49,8 +58,15 @@ pub fn sendMessage(allocator: std.mem.Allocator, w: anytype, protocol_version: i
     defer allocator.free(payload);
     const checksum = computePayloadChecksum(payload);
 
-    // No payload will be longer than u32.MAX
     const payload_len: u32 = @intCast(payload.len);
+
+    // Calculate total message size
+    const precomputed_total_size = 24; // network (4 bytes) + command (12 bytes) + payload size (4 bytes) + checksum (4 bytes)
+    const total_message_size = precomputed_total_size + payload_len;
+
+    if (total_message_size > MAX_SIZE) {
+        return Error.MessageTooLarge;
+    }
 
     try w.writeAll(&network_id);
     try w.writeAll(command);
@@ -84,6 +100,10 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
         protocol.messages.Message{ .Mempool = try protocol.messages.MempoolMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.GetaddrMessage.name()))
         protocol.messages.Message{ .Getaddr = try protocol.messages.GetaddrMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.GetblocksMessage.name()))
+        protocol.messages.Message{ .Getblocks = try protocol.messages.GetblocksMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.PingMessage.name()))
+        protocol.messages.Message{ .Ping = try protocol.messages.PingMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.MerkleBlockMessage.name()))
         protocol.messages.Message{ .MerkleBlock = try protocol.messages.MerkleBlockMessage.deserializeReader(allocator, r) }
     else
@@ -193,6 +213,73 @@ test "ok_send_mempool_message" {
     }
 }
 
+<<<<<<< HEAD
+=======
+test "ok_send_getblocks_message" {
+    const Config = @import("../../config/config.zig").Config;
+
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const GetblocksMessage = protocol.messages.GetblocksMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const message = GetblocksMessage{
+        .version = 42,
+        .header_hashes = try test_allocator.alloc([32]u8, 2),
+        .stop_hash = [_]u8{0} ** 32,
+    };
+
+    defer test_allocator.free(message.header_hashes);
+
+    // Fill in the header_hashes
+    for (message.header_hashes) |*hash| {
+        for (hash) |*byte| {
+            byte.* = 0xab;
+        }
+    }
+
+    const writer = list.writer();
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
+    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
+    const reader = fbs.reader();
+
+    const received_message = try receiveMessage(test_allocator, reader);
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .Getblocks => |rm| try std.testing.expect(message.eql(&rm)),
+        else => unreachable,
+    }
+}
+
+test "ok_send_ping_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const PingMessage = protocol.messages.PingMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const message = PingMessage.new(21000000);
+
+    const writer = list.writer();
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
+    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
+    const reader = fbs.reader();
+
+    const received_message = try receiveMessage(test_allocator, reader);
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .Ping => |ping_message| try std.testing.expectEqual(message.nonce, ping_message.nonce),
+        else => unreachable,
+    }
+}
+
+>>>>>>> 6244a99fc80995b4d3995aca211fa3c2ae572604
 test "ok_send_merkleblock_message" {
     const Config = @import("../../config/config.zig").Config;
     const ArrayList = std.ArrayList;

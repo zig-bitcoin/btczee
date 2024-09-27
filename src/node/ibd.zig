@@ -2,18 +2,16 @@ const std = @import("std");
 const P2P = @import("../network/p2p.zig").P2P;
 const Block = @import("../types/block.zig").Block;
 const Transaction = @import("../types/transaction.zig").Transaction;
-const Logger = @import("../util/trace/log.zig").Logger;
 
 pub const IBD = struct {
     p2p: *P2P,
-    logger: Logger,
 
-    pub fn init(p2p: *P2P, logger: Logger) IBD {
+    pub fn init(p2p: *P2P) IBD {
         return .{
             .p2p = p2p,
-            .logger = logger,
         };
     }
+<<<<<<< HEAD
 
     pub fn start(self: *IBD) !void {
         self.logger.info("Starting Initial Block Download...");
@@ -59,4 +57,8 @@ pub const IBD = struct {
         std.time.sleep(std.time.ns_per_s * 3);
         self.logger.info("All blocks validated successfully.");
     }
+=======
+    
+    pub fn start(_: *IBD) !void {}
+>>>>>>> 6244a99fc80995b4d3995aca211fa3c2ae572604
 };
