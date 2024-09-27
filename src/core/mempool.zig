@@ -2,8 +2,6 @@ const std = @import("std");
 const Config = @import("../config/config.zig").Config;
 const tx = @import("../types/lib.zig");
 
-const Transaction = struct {};
-
 /// Transaction descriptor containing a transaction in the mempool along with additional metadata.
 const TxDesc = struct {
     tx: *tx.Transaction,

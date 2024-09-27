@@ -1,16 +1,13 @@
 const std = @import("std");
-const builtin = @import("builtin");
 const net = @import("net.zig");
 const ShredVersion = @import("../core/shred.zig").ShredVersion;
 const SocketAddr = @import("net.zig").SocketAddr;
 const Atomic = std.atomic.Value;
 const assert = std.debug.assert;
-const testing = std.testing;
 const bincode = @import("../bincode/bincode.zig");
 const httpz = @import("httpz");
 
 const MAX_PORT_COUNT_PER_MSG: usize = 4;
-const SERVER_LISTENER_LINGERING_TIMEOUT: u64 = std.time.ns_per_s * 1;
 const HEADER_LENGTH: usize = 4;
 
 const IpEchoServerMessage = struct {
