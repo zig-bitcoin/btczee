@@ -120,15 +120,12 @@ pub fn receiveMessage(
         protocol.messages.Message{ .ping = try protocol.messages.PingMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.PongMessage.name()))
         protocol.messages.Message{ .pong = try protocol.messages.PongMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.AddrMessage.name()))
+        protocol.messages.Message{ .addr = try protocol.messages.AddrMessage.deserializeReader(allocator, r) }
     else {
         try r.skipBytes(payload_len, .{}); // Purge the wire
         return error.UnknownMessage;
     };
-        protocol.messages.Message{ .Getaddr = try protocol.messages.GetaddrMessage.deserializeReader(allocator, r) }
-    else if (std.mem.eql(u8, &command, protocol.messages.AddrMessage.name()))
-        protocol.messages.Message{ .Addr = try protocol.messages.AddrMessage.deserializeReader(allocator, r) }
-    else
-        return error.InvalidCommand;
     errdefer message.deinit(allocator);
 
     if (!std.mem.eql(u8, &message.checksum(), &checksum)) {
@@ -188,11 +185,8 @@ test "ok_send_version_message" {
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
-        .Version => |rm| try std.testing.expect(message.eql(&rm)),
-        .Verack => unreachable,
-        .Mempool => unreachable,
-        .Getaddr => unreachable,
-        .Addr => unreachable,
+        .version => |rm| try std.testing.expect(message.eql(&rm)),
+        else => unreachable,
     }
 }
 
@@ -217,11 +211,8 @@ test "ok_send_verack_message" {
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
-        .Verack => {},
-        .Version => unreachable,
-        .Mempool => unreachable,
-        .Getaddr => unreachable,
-        .Addr => unreachable,
+        .verack => {},
+        else => unreachable,
     }
 }
 
@@ -257,86 +248,10 @@ test "ok_send_getblocks_message" {
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const GetblocksMessage = protocol.messages.GetblocksMessage;
-        .Mempool => {},
-        .Verack => unreachable,
-        .Version => unreachable,
-        .Getaddr => unreachable,
-        .Addr => unreachable,
-    }
-}
-
-//test "ok_send_addr_message" {
-//    const ArrayList = std.ArrayList;
-//    const test_allocator = std.testing.allocator;
-//    const AddrMessage = protocol.messages.AddrMessage;
-//    //const ServiceFlags = protocol.ServiceFlags;
-//
-//    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
-//    defer list.deinit();
-//
-//    // Create an ArrayList for NetworkIPAddr
-//    //var ips = ArrayList(NetworkIPAddr).init(test_allocator);
-//    //defer ips.deinit();
-//
-//    //try ips.append(
-//    //    NetworkIPAddr{
-//    //    .time = 42,
-//    //    .services = ServiceFlags.NODE_NETWORK,
-//    //    .ip = [_]u8{13} ** 16,
-//    //    .port = 33,
-//    //    
-//    //    });
-//    //const message = AddrMessage{
-//    //    //.ip_address_count = CompactSizeUint.new(1),
-//    //    .ip_addresses = ips,
-//    //};
-//    var message = AddrMessage.init(test_allocator);
-//    defer message.deinit();
-//
-//    try message.ip_addresses.append(NetworkIPAddr{
-//        .time = 1414012889,
-//        .services = 1,
-//        .ip = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 192, 0, 2, 51 },
-//        .port = 8333,
-//    //        .time = 42,
-//    //        .services = ServiceFlags.NODE_NETWORK,
-//    //        .ip = [_]u8{13} ** 16,
-//    //        .port = 33,
-//    });
-//
-//
-//    const writer = list.writer();
-//    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
-//    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
-//    const reader = fbs.reader();
-//
-//    const received_message = try receiveMessage(test_allocator, reader);
-//    defer received_message.deinit(test_allocator);
-//
-//    switch (received_message) {
-//        .Addr => |rm| try std.testing.expect(message.eql(&rm)),
-//        .Version => unreachable,
-//        .Verack => unreachable,
-//        .Mempool => unreachable,
-//        .Getaddr => unreachable,
-//    }
-//}
-
-test "ok_send_addr_message" {
-    const ArrayList = std.ArrayList;
-    const test_allocator = std.testing.allocator;
-    const AddrMessage = protocol.messages.AddrMessage;
-<<<<<<< HEAD
-//    const NetworkIPAddr = protocol.messages.NetworkIPAddr;
-    const ServiceFlags = protocol.ServiceFlags;
-=======
-    //const ServiceFlags = protocol.ServiceFlags;
->>>>>>> 352f310 (checksum error)
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
 
-<<<<<<< HEAD
     const message = GetblocksMessage{
         .version = 42,
         .header_hashes = try test_allocator.alloc([32]u8, 2),
@@ -416,19 +331,20 @@ test "ok_send_pong_message" {
     switch (received_message) {
         .pong => |pong_message| try std.testing.expectEqual(message.nonce, pong_message.nonce),
         else => unreachable,
-    var ips = [_]NetworkIPAddr{
-        NetworkIPAddr{
-        .time = 42,
-        .services = ServiceFlags.NODE_NETWORK,
-        .ip = [_]u8{13} ** 16,
-        .port = 33,
-        
-        }, 
-    };
-    const message = AddrMessage{
-        .ip_address_count = CompactSizeUint.new(1),
-        .ip_addresses = ips[0..],
-=======
+    }
+}
+
+test "ok_send_addr_message" {
+    const Config = @import("../../config/config.zig").Config;
+
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const AddrMessage = protocol.messages.AddrMessage;
+    //const ServiceFlags = protocol.ServiceFlags;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
     //var message = AddrMessage{
     //    .ip_addresses = try test_allocator.alloc(NetworkIPAddr, 1),
     //};
@@ -444,24 +360,37 @@ test "ok_send_pong_message" {
 
     var message = AddrMessage{
         .ip_addresses = ip_addresses,
->>>>>>> 352f310 (checksum error)
     };
 
-    const writer = list.writer();
-    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
-    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
-    const reader = fbs.reader();
-
-    const received_message = try receiveMessage(test_allocator, reader);
+    const received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
-        .Addr => |rm| try std.testing.expect(message.eql(&rm)),
-        .Version => unreachable,
-        .Verack => unreachable,
-        .Mempool => unreachable,
-        .Getaddr => unreachable,
+        .addr => |rm| try std.testing.expect(message.eql(&rm)),
+        else => unreachable,
     }
+
+//    const writer = list.writer();
+//    try sendMessage(test_allocator, writer, protocol.PROTOCOL_VERSION, protocol.BitcoinNetworkId.MAINNET, message);
+//    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
+//    const reader = fbs.reader();
+//
+//    const received_message = try receiveMessage(test_allocator, reader);
+//    defer received_message.deinit(test_allocator);
+//
+//    switch (received_message) {
+//        .Addr => |rm| try std.testing.expect(message.eql(&rm)),
+//        .Version => unreachable,
+//        .Verack => unreachable,
+//        .Mempool => unreachable,
+//        .Getaddr => unreachable,
+//    }
 }
 
 test "ko_receive_invalid_payload_length" {

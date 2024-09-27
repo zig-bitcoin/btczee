@@ -6,6 +6,7 @@ pub const GetaddrMessage = @import("getaddr.zig").GetaddrMessage;
 pub const GetblocksMessage = @import("getblocks.zig").GetblocksMessage;
 pub const PingMessage = @import("ping.zig").PingMessage;
 pub const PongMessage = @import("pong.zig").PongMessage;
+pub const AddrMessage = @import("addr.zig").AddrMessage;
 
 pub const MessageTypes = enum {
     version,
@@ -15,6 +16,7 @@ pub const MessageTypes = enum {
     getblocks,
     ping,
     pong,
+    addr,
 };
 
 pub const Message = union(MessageTypes) {
@@ -25,6 +27,7 @@ pub const Message = union(MessageTypes) {
     getblocks: GetblocksMessage,
     ping: PingMessage,
     pong: PongMessage,
+    addr: AddrMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -35,6 +38,7 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| @TypeOf(m).name(),
             .ping => |m| @TypeOf(m).name(),
             .pong => |m| @TypeOf(m).name(),
+            .addr => |m| @TypeOf(m).name(),
         };
     }
 
@@ -47,30 +51,7 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| m.deinit(allocator),
             .ping => {},
             .pong => {},
-pub const AddrMessage = @import("addr.zig").AddrMessage;
-
-pub const MessageTypes = enum {
-    Version,
-    Verack,
-    Mempool,
-    Getaddr,
-    Addr
-};
-
-pub const Message = union(MessageTypes) {
-    Version: VersionMessage,
-    Verack: VerackMessage,
-    Mempool: MempoolMessage,
-    Getaddr: GetaddrMessage,
-    Addr: AddrMessage,
-
-    pub fn deinit(self: Message, allocator: std.mem.Allocator) void {
-        switch (self) {
-            .Version => |m| m.deinit(allocator),
-            .Verack => {},
-            .Mempool => {},
-            .Getaddr => {},
-            .Addr => {},
+            .addr => |m| m.deinit(allocator),
         }
     }
     pub fn checksum(self: Message) [4]u8 {

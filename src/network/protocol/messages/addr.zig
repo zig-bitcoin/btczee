@@ -66,20 +66,13 @@ pub const AddrMessage = struct {
         //try CompactSizeUint.new(@intCast(self.ip_addresses.len)).encodeToWriter(w);
         try CompactSizeUint.new(self.ip_addresses.len).encodeToWriter(w);
 
-std.debug.print("Serailize ip addresses: {any}\n", .{self.ip_addresses});
-
         // Serialize each IP address
         for (self.ip_addresses) |*ip_address| {
             try w.writeInt(u32, ip_address.time, .little);
             try w.writeInt(u64, ip_address.services, .little);
         try w.writeAll(std.mem.asBytes(&ip_address.ip));
             try w.writeInt(u16, ip_address.port, .big);
-std.debug.print("Serailze Read time: {}\n", .{ip_address.time});
-std.debug.print("Serailze Read services: {}\n", .{ip_address.services});
-std.debug.print("Serailze Read IP: {any}\n", .{ip_address.ip});
-std.debug.print("Serailze Read port: {}\n", .{ip_address.port});
         }
-        std.debug.print("seerialize to writer: {any}\n", .{w});
     }
 
     /// Serialize a message as bytes and write them to the buffer.
@@ -111,32 +104,21 @@ std.debug.print("Serailze Read port: {}\n", .{ip_address.port});
             if (!std.meta.hasFn(@TypeOf(r), "readAll")) @compileError("Expects r to have fn 'readAll'.");
         }
 
-        std.debug.print("deserailize reader: {any}\n", .{r});
-
         var vm: AddrMessage = undefined;
         const ip_address_count = try CompactSizeUint.decodeReader(r);
 
         // Allocate space for IP addresses
         const ip_addresses = try allocator.alloc(NetworkIPAddr, ip_address_count.value());
-       // errdefer allocator.free(ip_addresses);
-        defer allocator.free(ip_addresses); // Ensure memory is freed on exit
 
         vm.ip_addresses = ip_addresses;
-        std.debug.print("ip_addresses: {any}\n", .{ip_addresses});
 
         for (vm.ip_addresses) |*ip_address| {
             ip_address.time = try r.readInt(u32, .little);
             ip_address.services = try r.readInt(u64, .little);
             try r.readNoEof(&ip_address.ip);
             ip_address.port = try r.readInt(u16, .big);
-
-std.debug.print("Read time: {}\n", .{ip_address.time});
-std.debug.print("Read services: {}\n", .{ip_address.services});
-std.debug.print("Read IP: {any}\n", .{ip_address.ip});
-std.debug.print("Read port: {}\n", .{ip_address.port});
         }
 
-std.debug.print("Deserialized AddrMessage: {any}\n", .{vm});
         return vm;
     }
 
