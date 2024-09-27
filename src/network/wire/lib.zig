@@ -13,7 +13,6 @@ const std = @import("std");
 const protocol = @import("../protocol/lib.zig");
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
-const MAX_SIZE: usize = 0x02000000; // 32 MB
 
 pub const Error = error{
     MessageTooLarge,
@@ -28,6 +27,16 @@ fn computePayloadChecksum(payload: []u8) [4]u8 {
     Sha256.hash(&digest, &digest, .{});
 
     return digest[0..4].*;
+}
+
+fn validateMessageSize(payload_len: usize) !void {
+    const MAX_SIZE: usize = 0x02000000; // 32 MB
+    const precomputed_total_size = 24; // network (4 bytes) + command (12 bytes) + payload size (4 bytes) + checksum (4 bytes)
+    const total_message_size = precomputed_total_size + payload_len;
+
+    if (total_message_size > MAX_SIZE) {
+        return error.InvalidPayloadLen;
+    }
 }
 
 /// Send a message through the wire.
@@ -54,13 +63,7 @@ pub fn sendMessage(allocator: std.mem.Allocator, w: anytype, protocol_version: i
 
     const payload_len: u32 = @intCast(payload.len);
 
-    // Calculate total message size
-    const precomputed_total_size = 24; // network (4 bytes) + command (12 bytes) + payload size (4 bytes) + checksum (4 bytes)
-    const total_message_size = precomputed_total_size + payload_len;
-
-    if (total_message_size > MAX_SIZE) {
-        return Error.MessageTooLarge;
-    }
+    try validateMessageSize(payload_len);
 
     try w.writeAll(&network_id);
     try w.writeAll(command);
@@ -69,7 +72,7 @@ pub fn sendMessage(allocator: std.mem.Allocator, w: anytype, protocol_version: i
     try w.writeAll(payload);
 }
 
-pub const ReceiveMessageError = error{ UnknownMessage, InvaliPayloadLen, InvalidChecksum, InvalidHandshake, InvalidNetwork };
+pub const ReceiveMessageError = error{ UnknownMessage, InvalidPayloadLen, InvalidChecksum, InvalidHandshake, InvalidNetwork };
 
 /// Read a message from the wire.
 ///
@@ -102,6 +105,8 @@ pub fn receiveMessage(
     const payload_len = try r.readInt(u32, .little);
     const checksum = try r.readBytesNoEof(4);
 
+    try validateMessageSize(payload_len);
+
     // Read payload
     const message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name()))
         protocol.messages.Message{ .version = try protocol.messages.VersionMessage.deserializeReader(allocator, r) }
@@ -129,7 +134,7 @@ pub fn receiveMessage(
         return error.InvalidChecksum;
     }
     if (message.hintSerializedLen() != payload_len) {
-        return error.InvaliPayloadLen;
+        return error.InvalidPayloadLen;
     }
 
     return message;
@@ -368,7 +373,7 @@ test "ko_receive_invalid_payload_length" {
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
-    try std.testing.expectError(error.InvaliPayloadLen, receiveMessage(test_allocator, reader, network_id));
+    try std.testing.expectError(error.InvalidPayloadLen, receiveMessage(test_allocator, reader, network_id));
 }
 
 test "ko_receive_invalid_checksum" {

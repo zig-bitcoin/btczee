@@ -122,6 +122,10 @@ pub const Peer = struct {
             switch (message) {
                 // We only received those during handshake, seeing them again is an error
                 .version, .verack => self.should_listen = false,
+                .feefilter => |feefilter_message| {
+                    std.log.info("Received feefilter message with feerate: {}", .{feefilter_message.feerate});
+                    // TODO: Implement logic to filter transactions based on the received feerate
+                },
                 // TODO: handle other messages correctly
                 else => |m| {
                     std.log.info("Peer {any} sent a `{s}` message", .{ self.address, m.name() });
