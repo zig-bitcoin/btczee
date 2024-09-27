@@ -6,9 +6,19 @@ pub const GetaddrMessage = @import("getaddr.zig").GetaddrMessage;
 pub const GetblocksMessage = @import("getblocks.zig").GetblocksMessage;
 pub const PingMessage = @import("ping.zig").PingMessage;
 pub const PongMessage = @import("pong.zig").PongMessage;
-pub const MerkleBlockMessage = @import("merkleblock.zig").MerkleBlockMessage;
+pub const FeeFilterMessage = @import("feefilter.zig").FeeFilterMessage;
 
-pub const MessageTypes = enum { version, verack, mempool, getaddr, getblocks, ping, pong, merkleblock };
+pub const MessageTypes = enum {
+    version,
+    verack,
+    mempool,
+    getaddr,
+    getblocks,
+    ping,
+    pong,
+    feefilter,
+    merkleblock
+};
 
 pub const Message = union(MessageTypes) {
     version: VersionMessage,
@@ -19,6 +29,7 @@ pub const Message = union(MessageTypes) {
     ping: PingMessage,
     pong: PongMessage,
     merkleblock: MerkleBlockMessage,
+    feefilter: FeeFilterMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -30,6 +41,7 @@ pub const Message = union(MessageTypes) {
             .ping => |m| @TypeOf(m).name(),
             .pong => |m| @TypeOf(m).name(),
             .merkleblock => |m| @TypeOf(m).name(),
+            .feefilter => |m| @TypeOf(m).name(),
         };
     }
 
@@ -43,6 +55,7 @@ pub const Message = union(MessageTypes) {
             .ping => {},
             .pong => {},
             .merkleblock => |m| m.deinit(allocator),
+            .feefilter => {},
         }
     }
     pub fn checksum(self: Message) [4]u8 {
@@ -55,6 +68,7 @@ pub const Message = union(MessageTypes) {
             .ping => |m| m.checksum(),
             .pong => |m| m.checksum(),
             .merkleblock => |m| m.checksum(),
+            .feefilter => |m| m.checksum(),
         };
     }
 
@@ -68,6 +82,7 @@ pub const Message = union(MessageTypes) {
             .ping => |m| m.hintSerializedLen(),
             .pong => |m| m.hintSerializedLen(),
             .merkleblock => |m| m.hintSerializedLen(),
+            .feefilter => |m| m.hintSerializedLen(),
         };
     }
 };
