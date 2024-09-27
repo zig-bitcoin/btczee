@@ -69,7 +69,7 @@ pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
         if (!std.meta.hasFn(@TypeOf(r), "readByte")) @compileError("Expects r to have fn 'readByte'.");
     }
 
-    var tx: Self = undefined;
+    var tx: Self = try Self.init(allocator);
 
     tx.version = try r.readInt(i32, .little);
 
