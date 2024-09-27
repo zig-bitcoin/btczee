@@ -12,8 +12,6 @@
 const std = @import("std");
 const protocol = @import("../protocol/lib.zig");
 
-const Stream = std.net.Stream;
-const io = std.io;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const MAX_SIZE: usize = 0x02000000; // 32 MB
 
@@ -72,39 +70,58 @@ pub fn sendMessage(allocator: std.mem.Allocator, w: anytype, protocol_version: i
     try w.writeAll(payload);
 }
 
-pub const ReceiveMessageError = error{ UnknownMessage, InvaliPayloadLen, InvalidChecksum, InvalidHandshake };
+pub const ReceiveMessageError = error{ UnknownMessage, InvaliPayloadLen, InvalidChecksum, InvalidHandshake, InvalidNetwork };
 
 /// Read a message from the wire.
 ///
 /// Will fail if the header content does not match the payload.
-pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messages.Message {
+pub fn receiveMessage(
+    allocator: std.mem.Allocator,
+    r: anytype,
+    our_network: [4]u8,
+) !?protocol.messages.Message {
     comptime {
         if (!std.meta.hasFn(@TypeOf(r), "readBytesNoEof")) @compileError("Expects r to have fn 'readBytesNoEof'.");
+        if (!std.meta.hasFn(@TypeOf(r), "readByte")) @compileError("Expects r to have fn 'readByte'.");
+        if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects r to have fn 'readNoEof'.");
     }
 
     // Read header
-    _ = try r.readBytesNoEof(4); // Network id
+    var network_id: [4]u8 = undefined;
+
+    network_id[0] = r.readByte() catch |e| switch (e) {
+        error.EndOfStream => return null,
+        else => return e,
+    };
+    try r.readNoEof(network_id[1..]);
+
+    if (!std.mem.eql(u8, &network_id, &our_network)) {
+        return error.InvalidNetwork;
+    }
+
     const command = try r.readBytesNoEof(12);
     const payload_len = try r.readInt(u32, .little);
     const checksum = try r.readBytesNoEof(4);
 
     // Read payload
     const message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name()))
-        protocol.messages.Message{ .Version = try protocol.messages.VersionMessage.deserializeReader(allocator, r) }
+        protocol.messages.Message{ .version = try protocol.messages.VersionMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.VerackMessage.name()))
-        protocol.messages.Message{ .Verack = try protocol.messages.VerackMessage.deserializeReader(allocator, r) }
+        protocol.messages.Message{ .verack = try protocol.messages.VerackMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.MempoolMessage.name()))
-        protocol.messages.Message{ .Mempool = try protocol.messages.MempoolMessage.deserializeReader(allocator, r) }
+        protocol.messages.Message{ .mempool = try protocol.messages.MempoolMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.GetaddrMessage.name()))
-        protocol.messages.Message{ .Getaddr = try protocol.messages.GetaddrMessage.deserializeReader(allocator, r) }
+        protocol.messages.Message{ .getaddr = try protocol.messages.GetaddrMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.GetblocksMessage.name()))
-        protocol.messages.Message{ .Getblocks = try protocol.messages.GetblocksMessage.deserializeReader(allocator, r) }
+        protocol.messages.Message{ .getblocks = try protocol.messages.GetblocksMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.PingMessage.name()))
-        protocol.messages.Message{ .Ping = try protocol.messages.PingMessage.deserializeReader(allocator, r) }
-    else if (std.mem.eql(u8, &command, protocol.messages.MerkleBlockMessage.name()))
-        protocol.messages.Message{ .MerkleBlock = try protocol.messages.MerkleBlockMessage.deserializeReader(allocator, r) }
-    else
+        protocol.messages.Message{ .ping = try protocol.messages.PingMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.PongMessage.name()))
+        protocol.messages.Message{ .pong = try protocol.messages.PongMessage.deserializeReader(allocator, r) }
+    else {
+        try r.skipBytes(payload_len, .{}); // Purge the wire
         return error.UnknownMessage;
+    };
     errdefer message.deinit(allocator);
 
     if (!std.mem.eql(u8, &message.checksum(), &checksum)) {
@@ -118,6 +135,15 @@ pub fn receiveMessage(allocator: std.mem.Allocator, r: anytype) !protocol.messag
 }
 
 // TESTS
+
+fn write_and_read_message(allocator: std.mem.Allocator, list: *std.ArrayList(u8), network_id: [4]u8, protocol_version: i32, message: anytype) !?protocol.messages.Message {
+    const writer = list.writer();
+    try sendMessage(allocator, writer, protocol_version, network_id, message);
+    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
+    const reader = fbs.reader();
+
+    return receiveMessage(allocator, reader, network_id);
+}
 
 test "ok_send_version_message" {
     const Config = @import("../../config/config.zig").Config;
@@ -145,17 +171,17 @@ test "ok_send_version_message" {
         .start_height = 1000,
         .relay = false,
     };
-
-    const writer = list.writer();
-    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
-    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
-    const reader = fbs.reader();
-
-    const received_message = try receiveMessage(test_allocator, reader);
+    const received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
-        .Version => |rm| try std.testing.expect(message.eql(&rm)),
+        .version => |rm| try std.testing.expect(message.eql(&rm)),
         else => unreachable,
     }
 }
@@ -171,16 +197,17 @@ test "ok_send_verack_message" {
 
     const message = VerackMessage{};
 
-    const writer = list.writer();
-    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
-    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
-    const reader = fbs.reader();
-
-    const received_message = try receiveMessage(test_allocator, reader);
+    const received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
-        .Verack => {},
+        .verack => {},
         else => unreachable,
     }
 }
@@ -196,16 +223,17 @@ test "ok_send_mempool_message" {
 
     const message = MempoolMessage{};
 
-    const writer = list.writer();
-    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
-    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
-    const reader = fbs.reader();
-
-    const received_message = try receiveMessage(test_allocator, reader);
+    const received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
-        .Mempool => {},
+        .mempool => {},
         else => unreachable,
     }
 }
@@ -235,16 +263,17 @@ test "ok_send_getblocks_message" {
         }
     }
 
-    const writer = list.writer();
-    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
-    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
-    const reader = fbs.reader();
-
-    const received_message = try receiveMessage(test_allocator, reader);
+    const received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
-        .Getblocks => |rm| try std.testing.expect(message.eql(&rm)),
+        .getblocks => |rm| try std.testing.expect(message.eql(&rm)),
         else => unreachable,
     }
 }
@@ -260,16 +289,17 @@ test "ok_send_ping_message" {
 
     const message = PingMessage.new(21000000);
 
-    const writer = list.writer();
-    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
-    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
-    const reader = fbs.reader();
-
-    const received_message = try receiveMessage(test_allocator, reader);
+    const received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
-        .Ping => |ping_message| try std.testing.expectEqual(message.nonce, ping_message.nonce),
+        .ping => |ping_message| try std.testing.expectEqual(message.nonce, ping_message.nonce),
         else => unreachable,
     }
 }
@@ -279,6 +309,11 @@ test "ok_send_merkleblock_message" {
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const MerkleBlockMessage = protocol.messages.MerkleBlockMessage;
+test "ok_send_pong_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const PongMessage = protocol.messages.PongMessage;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -313,6 +348,21 @@ test "ok_send_merkleblock_message" {
     try std.testing.expectEqualSlices(u8, received_message.MerkleBlock.flags, flags);
     try std.testing.expectEqual(received_message.MerkleBlock.transaction_count, transaction_count);
     try std.testing.expectEqualSlices([32]u8, received_message.MerkleBlock.hashes, hashes);
+    const message = PongMessage.new(21000000);
+
+    const received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .pong => |pong_message| try std.testing.expectEqual(message.nonce, pong_message.nonce),
+        else => unreachable,
+    }
 }
 
 test "ko_receive_invalid_payload_length" {
@@ -343,7 +393,8 @@ test "ko_receive_invalid_payload_length" {
     };
 
     const writer = list.writer();
-    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
+    const network_id = Config.BitcoinNetworkId.MAINNET;
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, network_id, message);
 
     // Corrupt header payload length
     @memset(list.items[16..20], 42);
@@ -351,7 +402,7 @@ test "ko_receive_invalid_payload_length" {
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
-    try std.testing.expectError(error.InvaliPayloadLen, receiveMessage(test_allocator, reader));
+    try std.testing.expectError(error.InvaliPayloadLen, receiveMessage(test_allocator, reader, network_id));
 }
 
 test "ko_receive_invalid_checksum" {
@@ -382,7 +433,8 @@ test "ko_receive_invalid_checksum" {
     };
 
     const writer = list.writer();
-    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
+    const network_id = Config.BitcoinNetworkId.MAINNET;
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, network_id, message);
 
     // Corrupt header checksum
     @memset(list.items[20..24], 42);
@@ -390,7 +442,7 @@ test "ko_receive_invalid_checksum" {
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
-    try std.testing.expectError(error.InvalidChecksum, receiveMessage(test_allocator, reader));
+    try std.testing.expectError(error.InvalidChecksum, receiveMessage(test_allocator, reader, network_id));
 }
 
 test "ko_receive_invalid_command" {
@@ -421,7 +473,8 @@ test "ko_receive_invalid_command" {
     };
 
     const writer = list.writer();
-    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
+    const network_id = Config.BitcoinNetworkId.MAINNET;
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, network_id, message);
 
     // Corrupt header command
     @memcpy(list.items[4..16], "whoissatoshi");
@@ -429,5 +482,5 @@ test "ko_receive_invalid_command" {
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
-    try std.testing.expectError(error.UnknownMessage, receiveMessage(test_allocator, reader));
+    try std.testing.expectError(error.UnknownMessage, receiveMessage(test_allocator, reader, network_id));
 }

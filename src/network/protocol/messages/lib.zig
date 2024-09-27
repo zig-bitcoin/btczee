@@ -5,59 +5,77 @@ pub const MempoolMessage = @import("mempool.zig").MempoolMessage;
 pub const GetaddrMessage = @import("getaddr.zig").GetaddrMessage;
 pub const GetblocksMessage = @import("getblocks.zig").GetblocksMessage;
 pub const PingMessage = @import("ping.zig").PingMessage;
+pub const PongMessage = @import("pong.zig").PongMessage;
 pub const MerkleBlockMessage = @import("merkleblock.zig").MerkleBlockMessage;
 
 pub const MessageTypes = enum {
-    Version,
-    Verack,
-    Mempool,
-    Getaddr,
-    Getblocks,
-    Ping,
-    MerkleBlock,
+    version,
+    verack,
+    mempool,
+    getaddr,
+    getblocks,
+    ping,
+    pong,
+    merkleblock
 };
 
 pub const Message = union(MessageTypes) {
-    Version: VersionMessage,
-    Verack: VerackMessage,
-    Mempool: MempoolMessage,
-    Getaddr: GetaddrMessage,
-    Getblocks: GetblocksMessage,
-    Ping: PingMessage,
-    MerkleBlock: MerkleBlockMessage,
+    version: VersionMessage,
+    verack: VerackMessage,
+    mempool: MempoolMessage,
+    getaddr: GetaddrMessage,
+    getblocks: GetblocksMessage,
+    ping: PingMessage,
+    pong: PongMessage,
+    merkleblock: MerkleBlockMessage,
+
+    pub fn name(self: Message) *const [12]u8 {
+        return switch (self) {
+            .version => |m| @TypeOf(m).name(),
+            .verack => |m| @TypeOf(m).name(),
+            .mempool => |m| @TypeOf(m).name(),
+            .getaddr => |m| @TypeOf(m).name(),
+            .getblocks => |m| @TypeOf(m).name(),
+            .ping => |m| @TypeOf(m).name(),
+            .pong => |m| @TypeOf(m).name(),
+        };
+    }
 
     pub fn deinit(self: Message, allocator: std.mem.Allocator) void {
         switch (self) {
-            .Version => |m| m.deinit(allocator),
-            .Verack => {},
-            .Mempool => {},
-            .Getaddr => {},
-            .Getblocks => |m| m.deinit(allocator),
-            .Ping => {},
-            .MerkleBlock => |m| m.deinit(allocator),
+            .version => |m| m.deinit(allocator),
+            .verack => {},
+            .mempool => {},
+            .getaddr => {},
+            .getblocks => |m| m.deinit(allocator),
+            .ping => {},
+            .pong => {},
+            .merkleblock => |m| m.deinit(allocator),
         }
     }
     pub fn checksum(self: Message) [4]u8 {
         return switch (self) {
-            .Version => |m| m.checksum(),
-            .Verack => |m| m.checksum(),
-            .Mempool => |m| m.checksum(),
-            .Getaddr => |m| m.checksum(),
-            .Getblocks => |m| m.checksum(),
-            .Ping => |m| m.checksum(),
-            .MerkleBlock => |m| m.checksum(),
+            .version => |m| m.checksum(),
+            .verack => |m| m.checksum(),
+            .mempool => |m| m.checksum(),
+            .getaddr => |m| m.checksum(),
+            .getblocks => |m| m.checksum(),
+            .ping => |m| m.checksum(),
+            .pong => |m| m.checksum(),
+            .merkleblock => |m| m.checksum(),
         };
     }
 
     pub fn hintSerializedLen(self: Message) usize {
         return switch (self) {
-            .Version => |m| m.hintSerializedLen(),
-            .Verack => |m| m.hintSerializedLen(),
-            .Mempool => |m| m.hintSerializedLen(),
-            .Getaddr => |m| m.hintSerializedLen(),
-            .Getblocks => |m| m.hintSerializedLen(),
-            .Ping => |m| m.hintSerializedLen(),
-            .MerkleBlock => |m| m.hintSerializedLen(),
+            .version => |m| m.hintSerializedLen(),
+            .verack => |m| m.hintSerializedLen(),
+            .mempool => |m| m.hintSerializedLen(),
+            .getaddr => |m| m.hintSerializedLen(),
+            .getblocks => |m| m.hintSerializedLen(),
+            .ping => |m| m.hintSerializedLen(),
+            .pong => |m| m.hintSerializedLen(),
+            .merkleblock => |m| m.hintSerializedLen(),
         };
     }
 }
