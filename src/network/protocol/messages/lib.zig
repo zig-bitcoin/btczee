@@ -66,7 +66,7 @@ pub const Message = union(MessageTypes) {
             .sendcmpct => {},
             .feefilter => {},
             .filterclear => {},
-            .reply => |m| m.deinit(allocator),
+            .reply => {},
         }
     }
 

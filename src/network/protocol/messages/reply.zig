@@ -67,12 +67,14 @@ test "ok_fullflow_reply_message" {
     const allocator = std.testing.allocator;
 
     const reply_text = "This is a reply message";
-    const msg = ReplyMessage{ .reply = reply_text };
+    var msg = ReplyMessage{ .reply = try allocator.dupe(u8, reply_text) };
+    defer msg.deinit(allocator);
 
     const payload = try msg.serialize(allocator);
     defer allocator.free(payload);
 
-    const deserialized_msg = try ReplyMessage.deserializeReader(allocator, std.io.fixedBufferStream(payload).reader());
+    var fbs = std.io.fixedBufferStream(payload);
+    var deserialized_msg = try ReplyMessage.deserializeReader(allocator, fbs.reader());
     defer deserialized_msg.deinit(allocator);
 
     try std.testing.expectEqualStrings(reply_text, deserialized_msg.reply);
