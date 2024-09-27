@@ -12,10 +12,6 @@ pub const SendCmpctMessage = struct {
     announce: bool,
     version: u64,
 
-    pub const Error = error{
-        InvalidAnnounceValue,
-    };
-
     pub fn name() *const [12]u8 {
         return protocol.CommandNames.SENDCMPCT ++ [_]u8{0} ** 3;
     }
@@ -68,12 +64,7 @@ pub const SendCmpctMessage = struct {
         // Read announce (1 byte)
         const announce_byte = try r.readByte();
 
-        // Validate announce (must be 0x00 or 0x01)
-        if (announce_byte != 0x00 and announce_byte != 0x01) {
-            return SendCmpctMessage.Error.InvalidAnnounceValue;
-        }
-
-        msg.announce = announce_byte == 0x01;
+        msg.announce = announce_byte != 0x00;
 
         // Read version (8 bytes, little-endian)
         msg.version = try r.readInt(u64, .little);
