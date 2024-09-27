@@ -8,6 +8,8 @@ pub const PingMessage = @import("ping.zig").PingMessage;
 pub const PongMessage = @import("pong.zig").PongMessage;
 pub const FeeFilterMessage = @import("feefilter.zig").FeeFilterMessage;
 pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
+pub const FilterClearMessage = @import("filterclear.zig").FilterClearMessage;
+
 pub const MessageTypes = enum {
     version,
     verack,
@@ -18,6 +20,7 @@ pub const MessageTypes = enum {
     pong,
     sendcmpct,
     feefilter,
+    filterclear,
 };
 
 pub const Message = union(MessageTypes) {
@@ -30,6 +33,7 @@ pub const Message = union(MessageTypes) {
     pong: PongMessage,
     sendcmpct: SendCmpctMessage,
     feefilter: FeeFilterMessage,
+    filterclear: FilterClearMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -42,6 +46,7 @@ pub const Message = union(MessageTypes) {
             .pong => |m| @TypeOf(m).name(),
             .sendcmpct => |m| @TypeOf(m).name(),
             .feefilter => |m| @TypeOf(m).name(),
+            .filterclear => |m| @TypeOf(m).name(),
         };
     }
 
@@ -56,8 +61,10 @@ pub const Message = union(MessageTypes) {
             .pong => {},
             .sendcmpct => {},
             .feefilter => {},
+            .filterclear => {},
         }
     }
+
     pub fn checksum(self: Message) [4]u8 {
         return switch (self) {
             .version => |m| m.checksum(),
@@ -69,6 +76,7 @@ pub const Message = union(MessageTypes) {
             .pong => |m| m.checksum(),
             .sendcmpct => |m| m.checksum(),
             .feefilter => |m| m.checksum(),
+            .filterclear => |m| m.checksum(),
         };
     }
 
@@ -83,6 +91,7 @@ pub const Message = union(MessageTypes) {
             .pong => |m| m.hintSerializedLen(),
             .sendcmpct => |m| m.hintSerializedLen(),
             .feefilter => |m| m.hintSerializedLen(),
+            .filterclear => |m| m.hintSerializedLen(),
         };
     }
 };
