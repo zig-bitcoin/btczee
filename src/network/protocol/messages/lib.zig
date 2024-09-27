@@ -28,7 +28,7 @@ pub const Message = union(MessageTypes) {
 
     pub fn deinit(self: *Message, allocator: std.mem.Allocator) void {
         switch (self.*) {
-            .Version => |m| m.deinit(allocator),
+            .Version => |*m| m.deinit(allocator),
             .Verack => {},
             .Mempool => {},
             .Getaddr => {},
@@ -38,27 +38,27 @@ pub const Message = union(MessageTypes) {
         }
     }
 
-    pub fn checksum(self: Message) [4]u8 {
-        return switch (self) {
-            .Version => |m| m.checksum(),
-            .Verack => |m| m.checksum(),
-            .Mempool => |m| m.checksum(),
-            .Getaddr => |m| m.checksum(),
-            .Block => |m| m.checksum(),
-            .Getblocks => |m| m.checksum(),
-            .Ping => |m| m.checksum(),
+    pub fn checksum(self: *Message) [4]u8 {
+        return switch (self.*) {
+            .Version => |*m| m.checksum(),
+            .Verack => |*m| m.checksum(),
+            .Mempool => |*m| m.checksum(),
+            .Getaddr => |*m| m.checksum(),
+            .Block => |*m| m.checksum(),
+            .Getblocks => |*m| m.checksum(),
+            .Ping => |*m| m.checksum(),
         };
     }
 
-    pub fn hintSerializedLen(self: Message) usize {
-        return switch (self) {
-            .Version => |m| m.hintSerializedLen(),
-            .Verack => |m| m.hintSerializedLen(),
-            .Mempool => |m| m.hintSerializedLen(),
-            .Getaddr => |m| m.hintSerializedLen(),
-            .Block => |m| m.hintSerializedLen(),
-            .Getblocks => |m| m.hintSerializedLen(),
-            .Ping => |m| m.hintSerializedLen(),
+    pub fn hintSerializedLen(self: *Message) usize {
+        return switch (self.*) {
+            .Version => |*m| m.hintSerializedLen(),
+            .Verack => |*m| m.hintSerializedLen(),
+            .Mempool => |*m| m.hintSerializedLen(),
+            .Getaddr => |*m| m.hintSerializedLen(),
+            .Block => |*m| m.hintSerializedLen(),
+            .Getblocks => |*m| m.hintSerializedLen(),
+            .Ping => |*m| m.hintSerializedLen(),
         };
     }
 };
