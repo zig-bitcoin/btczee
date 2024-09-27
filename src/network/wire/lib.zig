@@ -311,57 +311,65 @@ test "ok_send_ping_message" {
     }
 }
 
-// test "ok_send_merkleblock_message" {
-//     const Config = @import("../../config/config.zig").Config;
-//     const ArrayList = std.ArrayList;
-//     const test_allocator = std.testing.allocator;
-//     const MerkleBlockMessage = protocol.messages.MerkleBlockMessage;
-//     const network_id = Config.BitcoinNetworkId.MAINNET;
+test "ok_send_merkleblock_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const MerkleBlockMessage = protocol.messages.MerkleBlockMessage;
+    const network_id = Config.BitcoinNetworkId.MAINNET;
 
-//     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
-//     defer list.deinit();
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
 
-//     const block_header = BlockHeader{
-//         .version = 1,
-//         .prev_block = [_]u8{0} ** 32,
-//         .merkle_root = [_]u8{1} ** 32,
-//         .timestamp = 1234567890,
-//         .bits = 0x1d00ffff,
-//         .nonce = 987654321,
-//     };
-//     const hashes = try test_allocator.alloc([32]u8, 2);
+    const block_header = BlockHeader{
+        .version = 1,
+        .prev_block = [_]u8{0} ** 32,
+        .merkle_root = [_]u8{1} ** 32,
+        .timestamp = 1234567890,
+        .bits = 0x1d00ffff,
+        .nonce = 987654321,
+    };
+    const hashes = try test_allocator.alloc([32]u8, 3);
 
-//     const flags = try test_allocator.alloc(u8, 1);
-//     const transaction_count = 1;
-//     const message = MerkleBlockMessage.new(block_header, transaction_count, hashes, flags);
+    const flags = try test_allocator.alloc(u8, 1);
+    const transaction_count = 1;
+    const message = MerkleBlockMessage.new(block_header, transaction_count, hashes, flags);
 
-//     defer test_allocator.free(message.hashes);
+    defer test_allocator.free(hashes);
+    defer test_allocator.free(flags);
+    // Fill in the header_hashes
+    for (message.hashes) |*hash| {
+        for (hash) |*byte| {
+            byte.* = 0xab;
+        }
+    }
+    for (flags) |*f| {
+        f.* = 0x1;
+    }
+    const serialized = try message.serialize(test_allocator);
+    defer test_allocator.free(serialized);
 
-//     // Fill in the header_hashes
-//     for (message.hashes) |*hash| {
-//         for (hash) |*byte| {
-//             byte.* = 0xab;
-//         }
-//     }
+    const deserialized = try MerkleBlockMessage.deserializeSlice(test_allocator, serialized);
+    defer deserialized.deinit(test_allocator);
 
-//     const writer = list.writer();
-//     try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
-//     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
-//     const reader = fbs.reader();
+    const writer = list.writer();
+    try sendMessage(test_allocator, writer, Config.PROTOCOL_VERSION, Config.BitcoinNetworkId.MAINNET, message);
+    var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
+    const reader = fbs.reader();
 
-//     const received_message = try receiveMessage(test_allocator, reader, network_id) orelse unreachable;
-//     defer received_message.deinit(test_allocator);
+    const received_message = try receiveMessage(test_allocator, reader, network_id) orelse unreachable;
+    defer received_message.deinit(test_allocator);
 
-//     switch (received_message) {
-//         .merkleblock => {},
-//         else => unreachable,
-//     }
+    switch (received_message) {
+        .merkleblock => {},
+        else => unreachable,
+    }
 
-//     try std.testing.expectEqual(received_message.hintSerializedLen(), 119);
-//     try std.testing.expectEqualSlices(u8, received_message.merkleblock.flags, flags);
-//     try std.testing.expectEqual(received_message.merkleblock.transaction_count, transaction_count);
-//     try std.testing.expectEqualSlices([32]u8, received_message.merkleblock.hashes, hashes);
-// }
+    try std.testing.expectEqual(received_message.hintSerializedLen(), 183);
+    try std.testing.expectEqualSlices(u8, received_message.merkleblock.flags, flags);
+    try std.testing.expectEqual(received_message.merkleblock.transaction_count, transaction_count);
+    try std.testing.expectEqualSlices([32]u8, received_message.merkleblock.hashes, hashes);
+}
 
 test "ok_send_pong_message" {
     const Config = @import("../../config/config.zig").Config;
