@@ -1,12 +1,13 @@
 const std = @import("std");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
+const message = @import("./lib.zig");
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const protocol = @import("../lib.zig");
 
 pub const GetdataMessage = struct {
-    inventory: []const InventoryItem,
+    inventory: []const message.InventoryItem,
 
 
     pub inline fn name() *const [12]u8 {
@@ -94,7 +95,7 @@ pub const GetdataMessage = struct {
         const compact_count = try CompactSizeUint.decodeReader(r);
         const count = compact_count.value();
 
-        const inventory = try allocator.alloc(GetdataMessage.InventoryItem, count);
+        const inventory = try allocator.alloc(message.InventoryItem, count);
 
         for (inventory) |*item| {
             item.type = try r.readInt(u32, .little);
@@ -117,8 +118,13 @@ pub const GetdataMessage = struct {
     pub fn eql(self: *const GetdataMessage, other: *const GetdataMessage) bool {
         if (self.inventory.len != other.inventory.len) return false;
 
-        if(!std.mem.eql(Inventory, self.inventory, other.inventory)) {
-            return false;
+        for (0..self.inventory.len) |i| {
+            if (self.inventory[i].type != other.inventory[i].type) {
+                return false;
+            }
+            if (!std.mem.eql(u8, &self.inventory[i].hash, &other.inventory[i].hash)) {
+                return false;
+            }
         }
 
         return true;
@@ -133,7 +139,7 @@ test "ok_full_flow_GetdataMessage" {
 
     // With some inventory items
     {
-        const inventory_items = [_]GetdataMessage.InventoryItem{
+        const inventory_items = [_]message.InventoryItem{
             .{ .type = 1, .hash = [_]u8{0xab} ** 32 },
             .{ .type = 2, .hash = [_]u8{0xcd} ** 32 },
             .{ .type = 2, .hash = [_]u8{0xef} ** 32 },
