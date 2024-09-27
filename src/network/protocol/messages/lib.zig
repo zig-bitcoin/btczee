@@ -6,6 +6,7 @@ pub const GetaddrMessage = @import("getaddr.zig").GetaddrMessage;
 pub const GetblocksMessage = @import("getblocks.zig").GetblocksMessage;
 pub const PingMessage = @import("ping.zig").PingMessage;
 pub const PongMessage = @import("pong.zig").PongMessage;
+pub const MerkleBlockMessage = @import("merkleblock.zig").MerkleBlockMessage;
 pub const FeeFilterMessage = @import("feefilter.zig").FeeFilterMessage;
 
 pub const MessageTypes = enum {
@@ -16,8 +17,8 @@ pub const MessageTypes = enum {
     getblocks,
     ping,
     pong,
+    merkleblock,
     feefilter,
-    merkleblock
 };
 
 pub const Message = union(MessageTypes) {
