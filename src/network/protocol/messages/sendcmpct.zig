@@ -14,7 +14,6 @@ pub const SendCmpctMessage = struct {
 
     pub const Error = error{
         InvalidAnnounceValue,
-        InvalidVersionValue,
     };
 
     pub fn name() *const [12]u8 {
@@ -77,16 +76,11 @@ pub const SendCmpctMessage = struct {
         // Read version (8 bytes, little-endian)
         msg.version = try r.readInt(u64, .little);
 
-        // Validate version (should be 1 as per spec)
-        if (msg.version != 1) {
-            return SendCmpctMessage.Error.InvalidVersionValue;
-        }
-
         return msg;
     }
     pub fn hintSerializedLen(self: *const SendCmpctMessage) usize {
         _ = self;
-        return 1 + 16;
+        return 1 + 8;
     }
     // Equality check
     pub fn eql(self: *const SendCmpctMessage, other: *const SendCmpctMessage) bool {
@@ -99,7 +93,7 @@ test "ok_full_flow_SendCmpctMessage" {
     const allocator = std.testing.allocator;
 
     const msg = SendCmpctMessage{
-        .announce = 0x01,
+        .announce = true,
         .version = 1,
     };
     defer allocator.free(msg);

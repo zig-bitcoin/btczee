@@ -480,10 +480,7 @@ test "ok_send_sendcmpct_message" {
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
-        .sendcmpct => |sendcmpct_message| {
-            try std.testing.expectEqual(message.announce, sendcmpct_message.announce);
-            try std.testing.expectEqual(message.version, sendcmpct_message.version);
-        },
+        .sendcmpct => |sendcmpct_message| try std.testing.expect(message.eql(&sendcmpct_message)),
         else => unreachable,
     }
 }

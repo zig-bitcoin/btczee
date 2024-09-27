@@ -7,7 +7,7 @@ pub const GetblocksMessage = @import("getblocks.zig").GetblocksMessage;
 pub const PingMessage = @import("ping.zig").PingMessage;
 pub const PongMessage = @import("pong.zig").PongMessage;
 pub const FeeFilterMessage = @import("feefilter.zig").FeeFilterMessage;
-
+pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
 pub const MessageTypes = enum {
     version,
     verack,
