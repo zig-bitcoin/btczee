@@ -85,7 +85,7 @@ pub const MerkleBlockMessage = struct {
         message.transaction_count = try r.readInt(u32, .little);
         try r.readNoEof(message.hashes);
         try r.readNoEof(message.flags);
-        return mb;
+        return message;
     }
 
     /// Deserialize bytes into a `MerkleBlockMessage`
