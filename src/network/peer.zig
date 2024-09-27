@@ -127,8 +127,16 @@ pub const Peer = struct {
                     // TODO: Implement logic to filter transactions based on the received feerate
                 },
                 .submitorder => |submitorder_message| {
-                    std.log.info("Received submitorder message with placeholder: {}", .{submitorder_message.placeholder});
-                    // TODO: Implement logic to handle the submitorder message
+                    std.log.info("Received deprecated submitorder message - Version: {}, Order ID: {}, Item Type: {s}, Item Amount: {}, Payment Type: {s}, Payment Amount: {}, Expiration: {}", .{
+                        submitorder_message.version,
+                        std.fmt.fmtSliceHexLower(&submitorder_message.order_id),
+                        std.mem.trimRight(u8, &submitorder_message.item_type, &[_]u8{0}),
+                        submitorder_message.item_amount,
+                        std.mem.trimRight(u8, &submitorder_message.payment_type, &[_]u8{0}),
+                        submitorder_message.payment_amount,
+                        submitorder_message.expiration_time,
+                    });
+                    // No further action taken for this deprecated message type
                 },
                 // TODO: handle other messages correctly
                 else => |m| {

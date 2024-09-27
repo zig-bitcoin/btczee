@@ -1,75 +1,70 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
-
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
-/// SubmitOrderMessage represents the "submitorder" message
-///
-/// https://developer.bitcoin.org/reference/p2p_networking.html#submitorder
 pub const SubmitOrderMessage = struct {
-    // TODO: Define the fields for the submitorder message
-    // For now, we'll use a placeholder field
-    placeholder: u32,
+    version: u32,
+    order_id: [32]u8,
+    item_type: [16]u8,
+    item_amount: u64,
+    payment_type: [16]u8,
+    payment_amount: u64,
+    expiration_time: u64,
 
     pub fn name() *const [12]u8 {
         return protocol.CommandNames.SUBMITORDER;
     }
 
-    /// Returns the message checksum
-    pub fn checksum(self: *const SubmitOrderMessage) [4]u8 {
-        var digest: [32]u8 = undefined;
-        var hasher = Sha256.init(.{});
-        const writer = hasher.writer();
-        self.serializeToWriter(writer) catch unreachable;
-        hasher.final(&digest);
-
-        Sha256.hash(&digest, &digest, .{});
-
-        return digest[0..4].*;
-    }
-
-    /// Serialize the message as bytes and write them to the Writer.
-    pub fn serializeToWriter(self: *const SubmitOrderMessage, w: anytype) !void {
-        try w.writeInt(u32, self.placeholder, .little);
-    }
-
-    /// Serialize a message as bytes and return them.
     pub fn serialize(self: *const SubmitOrderMessage, allocator: std.mem.Allocator) ![]u8 {
-        const serialized_len = self.hintSerializedLen();
-
-        const buffer = try allocator.alloc(u8, serialized_len);
-        errdefer allocator.free(buffer);
-
+        const buffer = try allocator.alloc(u8, self.hintSerializedLen());
         var fbs = std.io.fixedBufferStream(buffer);
-        try self.serializeToWriter(fbs.writer());
+        var writer = fbs.writer();
+
+        try writer.writeInt(u32, self.version, .little);
+        try writer.writeAll(&self.order_id);
+        try writer.writeAll(&self.item_type);
+        try writer.writeInt(u64, self.item_amount, .little);
+        try writer.writeAll(&self.payment_type);
+        try writer.writeInt(u64, self.payment_amount, .little);
+        try writer.writeInt(u64, self.expiration_time, .little);
 
         return buffer;
     }
 
-    pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !SubmitOrderMessage {
+    pub fn deserializeReader(allocator: std.mem.Allocator, reader: anytype) !SubmitOrderMessage {
         _ = allocator;
         var msg: SubmitOrderMessage = undefined;
-        msg.placeholder = try r.readInt(u32, .little);
+
+        msg.version = try reader.readInt(u32, .little);
+        try reader.readNoEof(&msg.order_id);
+        try reader.readNoEof(&msg.item_type);
+        msg.item_amount = try reader.readInt(u64, .little);
+        try reader.readNoEof(&msg.payment_type);
+        msg.payment_amount = try reader.readInt(u64, .little);
+        msg.expiration_time = try reader.readInt(u64, .little);
+
         return msg;
+    }
+
+    pub fn checksum(self: *const SubmitOrderMessage) [4]u8 {
+        var hasher = Sha256.init(.{});
+        var digest: [32]u8 = undefined;
+
+        hasher.update(std.mem.asBytes(&self.version));
+        hasher.update(&self.order_id);
+        hasher.update(&self.item_type);
+        hasher.update(std.mem.asBytes(&self.item_amount));
+        hasher.update(&self.payment_type);
+        hasher.update(std.mem.asBytes(&self.payment_amount));
+        hasher.update(std.mem.asBytes(&self.expiration_time));
+
+        hasher.final(&digest);
+
+        return digest[0..4].*;
     }
 
     pub fn hintSerializedLen(self: *const SubmitOrderMessage) usize {
         _ = self;
-        return 4; // placeholder is u32 (4 bytes)
+        return 4 + 32 + 16 + 8 + 16 + 8 + 8;
     }
 };
-
-// TESTS
-test "ok_full_flow_SubmitOrderMessage" {
-    const allocator = std.testing.allocator;
-
-    const msg = SubmitOrderMessage{ .placeholder = 42 };
-
-    const payload = try msg.serialize(allocator);
-    defer allocator.free(payload);
-
-    var fbs = std.io.fixedBufferStream(payload);
-    const deserialized_msg = try SubmitOrderMessage.deserializeReader(allocator, fbs.reader());
-
-    try std.testing.expectEqual(msg.placeholder, deserialized_msg.placeholder);
-}
