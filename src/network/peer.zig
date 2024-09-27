@@ -126,6 +126,10 @@ pub const Peer = struct {
                     std.log.info("Received feefilter message with feerate: {}", .{feefilter_message.feerate});
                     // TODO: Implement logic to filter transactions based on the received feerate
                 },
+                .submitorder => |submitorder_message| {
+                    std.log.info("Received submitorder message with placeholder: {}", .{submitorder_message.placeholder});
+                    // TODO: Implement logic to handle the submitorder message
+                },
                 // TODO: handle other messages correctly
                 else => |m| {
                     std.log.info("Peer {any} sent a `{s}` message", .{ self.address, m.name() });
