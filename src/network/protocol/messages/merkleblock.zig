@@ -140,8 +140,7 @@ test "MerkleBlockMessage serialization and deserialization" {
     const transaction_count = 1;
     const msg = MerkleBlockMessage.new(block_header, transaction_count, hashes, flags);
 
-    defer test_allocator.free(msg.hashes);
-    defer test_allocator.free(flags);
+    defer msg.deinit();
 
     // Fill in the header_hashes
     for (msg.hashes) |*hash| {
@@ -150,9 +149,8 @@ test "MerkleBlockMessage serialization and deserialization" {
         }
     }
 
-    for (flags) |*f| {
-        f.* = 0x1;
-    }
+    flags[0] = 0x1;
+
     const serialized = try msg.serialize(test_allocator);
     defer test_allocator.free(serialized);
 
