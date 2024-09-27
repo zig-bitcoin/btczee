@@ -9,6 +9,7 @@ pub const PongMessage = @import("pong.zig").PongMessage;
 pub const FeeFilterMessage = @import("feefilter.zig").FeeFilterMessage;
 pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
 pub const FilterClearMessage = @import("filterclear.zig").FilterClearMessage;
+pub const NotFoundMessage = @import("notfound.zig").NotFoundMessage;
 
 pub const MessageTypes = enum {
     version,
@@ -21,6 +22,7 @@ pub const MessageTypes = enum {
     sendcmpct,
     feefilter,
     filterclear,
+    notfound,
 };
 
 pub const Message = union(MessageTypes) {
@@ -34,6 +36,7 @@ pub const Message = union(MessageTypes) {
     sendcmpct: SendCmpctMessage,
     feefilter: FeeFilterMessage,
     filterclear: FilterClearMessage,
+    notfound: NotFoundMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -47,6 +50,7 @@ pub const Message = union(MessageTypes) {
             .sendcmpct => |m| @TypeOf(m).name(),
             .feefilter => |m| @TypeOf(m).name(),
             .filterclear => |m| @TypeOf(m).name(),
+            .notfound => |m| @TypeOf(m).name(),
         };
     }
 
@@ -62,6 +66,7 @@ pub const Message = union(MessageTypes) {
             .sendcmpct => {},
             .feefilter => {},
             .filterclear => {},
+            .notfound => {},
         }
     }
 
@@ -77,6 +82,7 @@ pub const Message = union(MessageTypes) {
             .sendcmpct => |m| m.checksum(),
             .feefilter => |m| m.checksum(),
             .filterclear => |m| m.checksum(),
+            .notfound => |m| m.checksum(),
         };
     }
 
@@ -92,6 +98,7 @@ pub const Message = union(MessageTypes) {
             .sendcmpct => |m| m.hintSerializedLen(),
             .feefilter => |m| m.hintSerializedLen(),
             .filterclear => |m| m.hintSerializedLen(),
+            .notfound => |m| m.hintSerializedLen(),
         };
     }
 };

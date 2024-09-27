@@ -126,6 +126,10 @@ pub fn receiveMessage(
         protocol.messages.Message{ .sendcmpct = try protocol.messages.SendCmpctMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.FilterClearMessage.name()))
         protocol.messages.Message{ .filterclear = try protocol.messages.FilterClearMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.NotFoundMessage.name()))
+        protocol.messages.Message{ .notfound = try protocol.messages.NotFoundMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.FeeFilterMessage.name()))
+        protocol.messages.Message{ .feefilter = try protocol.messages.FeeFilterMessage.deserializeReader(allocator, r) }
     else {
         try r.skipBytes(payload_len, .{}); // Purge the wire
         return error.UnknownMessage;
