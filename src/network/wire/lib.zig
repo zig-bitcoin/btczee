@@ -345,9 +345,6 @@ test "ok_send_addr_message" {
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
 
-    //var message = AddrMessage{
-    //    .ip_addresses = try test_allocator.alloc(NetworkIPAddr, 1),
-    //};
     const ip_addresses = try test_allocator.alloc(NetworkIPAddr, 1);
     defer test_allocator.free(ip_addresses);
 

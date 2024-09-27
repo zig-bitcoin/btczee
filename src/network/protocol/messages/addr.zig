@@ -149,65 +149,32 @@ pub const AddrMessage = struct {
 };
 
 // TESTS
+test "ok_full_flow_AddrMessage" {
+    const test_allocator = std.testing.allocator;
+    {
+  const ip_addresses = try test_allocator.alloc(NetworkIPAddr, 1);
+  defer test_allocator.free(ip_addresses);
 
-//reworked
-//test "ok_full_flow_AddrMessage" {
-//    const test_allocator = std.testing.allocator;
-//    const AddrMessage = protocol.messages.AddrMessage;
-//    {
-//        const ips = [_]NetworkIPAddr{
-//        .time = 1414012889,
-//        .services = 1,
-//        .ip = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 192, 0, 2, 51 },
-//        .port = 8333,
-//        };
-//
-//        const am = AddrMessage{
-//            .ip_addresses = ips[0..],
-//        };
-//
-//        // Serialize
-//        const payload = try am.serialize(allocator);
-//        defer allocator.free(payload);
-//
-//        // Deserialize
-//        const deserialized_am = try AddrMessage.deserializeSlice(allocator, payload);
-//
-//        // Test equality
-//        try std.testing.expect(am.eql(&deserialized_am));
-//
-//        // Free allocated memory for deserialized inventory
-//        defer allocator.free(deserialized_am.inventory);
-//    }
-//}
+  ip_addresses[0] = NetworkIPAddr{
+      .time = 1414012889,
+      .services = 1,
+      .ip = [16]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0, 2, 51 },
+      .port = 8080,
+  };
+        const am = AddrMessage{
+            .ip_addresses = ip_addresses[0..],
+        };
 
-//test "ok_full_flow_AddrMessage" {
-//    const allocator = std.testing.allocator;
-//
-//    {
-//    const ips = [_]NetworkIPAddr{
-//        NetworkIPAddr{
-//        .time = 1414012889,
-//        .services = ServiceFlags.NODE_NETWORK,
-//        .ip = [_]u8{13} ** 16,
-//        .port = 33,
-//        
-//        }, 
-//    };
-//    const am = AddrMessage{
-//        .ip_address_count = CompactSizeUint.new(1),
-//        .ip_addresses = try allocator.alloc(NetworkIPAddr, 1),
-//    };
-//        defer allocator.free(am.ip_addresses); // Ensure to free the allocated memory
-//
-//        am.ip_addresses[0] = ips[0];
-//
-//        const payload = try am.serialize(allocator);
-//        defer allocator.free(payload);
-//        const deserialized_am = try AddrMessage.deserializeSlice(allocator, payload);
-//        defer deserialized_am.deinit(allocator);
-//
-//        try std.testing.expect(am.eql(&deserialized_am));
-//    }
-//
-//}
+        // Serialize
+        const payload = try am.serialize(test_allocator);
+        defer test_allocator.free(payload);
+
+        // Deserialize
+        const deserialized_am = try AddrMessage.deserializeSlice(test_allocator, payload);
+
+        // Test equality
+        try std.testing.expect(am.eql(&deserialized_am));
+
+        defer test_allocator.free(deserialized_am.ip_addresses);
+    }
+}
