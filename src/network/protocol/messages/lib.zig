@@ -8,16 +8,7 @@ pub const PingMessage = @import("ping.zig").PingMessage;
 pub const PongMessage = @import("pong.zig").PongMessage;
 pub const MerkleBlockMessage = @import("merkleblock.zig").MerkleBlockMessage;
 
-pub const MessageTypes = enum {
-    version,
-    verack,
-    mempool,
-    getaddr,
-    getblocks,
-    ping,
-    pong,
-    merkleblock
-};
+pub const MessageTypes = enum { version, verack, mempool, getaddr, getblocks, ping, pong, merkleblock };
 
 pub const Message = union(MessageTypes) {
     version: VersionMessage,
@@ -78,4 +69,4 @@ pub const Message = union(MessageTypes) {
             .merkleblock => |m| m.hintSerializedLen(),
         };
     }
-}
+};
