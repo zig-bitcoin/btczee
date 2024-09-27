@@ -13,7 +13,6 @@ const std = @import("std");
 const protocol = @import("../protocol/lib.zig");
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
-const MAX_SIZE: usize = 0x02000000; // 32 MB
 
 pub const Error = error{
     MessageTooLarge,
@@ -28,6 +27,16 @@ fn computePayloadChecksum(payload: []u8) [4]u8 {
     Sha256.hash(&digest, &digest, .{});
 
     return digest[0..4].*;
+}
+
+fn validateMessageSize(payload_len: usize) !void {
+    const MAX_SIZE: usize = 0x02000000; // 32 MB
+    const precomputed_total_size = 24; // network (4 bytes) + command (12 bytes) + payload size (4 bytes) + checksum (4 bytes)
+    const total_message_size = precomputed_total_size + payload_len;
+
+    if (total_message_size > MAX_SIZE) {
+        return error.InvalidPayloadLen;
+    }
 }
 
 /// Send a message through the wire.
@@ -54,13 +63,7 @@ pub fn sendMessage(allocator: std.mem.Allocator, w: anytype, protocol_version: i
 
     const payload_len: u32 = @intCast(payload.len);
 
-    // Calculate total message size
-    const precomputed_total_size = 24; // network (4 bytes) + command (12 bytes) + payload size (4 bytes) + checksum (4 bytes)
-    const total_message_size = precomputed_total_size + payload_len;
-
-    if (total_message_size > MAX_SIZE) {
-        return Error.MessageTooLarge;
-    }
+    try validateMessageSize(payload_len);
 
     try w.writeAll(&network_id);
     try w.writeAll(command);
@@ -69,7 +72,7 @@ pub fn sendMessage(allocator: std.mem.Allocator, w: anytype, protocol_version: i
     try w.writeAll(payload);
 }
 
-pub const ReceiveMessageError = error{ UnknownMessage, InvaliPayloadLen, InvalidChecksum, InvalidHandshake, InvalidNetwork };
+pub const ReceiveMessageError = error{ UnknownMessage, InvalidPayloadLen, InvalidChecksum, InvalidHandshake, InvalidNetwork };
 
 /// Read a message from the wire.
 ///
@@ -102,6 +105,8 @@ pub fn receiveMessage(
     const payload_len = try r.readInt(u32, .little);
     const checksum = try r.readBytesNoEof(4);
 
+    try validateMessageSize(payload_len);
+
     // Read payload
     const message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name()))
         protocol.messages.Message{ .version = try protocol.messages.VersionMessage.deserializeReader(allocator, r) }
@@ -119,6 +124,10 @@ pub fn receiveMessage(
         protocol.messages.Message{ .pong = try protocol.messages.PongMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.AddrMessage.name()))
         protocol.messages.Message{ .addr = try protocol.messages.AddrMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.SendCmpctMessage.name()))
+        protocol.messages.Message{ .sendcmpct = try protocol.messages.SendCmpctMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.FilterClearMessage.name()))
+        protocol.messages.Message{ .filterclear = try protocol.messages.FilterClearMessage.deserializeReader(allocator, r) }
     else {
         try r.skipBytes(payload_len, .{}); // Purge the wire
         return error.UnknownMessage;
@@ -129,7 +138,7 @@ pub fn receiveMessage(
         return error.InvalidChecksum;
     }
     if (message.hintSerializedLen() != payload_len) {
-        return error.InvaliPayloadLen;
+        return error.InvalidPayloadLen;
     }
 
     return message;
@@ -408,7 +417,7 @@ test "ko_receive_invalid_payload_length" {
     var fbs: std.io.FixedBufferStream([]u8) = std.io.fixedBufferStream(list.items);
     const reader = fbs.reader();
 
-    try std.testing.expectError(error.InvaliPayloadLen, receiveMessage(test_allocator, reader, network_id));
+    try std.testing.expectError(error.InvalidPayloadLen, receiveMessage(test_allocator, reader, network_id));
 }
 
 test "ko_receive_invalid_checksum" {
@@ -489,4 +498,33 @@ test "ko_receive_invalid_command" {
     const reader = fbs.reader();
 
     try std.testing.expectError(error.UnknownMessage, receiveMessage(test_allocator, reader, network_id));
+}
+
+test "ok_send_sendcmpct_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const SendCmpctMessage = protocol.messages.SendCmpctMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const message = SendCmpctMessage{
+        .announce = true,
+        .version = 1,
+    };
+
+    const received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .sendcmpct => |sendcmpct_message| try std.testing.expect(message.eql(&sendcmpct_message)),
+        else => unreachable,
+    }
 }
