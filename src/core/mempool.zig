@@ -1,6 +1,6 @@
 const std = @import("std");
 const Config = @import("../config/config.zig").Config;
-const tx = @import("../types/transaction.zig");
+const tx = @import("../types/lib.zig");
 
 const Transaction = struct {};
 
@@ -84,7 +84,7 @@ pub const Mempool = struct {
         try self.pool.put(hash, tx_desc);
 
         // Add the transaction outpoints to the outpoints map
-        for (transaction.inputs.items) |input| {
+        for (transaction.inputs) |input| {
             try self.outpoints.put(input.previous_outpoint, transaction);
         }
 
@@ -104,7 +104,7 @@ pub const Mempool = struct {
 
         if (remove_redeemers) {
             // Remove any transactions which rely on this one
-            for (tx_desc.tx.outputs.items, 0..) |_, i| {
+            for (tx_desc.tx.outputs, 0..) |_, i| {
                 const outpoint = tx.OutPoint{ .hash = hash, .index = @as(u32, @intCast(i)) };
                 if (self.outpoints.get(outpoint)) |redeemer| {
                     self.removeTransaction(redeemer.hash(), true);
@@ -116,7 +116,7 @@ pub const Mempool = struct {
         _ = self.pool.remove(hash);
 
         // Remove the outpoints from the outpoints map
-        for (tx_desc.tx.inputs.items) |input| {
+        for (tx_desc.tx.inputs) |input| {
             _ = self.outpoints.remove(input.previous_outpoint);
         }
 
@@ -138,7 +138,7 @@ pub const Mempool = struct {
     fn calculatePriority(self: *Mempool, transaction: *tx.Transaction, height: i32) !f64 {
         _ = self;
         var priority: f64 = 0;
-        for (transaction.inputs.items) |input| {
+        for (transaction.inputs) |input| {
             // TODO: Fetch the UTXO from the chain
             _ = input;
             const utxo = .{ .value = 1000, .height = 100 };

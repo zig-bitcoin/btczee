@@ -10,8 +10,9 @@ const Endian = std.builtin.Endian;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
-const BlockHeader = @import("../../../types/block.zig").BlockHeader;
-const Transaction = @import("../../../types/transaction.zig").Transaction;
+const Types = @import("../../../types/lib.zig");
+const Transaction = Types.Transaction;
+const BlockHeader = Types.BlockHeader;
 
 /// BlockMessage represents the "block" message
 ///
@@ -131,9 +132,9 @@ pub const BlockMessage = struct {
 
 test "ok_full_flow_BlockMessage" {
     const allocator = std.testing.allocator;
-    const OutPoint = @import("../../../types/transaction.zig").OutPoint;
-    const Hash = @import("../../../types/transaction.zig").Hash;
-    const Script = @import("../../../types/transaction.zig").Script;
+    const OutPoint = Types.OutPoint;
+    const Hash = Types.Hash;
+    const Script = Types.Script;
 
     {
         var tx = try Transaction.init(allocator);
