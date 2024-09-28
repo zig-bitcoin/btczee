@@ -187,6 +187,21 @@ pub const Stack = struct {
         std.mem.swap([]u8, &self.items.items[idx1], &self.items.items[idx2]);
     }
 
+    pub fn rot(self: *Stack, n: usize) !void {
+        if (n < 1) {
+            return StackError.StackUnderflow;
+        }
+
+        const entry_index = 3 * n - 1;
+        const actual_index = self.items.items.len - 1 - entry_index;
+        var i = n;
+        while (i > 0) : (i -= 1) {
+            const value = self.items.orderedRemove(actual_index);
+            try self.pushElement(value);
+        }
+        return;
+    }
+
     /// Get the number of items in the stack
     ///
     /// # Returns
