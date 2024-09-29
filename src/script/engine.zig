@@ -316,7 +316,10 @@ pub const Engine = struct {
 
     /// OP_2ROT: The fifth and sixth items back are moved to the top of the stack
     fn op2Rot(self: *Engine) !void {
-        try self.stack.rot(2);
+        try self.stack.swap(0, 2);
+        try self.stack.swap(1, 3);
+        try self.stack.swap(2, 4);
+        try self.stack.swap(3, 5);
     }
 
     // OP_2OVER: Copies the pair of items two spaces back in the stack to the front
@@ -362,7 +365,8 @@ pub const Engine = struct {
 
     /// OP_ROT: The top three items on the stack are rotated to the left
     fn opRot(self: *Engine) !void {
-        try self.stack.rot(1);
+        try self.stack.swap(0, 1);
+        try self.stack.swap(1, 2);
     }
 
     /// OP_NIP: Removes the second-to-top stack item
