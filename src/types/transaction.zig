@@ -51,7 +51,7 @@ pub fn serializeToSlice(self: *const Self, buffer: []u8) !void {
 
 /// Serialize a message as bytes and return them.
 pub fn serialize(self: *const Self, allocator: std.mem.Allocator) ![]u8 {
-    const serialized_len = self.virtual_size();
+    const serialized_len = self.hintEncodedLen();
 
     const ret = try allocator.alloc(u8, serialized_len);
     errdefer allocator.free(ret);
@@ -74,28 +74,22 @@ pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
     tx.version = try r.readInt(i32, .little);
 
     const compact_input_len = try CompactSizeUint.decodeReader(r);
-    const inputs = try allocator.alloc(Input, compact_input_len.value());
-    errdefer allocator.free(inputs);
+    tx.inputs = try allocator.alloc(Input, compact_input_len.value());
+    errdefer allocator.free(tx.inputs);
 
     var i: usize = 0;
     while (i < compact_input_len.value()) : (i += 1) {
-        const input = try Input.deserializeReader(allocator, r);
-
-        inputs[i] = input;
+        tx.inputs[i] = try Input.deserializeReader(allocator, r);
     }
-    tx.inputs = inputs;
 
     const compact_output_len = try CompactSizeUint.decodeReader(r);
-    const outputs = try allocator.alloc(Output, compact_output_len.value());
-    errdefer allocator.free(outputs);
+    tx.outputs = try allocator.alloc(Output, compact_output_len.value());
+    errdefer allocator.free(tx.outputs);
 
     var j: usize = 0;
     while (j < compact_output_len.value()) : (j += 1) {
-        const output = try Output.deserializeReader(allocator, r);
-
-        outputs[j] = output;
+        tx.outputs[j] = try Output.deserializeReader(allocator, r);
     }
-    tx.outputs = outputs;
     tx.lock_time = try r.readInt(u32, .little);
 
     return tx;
@@ -148,7 +142,7 @@ pub fn addInput(self: *Self, previous_outpoint: OutPoint) !void {
 /// Add an output to the transaction
 pub fn addOutput(self: *Self, value: i64, script_pubkey: Script) !void {
     var new_script = try Script.init(self.allocator);
-    try new_script.push(script_pubkey.bytes);
+    try new_script.push(script_pubkey.bytes.items);
 
     const new_capacity = self.outputs.len + 1;
     var new_outputs = try self.allocator.realloc(self.outputs, new_capacity);
@@ -168,8 +162,8 @@ pub fn hash(self: *const Self) Hash {
     return Hash{ .bytes = h };
 }
 
-/// Calculate the virtual size of the transaction
-pub fn virtual_size(self: *const Self) usize {
+/// Calculate the size of the transaction
+pub fn hintEncodedLen(self: *const Self) usize {
     // This is a simplified size calculation. In a real implementation,
     // you would need to account for segregated witness data if present.
     var size: usize = 8; // Version (4 bytes) + LockTime (4 bytes)
@@ -188,14 +182,14 @@ pub fn eql(self: Self, other: Self) bool {
                 if (
                     !a.previous_outpoint.hash.eql(b.previous_outpoint.hash)
                     or a.previous_outpoint.index != b.previous_outpoint.index
-                    or !std.mem.eql(u8, a.script_sig.bytes, b.script_sig.bytes)
+                    or !std.mem.eql(u8, a.script_sig.bytes.items, b.script_sig.bytes.items)
                     or a.sequence != b.sequence
                 ) break false;
             } else true
             and for (self.outputs, other.outputs) |c, d| {
                 if (
                     c.value != d.value
-                    or !std.mem.eql(u8, c.script_pubkey.bytes, d.script_pubkey.bytes)
+                    or !std.mem.eql(u8, c.script_pubkey.bytes.items, d.script_pubkey.bytes.items)
                 ) break false;
             } else true;
         // zig fmt: on
@@ -204,42 +198,44 @@ pub fn eql(self: Self, other: Self) bool {
 test "Transaction basics" {
     const testing = std.testing;
     const allocator = testing.allocator;
+    const OpCode = @import("../script/opcodes/constant.zig").Opcode;
 
     var tx = try Self.init(allocator);
     defer tx.deinit();
 
-    try tx.addInput(OutPoint{ .hash = Hash.zero(), .index = 0 });
+    try tx.addInput(OutPoint{ .hash = Hash.newZeroed(), .index = 0 });
 
     {
         var script_pubkey = try Script.init(allocator);
         defer script_pubkey.deinit();
-        try script_pubkey.push(&[_]u8{ 0x76, 0xa9, 0x14 }); // OP_DUP OP_HASH160 Push14
+        try script_pubkey.push(&[_]u8{ OpCode.OP_DUP.toBytes(), OpCode.OP_0.toBytes(), OpCode.OP_1.toBytes() });
         try tx.addOutput(50000, script_pubkey);
     }
 
-    try testing.expectEqual(@as(usize, 1), tx.inputs.len);
-    try testing.expectEqual(@as(usize, 1), tx.outputs.len);
-    try testing.expectEqual(@as(i64, 50000), tx.outputs[0].value);
+    try testing.expectEqual(1, tx.inputs.len);
+    try testing.expectEqual(1, tx.outputs.len);
+    try testing.expectEqual(50000, tx.outputs[0].value);
 
     _ = tx.hash();
 
-    const vsize = tx.virtual_size();
-    try testing.expect(vsize > 0);
+    const tx_size = tx.hintEncodedLen();
+    try testing.expect(tx_size > 0);
 }
 
 test "Transaction serialization" {
     const testing = std.testing;
     const allocator = testing.allocator;
+    const OpCode = @import("../script/opcodes/constant.zig").Opcode;
 
     var tx = try Self.init(allocator);
     defer tx.deinit();
 
-    try tx.addInput(OutPoint{ .hash = Hash.zero(), .index = 0 });
+    try tx.addInput(OutPoint{ .hash = Hash.newZeroed(), .index = 0 });
 
     {
         var script_pubkey = try Script.init(allocator);
         defer script_pubkey.deinit();
-        try script_pubkey.push(&[_]u8{ 0x76, 0xa9, 0x14 }); // OP_DUP OP_HASH160 Push14
+        try script_pubkey.push(&[_]u8{ OpCode.OP_DUP.toBytes(), OpCode.OP_0.toBytes(), OpCode.OP_1.toBytes() });
         try tx.addOutput(50000, script_pubkey);
     }
 

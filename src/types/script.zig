@@ -2,7 +2,7 @@ const std = @import("std");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const readBytesExact = @import("../util/mem/read.zig").readBytesExact;
 
-bytes: []u8,
+bytes: std.ArrayList(u8),
 allocator: std.mem.Allocator,
 
 const Self = @This();
@@ -10,21 +10,19 @@ const Self = @This();
 /// Initialize a new script
 pub fn init(allocator: std.mem.Allocator) !Self {
     return Self{
-        .bytes = try allocator.alloc(u8, 0),
+        .bytes = std.ArrayList(u8).init(allocator),
         .allocator = allocator,
     };
 }
 
 /// Deinitialize the script
 pub fn deinit(self: *Self) void {
-    self.allocator.free(self.bytes);
+    self.bytes.deinit();
 }
 
 /// Add data to the script
 pub fn push(self: *Self, data: []const u8) !void {
-    const new_len = self.bytes.len + data.len;
-    self.bytes = try self.allocator.realloc(self.bytes, new_len);
-    @memcpy(self.bytes[self.bytes.len - data.len ..], data);
+    try self.bytes.appendSlice(data);
 }
 
 pub fn serializeToWriter(self: *const Self, w: anytype) !void {
@@ -33,9 +31,9 @@ pub fn serializeToWriter(self: *const Self, w: anytype) !void {
         if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects w to have field 'writeAll'.");
     }
 
-    const script_len = CompactSizeUint.new(self.bytes.len);
+    const script_len = CompactSizeUint.new(self.bytes.items.len);
     try script_len.encodeToWriter(w);
-    try w.writeAll(self.bytes);
+    try w.writeAll(self.bytes.items);
 }
 
 pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
@@ -49,8 +47,14 @@ pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
     var script: Self = undefined;
 
     const script_len = try CompactSizeUint.decodeReader(r);
-    script.bytes = try readBytesExact(allocator, r, script_len.value());
-    script.allocator = allocator;
+    script.bytes = try std.ArrayList(u8).initCapacity(allocator, script_len.value());
+    try r.readNoEof(script.bytes.items);
+
+    const bytes = try readBytesExact(allocator, r, script_len.value());
+    defer allocator.free(bytes);
+    errdefer allocator.free(bytes);
+
+    try script.bytes.appendSlice(bytes);
 
     return script;
 }

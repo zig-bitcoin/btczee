@@ -5,7 +5,7 @@ const Self = @This();
 bytes: [32]u8,
 
 /// Create a zero hash
-pub fn zero() Self {
+pub fn newZeroed() Self {
     return Self{ .bytes = [_]u8{0} ** 32 };
 }
 

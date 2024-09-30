@@ -58,7 +58,6 @@ pub const BlockMessage = struct {
         try self.block_header.serializeToWriter(w);
 
         try CompactSizeUint.new(self.txns.len).encodeToWriter(w);
-        // try .encodeToWriter(w);
 
         for (self.txns) |txn| {
             try txn.serializeToWriter(w);
@@ -122,7 +121,7 @@ pub const BlockMessage = struct {
         const txs_number_length = CompactSizeUint.new(self.txns.len).hint_encoded_len();
         var txs_length: usize = 0;
         for (self.txns) |txn| {
-            txs_length += txn.virtual_size();
+            txs_length += txn.hintEncodedLen();
         }
         return header_length + txs_number_length + txs_length;
     }
@@ -131,6 +130,7 @@ pub const BlockMessage = struct {
 // TESTS
 
 test "ok_full_flow_BlockMessage" {
+    const OpCode = @import("../../../script/opcodes/constant.zig").Opcode;
     const allocator = std.testing.allocator;
     const OutPoint = Types.OutPoint;
     const Hash = Types.Hash;
@@ -139,17 +139,17 @@ test "ok_full_flow_BlockMessage" {
     {
         var tx = try Transaction.init(allocator);
 
-        try tx.addInput(OutPoint{ .hash = Hash.zero(), .index = 0 });
+        try tx.addInput(OutPoint{ .hash = Hash.newZeroed(), .index = 0 });
 
         {
             var script_pubkey = try Script.init(allocator);
             defer script_pubkey.deinit();
-            try script_pubkey.push(&[_]u8{ 0x76, 0xa9, 0x14 }); // OP_DUP OP_HASH160 Push14
+            try script_pubkey.push(&[_]u8{ OpCode.OP_DUP.toBytes(), OpCode.OP_0.toBytes(), OpCode.OP_1.toBytes() });
             try tx.addOutput(50000, script_pubkey);
         }
 
         var txns = try allocator.alloc(Transaction, 1);
-        errdefer allocator.free(txns);
+        // errdefer allocator.free(txns);
         txns[0] = tx;
 
         var msg = BlockMessage{
