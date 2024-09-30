@@ -316,10 +316,10 @@ pub const Engine = struct {
 
     /// OP_2ROT: The fifth and sixth items back are moved to the top of the stack
     fn op2Rot(self: *Engine) !void {
-        const actual_index = self.stack.items.items.len - 6;
+        const index = self.stack.items.items.len - 6;
         var i: usize = 2;
         while (i > 0) : (i -= 1) {
-            const value = self.stack.items.orderedRemove(actual_index);
+            const value = self.stack.items.orderedRemove(index);
             try self.stack.pushElement(value);
         }
     }
@@ -367,10 +367,10 @@ pub const Engine = struct {
 
     /// OP_ROT: The top three items on the stack are rotated to the left
     fn opRot(self: *Engine) !void {
-        const actual_index = self.stack.items.items.len - 3;
+        const index = self.stack.items.items.len - 3;
         var i: usize = 1;
         while (i > 0) : (i -= 1) {
-            const value = self.stack.items.orderedRemove(actual_index);
+            const value = self.stack.items.orderedRemove(index);
             try self.stack.pushElement(value);
         }
     }
@@ -890,6 +890,7 @@ test "Script execution - OP_ROT" {
 
     // Simple script: OP_1 OP_2 OP_3 OP_ROT
     const script_bytes = [_]u8{
+        Opcode.OP_0.toBytes(),
         Opcode.OP_1.toBytes(),
         Opcode.OP_2.toBytes(),
         Opcode.OP_3.toBytes(),
@@ -906,7 +907,7 @@ test "Script execution - OP_ROT" {
     const element1 = try engine.stack.peekInt(1);
     const element2 = try engine.stack.peekInt(2);
 
-    try std.testing.expectEqual(3, engine.stack.len());
+    try std.testing.expectEqual(4, engine.stack.len());
     try std.testing.expectEqual(1, element0);
     try std.testing.expectEqual(3, element1);
     try std.testing.expectEqual(2, element2);
