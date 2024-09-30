@@ -11,6 +11,11 @@ pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
 pub const FilterClearMessage = @import("filterclear.zig").FilterClearMessage;
 pub const NotFoundMessage = @import("notfound.zig").NotFoundMessage;
 
+pub const InventoryVector = struct {
+    type: u32,
+    hash: [32]u8,
+};
+
 pub const MessageTypes = enum {
     version,
     verack,

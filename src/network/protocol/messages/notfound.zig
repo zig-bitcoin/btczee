@@ -1,17 +1,13 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
 const Sha256 = std.crypto.hash.sha2.Sha256;
+const InventoryVector = @import("lib.zig").InventoryVector;
 
 /// NotFoundMessage represents the "notfound" message
 ///
 /// https://developer.bitcoin.org/reference/p2p_networking.html#notfound
 pub const NotFoundMessage = struct {
     inventory: []const InventoryVector,
-
-    pub const InventoryVector = struct {
-        type: u32,
-        hash: [32]u8,
-    };
 
     const Self = @This();
 
@@ -112,7 +108,7 @@ test "ok_fullflow_notfound_message" {
     const allocator = std.testing.allocator;
 
     {
-        const inventory = [_]NotFoundMessage.InventoryVector{
+        const inventory = [_]InventoryVector{
             .{ .type = 1, .hash = [_]u8{0xab} ** 32 },
             .{ .type = 2, .hash = [_]u8{0xcd} ** 32 },
         };
