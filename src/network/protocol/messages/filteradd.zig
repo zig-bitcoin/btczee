@@ -23,6 +23,9 @@ pub const FilterAddMessage = struct {
 
     /// Serialize the message as bytes and write them to the Writer.
     pub fn serializeToWriter(self: *const Self, w: anytype) !void {
+        comptime {
+            if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects w to have fn 'writeAll'.");
+        }
         try w.writeAll(self.element);
     }
 
@@ -42,8 +45,10 @@ pub const FilterAddMessage = struct {
     }
 
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
+        comptime {
+            if (!std.meta.hasFn(@TypeOf(r), "readAllAlloc")) @compileError("Expects r to have fn 'readAllAlloc'.");
+        }
         const element = try r.readAllAlloc(allocator, 520);
-        errdefer allocator.free(element);
         return Self{ .element = element };
     }
 
@@ -56,7 +61,7 @@ pub const FilterAddMessage = struct {
         return self.element.len;
     }
 
-    pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *const Self, allocator: std.mem.Allocator) void {
         allocator.free(self.element);
     }
 };
