@@ -16,6 +16,18 @@ pub const NotFoundMessage = @import("notfound.zig").NotFoundMessage;
 pub const InventoryVector = struct {
     type: u32,
     hash: [32]u8,
+
+    pub fn serializeToWriter(self: InventoryVector, writer: anytype) !void {
+        try writer.writeInt(u32, self.type, .little);
+        try writer.writeAll(&self.hash);
+    }
+
+    pub fn deserializeReader(r: anytype) !InventoryVector {
+        return InventoryVector{
+            .type = try r.readInt(u32, .little),
+            .hash = try r.readBytesNoEof(32),
+        };
+    }
 };
 
 pub const MessageTypes = enum {

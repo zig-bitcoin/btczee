@@ -42,8 +42,7 @@ pub const NotFoundMessage = struct {
     pub fn serializeToWriter(self: *const Self, writer: anytype) !void {
         try writer.writeInt(u32, @intCast(self.inventory.len), .little);
         for (self.inventory) |inv| {
-            try writer.writeInt(u32, inv.type, .little);
-            try writer.writeAll(&inv.hash);
+            try InventoryVector.serializeToWriter(inv, writer);
         }
     }
 
@@ -70,8 +69,7 @@ pub const NotFoundMessage = struct {
         errdefer allocator.free(inventory);
 
         for (inventory) |*inv| {
-            inv.type = try r.readInt(u32, .little);
-            try r.readNoEof(&inv.hash);
+            inv.* = try InventoryVector.deserializeReader(r);
         }
 
         return Self{
