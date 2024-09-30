@@ -10,6 +10,7 @@ pub const MerkleBlockMessage = @import("merkleblock.zig").MerkleBlockMessage;
 pub const FeeFilterMessage = @import("feefilter.zig").FeeFilterMessage;
 pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
 pub const FilterClearMessage = @import("filterclear.zig").FilterClearMessage;
+pub const FilterAddMessage = @import("filteradd.zig").FilterAddMessage;
 
 pub const MessageTypes = enum {
     version,
@@ -23,6 +24,7 @@ pub const MessageTypes = enum {
     sendcmpct,
     feefilter,
     filterclear,
+    filteradd,
 };
 
 pub const Message = union(MessageTypes) {
@@ -37,6 +39,7 @@ pub const Message = union(MessageTypes) {
     sendcmpct: SendCmpctMessage,
     feefilter: FeeFilterMessage,
     filterclear: FilterClearMessage,
+    filteradd: FilterAddMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -51,6 +54,7 @@ pub const Message = union(MessageTypes) {
             .sendcmpct => |m| @TypeOf(m).name(),
             .feefilter => |m| @TypeOf(m).name(),
             .filterclear => |m| @TypeOf(m).name(),
+            .filteradd => |m| @TypeOf(m).name(),
         };
     }
 
@@ -67,6 +71,7 @@ pub const Message = union(MessageTypes) {
             .sendcmpct => {},
             .feefilter => {},
             .filterclear => {},
+            .filteradd => |m| m.deinit(allocator),
         }
     }
 
@@ -83,6 +88,7 @@ pub const Message = union(MessageTypes) {
             .sendcmpct => |m| m.checksum(),
             .feefilter => |m| m.checksum(),
             .filterclear => |m| m.checksum(),
+            .filteradd => |m| m.checksum(),
         };
     }
 
@@ -99,6 +105,7 @@ pub const Message = union(MessageTypes) {
             .sendcmpct => |m| m.hintSerializedLen(),
             .feefilter => |m| m.hintSerializedLen(),
             .filterclear => |m| m.hintSerializedLen(),
+            .filteradd => |m| m.hintSerializedLen(),
         };
     }
 };
