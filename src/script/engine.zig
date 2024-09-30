@@ -316,10 +316,12 @@ pub const Engine = struct {
 
     /// OP_2ROT: The fifth and sixth items back are moved to the top of the stack
     fn op2Rot(self: *Engine) !void {
-        try self.stack.swap(0, 2);
-        try self.stack.swap(1, 3);
-        try self.stack.swap(2, 4);
-        try self.stack.swap(3, 5);
+        const actual_index = self.stack.items.items.len - 6;
+        var i: usize = 2;
+        while (i > 0) : (i -= 1) {
+            const value = self.stack.items.orderedRemove(actual_index);
+            try self.stack.pushElement(value);
+        }
     }
 
     // OP_2OVER: Copies the pair of items two spaces back in the stack to the front
@@ -365,8 +367,12 @@ pub const Engine = struct {
 
     /// OP_ROT: The top three items on the stack are rotated to the left
     fn opRot(self: *Engine) !void {
-        try self.stack.swap(0, 1);
-        try self.stack.swap(1, 2);
+        const actual_index = self.stack.items.items.len - 3;
+        var i: usize = 1;
+        while (i > 0) : (i -= 1) {
+            const value = self.stack.items.orderedRemove(actual_index);
+            try self.stack.pushElement(value);
+        }
     }
 
     /// OP_NIP: Removes the second-to-top stack item
@@ -693,6 +699,7 @@ test "Script execution - OP_2ROT" {
 
     // Simple script: OP_1 OP_2 OP_3 OP_4 OP_5 OP_6 OP_2ROT
     const script_bytes = [_]u8{
+        Opcode.OP_0.toBytes(),
         Opcode.OP_1.toBytes(),
         Opcode.OP_2.toBytes(),
         Opcode.OP_3.toBytes(),
@@ -714,14 +721,16 @@ test "Script execution - OP_2ROT" {
     const element3 = try engine.stack.peekInt(3);
     const element4 = try engine.stack.peekInt(4);
     const element5 = try engine.stack.peekInt(5);
+    const element6 = try engine.stack.peekInt(6);
 
-    try std.testing.expectEqual(6, engine.stack.len());
+    try std.testing.expectEqual(7, engine.stack.len());
     try std.testing.expectEqual(2, element0);
     try std.testing.expectEqual(1, element1);
     try std.testing.expectEqual(6, element2);
     try std.testing.expectEqual(5, element3);
     try std.testing.expectEqual(4, element4);
     try std.testing.expectEqual(3, element5);
+    try std.testing.expectEqual(0, element6);
 }
 
 test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_2OVER" {
