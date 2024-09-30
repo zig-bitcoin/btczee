@@ -96,7 +96,7 @@ pub const BlockMessage = struct {
 
         var block_message: Self = undefined;
 
-        block_message.block_header = try BlockHeader.deserializeReader(allocator, r);
+        block_message.block_header = try BlockHeader.deserializeReader(r);
 
         const txns_count = try CompactSizeUint.decodeReader(r);
 
@@ -118,7 +118,7 @@ pub const BlockMessage = struct {
     }
 
     pub fn hintSerializedLen(self: BlockMessage) usize {
-        const header_length = @sizeOf(BlockHeader);
+        const header_length = BlockHeader.serializedLen();
         const txs_number_length = CompactSizeUint.new(self.txns.items.len).hint_encoded_len();
         var txs_length: usize = 0;
         for (self.txns.items) |txn| {

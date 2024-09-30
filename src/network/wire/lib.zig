@@ -18,7 +18,7 @@ pub const Error = error{
     MessageTooLarge,
 };
 
-const BlockHeader = @import("../../types/BlockHeader.zig");
+const BlockHeader = @import("../../types/block_header.zig");
 /// Return the checksum of a slice
 ///
 /// Use it on serialized messages to compute the header's value
@@ -331,7 +331,7 @@ test "ok_send_merkleblock_message" {
         .prev_block = [_]u8{0} ** 32,
         .merkle_root = [_]u8{1} ** 32,
         .timestamp = 1234567890,
-        .bits = 0x1d00ffff,
+        .nbits = 0x1d00ffff,
         .nonce = 987654321,
     };
     const hashes = try test_allocator.alloc([32]u8, 3);
@@ -355,7 +355,7 @@ test "ok_send_merkleblock_message" {
     const deserialized = try MerkleBlockMessage.deserializeSlice(test_allocator, serialized);
     defer deserialized.deinit(test_allocator);
 
-    const received_message = try write_and_read_message(test_allocator, &list, Config.BitcoinNetworkId.MAINNET, Config.PROTOCOL_VERSION, message) orelse unreachable;
+    var received_message = try write_and_read_message(test_allocator, &list, Config.BitcoinNetworkId.MAINNET, Config.PROTOCOL_VERSION, message) orelse unreachable;
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
