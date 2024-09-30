@@ -316,17 +316,12 @@ pub const Engine = struct {
 
     /// OP_2ROT: The fifth and sixth items back are moved to the top of the stack
     fn op2Rot(self: *Engine) !void {
-        const first = self.stack.items.items.len - 1;
-        const second = self.stack.items.items.len - 2;
-        const third = self.stack.items.items.len - 3;
-        const fourth = self.stack.items.items.len - 4;
-        const fifth = self.stack.items.items.len - 5;
-        const sixth = self.stack.items.items.len - 6;
+        const start = self.stack.items.items.len - 1;
 
-        try self.stack.swap(sixth, fourth);
-        try self.stack.swap(fifth, third);
-        try self.stack.swap(fourth, second);
-        try self.stack.swap(third, first);
+        try self.stack.swap(start-5, start-3);
+        try self.stack.swap(start-4, start-2);
+        try self.stack.swap(start-3, start-1);
+        try self.stack.swap(start-2, start);
     }
 
     // OP_2OVER: Copies the pair of items two spaces back in the stack to the front
@@ -372,12 +367,10 @@ pub const Engine = struct {
 
     /// OP_ROT: The top three items on the stack are rotated to the left
     fn opRot(self: *Engine) !void {
-        const first = self.stack.items.items.len - 1;
-        const second = self.stack.items.items.len - 2;
-        const third = self.stack.items.items.len - 3;
+        const start = self.stack.items.items.len - 1;
         
-        try self.stack.swap(third, second);
-        try self.stack.swap(second, first);
+        try self.stack.swap(start-2, start-1);
+        try self.stack.swap(start-1, start);
     }
 
     /// OP_NIP: Removes the second-to-top stack item
