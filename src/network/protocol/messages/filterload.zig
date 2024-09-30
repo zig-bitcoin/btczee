@@ -2,15 +2,16 @@ const std = @import("std");
 const protocol = @import("../lib.zig");
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
+const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 
 /// FilterLoadMessage represents the "filterload" message
 ///
 /// https://developer.bitcoin.org/reference/p2p_networking.html#filterload
 pub const FilterLoadMessage = struct {
+    filter: []const u8,
     hash_func: u32,
     tweak: u32,
     flags: u8,
-    filter: []const u8,
 
     const Self = @This();
 
@@ -38,10 +39,13 @@ pub const FilterLoadMessage = struct {
             if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects w to have fn 'writeAll'.");
         }
 
+        const compact_filter_len = CompactSizeUint.new(self.filter.len);
+        try compact_filter_len.encodeToWriter(w);
+
+        try w.writeAll(self.filter);
         try w.writeInt(u32, self.hash_func, .little);
         try w.writeInt(u32, self.tweak, .little);
         try w.writeInt(u8, self.flags, .little);
-        try w.writeAll(self.filter);
     }
 
     /// Serialize a message as bytes and return them.
@@ -65,15 +69,20 @@ pub const FilterLoadMessage = struct {
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
         comptime {
             if (!std.meta.hasFn(@TypeOf(r), "readInt")) @compileError("Expects r to have fn 'readInt'.");
-            if (!std.meta.hasFn(@TypeOf(r), "readAllAlloc")) @compileError("Expects r to have fn 'readAllAlloc'.");
+            if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects r to have fn 'readNoEof'.");
         }
 
         var fl: Self = undefined;
 
+        const filter_len = (try CompactSizeUint.decodeReader(r)).value();
+        const filter = try allocator.alloc(u8, filter_len);
+        errdefer allocator.free(filter);
+        try r.readNoEof(filter);
+    
+        fl.filter = filter;
         fl.hash_func = try r.readInt(u32, .little);
         fl.tweak = try r.readInt(u32, .little);
         fl.flags = try r.readInt(u8, .little);
-        fl.filter = try r.readAllAlloc(allocator, 36000);
 
         return fl;
     }
@@ -85,7 +94,8 @@ pub const FilterLoadMessage = struct {
 
     pub fn hintSerializedLen(self: *const Self) usize {
         const fixed_length = 4 + 4 + 1; // hash_func (4 bytes) + tweak (4 bytes) + flags (1 byte)
-        return self.filter.len + fixed_length; 
+        const compact_filter_len = CompactSizeUint.new(self.filter.len).hint_encoded_len();
+        return compact_filter_len + self.filter.len + fixed_length; 
     }
 
     pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
@@ -98,10 +108,10 @@ test "ok_fullflow_filterload_message" {
 
     const filter = "this is a test filter";
     var fl = FilterLoadMessage{
+        .filter = filter,
         .hash_func = 0xdeadbeef,
         .tweak = 0xfeedface,
         .flags = 0x02,
-        .filter = filter,
     };
 
     const payload = try fl.serialize(allocator);
@@ -110,8 +120,8 @@ test "ok_fullflow_filterload_message" {
     var deserialized_fl = try FilterLoadMessage.deserializeSlice(allocator, payload);
     defer deserialized_fl.deinit(allocator);
 
+    try std.testing.expectEqualSlices(u8, filter, deserialized_fl.filter);
     try std.testing.expect(fl.hash_func == deserialized_fl.hash_func);
     try std.testing.expect(fl.tweak == deserialized_fl.tweak);
     try std.testing.expect(fl.flags == deserialized_fl.flags);
-    try std.testing.expectEqualSlices(u8, filter, deserialized_fl.filter);
 }
