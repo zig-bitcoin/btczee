@@ -159,7 +159,7 @@ pub const ScriptBuilder = struct {
     /// Private Function to addData without checking MAX_SCRIPT_SIZE
     /// Only to be used for testing soundess of the ScriptBuilder struct
     /// Cannot be called from other files
-    fn unchecked_addData(self: *ScriptBuilder, data: []const u8) !*ScriptBuilder {
+    fn addDataUnchecked(self: *ScriptBuilder, data: []const u8) !*ScriptBuilder {
         if (data.len == 0 or data.len == 1 and data[0] == 0) {
             _ = try self.addOpcode(Opcode.OP_0);
         } else if (data.len == 1 and data[0] <= 16) {
@@ -388,7 +388,7 @@ test "ScriptBuilder UNCHECKED_ADD_DATA data.len <= 0xFFFF" {
         expected[i] = 42;
     }
 
-    _ = try sb.unchecked_addData(&array);
+    _ = try sb.addDataUnchecked(&array);
     var e = try sb.build();
     defer e.deinit();
 
@@ -421,7 +421,7 @@ test "ScriptBuilder UNCHECKED_ADD_DATA data.len <= 0xFFFFFFFF" {
         expected[i] = 42;
     }
 
-    _ = try sb.unchecked_addData(&array);
+    _ = try sb.addDataUnchecked(&array);
     var e = try sb.build();
     defer e.deinit();
 
