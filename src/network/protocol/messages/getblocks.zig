@@ -152,10 +152,10 @@ test "ok_full_flow_GetBlocksMessage" {
             .header_hashes = try allocator.alloc([32]u8, 2),
             .stop_hash = [_]u8{0} ** 32,
         };
-
         defer allocator.free(gb.header_hashes);
 
         // Fill in the header_hashes
+
         for (gb.header_hashes) |*hash| {
             for (hash) |*byte| {
                 byte.* = 0xab;

@@ -18,6 +18,7 @@ pub const Error = error{
     MessageTooLarge,
 };
 
+const BlockHeader = @import("../../types/BlockHeader.zig");
 /// Return the checksum of a slice
 ///
 /// Use it on serialized messages to compute the header's value
@@ -124,6 +125,8 @@ pub fn receiveMessage(
         protocol.messages.Message{ .ping = try protocol.messages.PingMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.PongMessage.name()))
         protocol.messages.Message{ .pong = try protocol.messages.PongMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.MerkleBlockMessage.name()))
+        protocol.messages.Message{ .merkleblock = try protocol.messages.MerkleBlockMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.SendCmpctMessage.name()))
         protocol.messages.Message{ .sendcmpct = try protocol.messages.SendCmpctMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.FilterClearMessage.name()))
@@ -312,6 +315,58 @@ test "ok_send_ping_message" {
         .ping => |ping_message| try std.testing.expectEqual(message.nonce, ping_message.nonce),
         else => unreachable,
     }
+}
+
+test "ok_send_merkleblock_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const MerkleBlockMessage = protocol.messages.MerkleBlockMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const block_header = BlockHeader{
+        .version = 1,
+        .prev_block = [_]u8{0} ** 32,
+        .merkle_root = [_]u8{1} ** 32,
+        .timestamp = 1234567890,
+        .bits = 0x1d00ffff,
+        .nonce = 987654321,
+    };
+    const hashes = try test_allocator.alloc([32]u8, 3);
+
+    const flags = try test_allocator.alloc(u8, 1);
+    const transaction_count = 1;
+    const message = MerkleBlockMessage.new(block_header, transaction_count, hashes, flags);
+
+    defer message.deinit(test_allocator);
+    // Fill in the header_hashes
+    for (message.hashes) |*hash| {
+        for (hash) |*byte| {
+            byte.* = 0xab;
+        }
+    }
+    flags[0] = 0x1;
+
+    const serialized = try message.serialize(test_allocator);
+    defer test_allocator.free(serialized);
+
+    const deserialized = try MerkleBlockMessage.deserializeSlice(test_allocator, serialized);
+    defer deserialized.deinit(test_allocator);
+
+    const received_message = try write_and_read_message(test_allocator, &list, Config.BitcoinNetworkId.MAINNET, Config.PROTOCOL_VERSION, message) orelse unreachable;
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .merkleblock => {},
+        else => unreachable,
+    }
+
+    try std.testing.expectEqual(received_message.hintSerializedLen(), 183);
+    try std.testing.expectEqualSlices(u8, received_message.merkleblock.flags, flags);
+    try std.testing.expectEqual(received_message.merkleblock.transaction_count, transaction_count);
+    try std.testing.expectEqualSlices([32]u8, received_message.merkleblock.hashes, hashes);
 }
 
 test "ok_send_pong_message" {
