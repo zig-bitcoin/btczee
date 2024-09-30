@@ -19,7 +19,7 @@ const BlockHeader = Types.BlockHeader;
 /// https://developer.bitcoin.org/reference/p2p_networking.html#block
 pub const BlockMessage = struct {
     block_header: BlockHeader,
-    txns: std.ArrayList(Transaction),
+    txns: []Transaction,
 
     const Self = @This();
 
@@ -40,11 +40,10 @@ pub const BlockMessage = struct {
     }
 
     pub fn deinit(self: *BlockMessage, allocator: std.mem.Allocator) void {
-        _ = allocator;
-        for (self.txns.items) |*txn| {
+        for (self.txns) |*txn| {
             txn.deinit();
         }
-        self.txns.deinit();
+        allocator.free(self.txns);
     }
 
     /// Serialize the message as bytes and write them to the Writer.
@@ -58,10 +57,10 @@ pub const BlockMessage = struct {
 
         try self.block_header.serializeToWriter(w);
 
-        try CompactSizeUint.new(self.txns.items.len).encodeToWriter(w);
+        try CompactSizeUint.new(self.txns.len).encodeToWriter(w);
         // try .encodeToWriter(w);
 
-        for (self.txns.items) |txn| {
+        for (self.txns) |txn| {
             try txn.serializeToWriter(w);
         }
     }
@@ -100,12 +99,13 @@ pub const BlockMessage = struct {
 
         const txns_count = try CompactSizeUint.decodeReader(r);
 
-        block_message.txns = std.ArrayList(Transaction).init(allocator);
-        errdefer block_message.txns.deinit();
+        block_message.txns = try allocator.alloc(Transaction, txns_count.value());
+        errdefer allocator.free(block_message.txns);
 
-        const txns_count_u32 = txns_count.value();
-        while (block_message.txns.items.len < txns_count_u32) {
-            try block_message.txns.append(try Transaction.deserializeReader(allocator, r));
+        var i: usize = 0;
+        while (i < txns_count.value()) : (i += 1) {
+            const tx = try Transaction.deserializeReader(allocator, r);
+            block_message.txns[i] = tx;
         }
 
         return block_message;
@@ -119,9 +119,9 @@ pub const BlockMessage = struct {
 
     pub fn hintSerializedLen(self: BlockMessage) usize {
         const header_length = BlockHeader.serializedLen();
-        const txs_number_length = CompactSizeUint.new(self.txns.items.len).hint_encoded_len();
+        const txs_number_length = CompactSizeUint.new(self.txns.len).hint_encoded_len();
         var txs_length: usize = 0;
-        for (self.txns.items) |txn| {
+        for (self.txns) |txn| {
             txs_length += txn.virtual_size();
         }
         return header_length + txs_number_length + txs_length;
@@ -148,8 +148,9 @@ test "ok_full_flow_BlockMessage" {
             try tx.addOutput(50000, script_pubkey);
         }
 
-        var txns = std.ArrayList(Transaction).init(allocator);
-        try txns.append(tx);
+        var txns = try allocator.alloc(Transaction, 1);
+        errdefer allocator.free(txns);
+        txns[0] = tx;
 
         var msg = BlockMessage{
             .block_header = BlockHeader{
@@ -176,8 +177,8 @@ test "ok_full_flow_BlockMessage" {
         try std.testing.expect(msg.block_header.nbits == deserialized_msg.block_header.nbits);
         try std.testing.expect(msg.block_header.nonce == deserialized_msg.block_header.nonce);
 
-        for (msg.txns.items, 0..) |txn, i| {
-            const deserialized_txn = deserialized_msg.txns.items[i];
+        for (msg.txns, 0..) |txn, i| {
+            const deserialized_txn = deserialized_msg.txns[i];
             try std.testing.expect(txn.eql(deserialized_txn));
         }
     }
