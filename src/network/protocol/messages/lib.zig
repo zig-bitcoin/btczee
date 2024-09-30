@@ -6,9 +6,11 @@ pub const GetaddrMessage = @import("getaddr.zig").GetaddrMessage;
 pub const GetblocksMessage = @import("getblocks.zig").GetblocksMessage;
 pub const PingMessage = @import("ping.zig").PingMessage;
 pub const PongMessage = @import("pong.zig").PongMessage;
+pub const MerkleBlockMessage = @import("merkleblock.zig").MerkleBlockMessage;
 pub const FeeFilterMessage = @import("feefilter.zig").FeeFilterMessage;
 pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
 pub const FilterClearMessage = @import("filterclear.zig").FilterClearMessage;
+pub const FilterAddMessage = @import("filteradd.zig").FilterAddMessage;
 
 pub const MessageTypes = enum {
     version,
@@ -18,9 +20,11 @@ pub const MessageTypes = enum {
     getblocks,
     ping,
     pong,
+    merkleblock,
     sendcmpct,
     feefilter,
     filterclear,
+    filteradd,
 };
 
 pub const Message = union(MessageTypes) {
@@ -31,9 +35,11 @@ pub const Message = union(MessageTypes) {
     getblocks: GetblocksMessage,
     ping: PingMessage,
     pong: PongMessage,
+    merkleblock: MerkleBlockMessage,
     sendcmpct: SendCmpctMessage,
     feefilter: FeeFilterMessage,
     filterclear: FilterClearMessage,
+    filteradd: FilterAddMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -44,9 +50,11 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| @TypeOf(m).name(),
             .ping => |m| @TypeOf(m).name(),
             .pong => |m| @TypeOf(m).name(),
+            .merkleblock => |m| @TypeOf(m).name(),
             .sendcmpct => |m| @TypeOf(m).name(),
             .feefilter => |m| @TypeOf(m).name(),
             .filterclear => |m| @TypeOf(m).name(),
+            .filteradd => |m| @TypeOf(m).name(),
         };
     }
 
@@ -59,9 +67,11 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| m.deinit(allocator),
             .ping => {},
             .pong => {},
+            .merkleblock => |m| m.deinit(allocator),
             .sendcmpct => {},
             .feefilter => {},
             .filterclear => {},
+            .filteradd => |m| m.deinit(allocator),
         }
     }
 
@@ -74,9 +84,11 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| m.checksum(),
             .ping => |m| m.checksum(),
             .pong => |m| m.checksum(),
+            .merkleblock => |m| m.checksum(),
             .sendcmpct => |m| m.checksum(),
             .feefilter => |m| m.checksum(),
             .filterclear => |m| m.checksum(),
+            .filteradd => |m| m.checksum(),
         };
     }
 
@@ -89,9 +101,11 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| m.hintSerializedLen(),
             .ping => |m| m.hintSerializedLen(),
             .pong => |m| m.hintSerializedLen(),
+            .merkleblock => |m| m.hintSerializedLen(),
             .sendcmpct => |m| m.hintSerializedLen(),
             .feefilter => |m| m.hintSerializedLen(),
             .filterclear => |m| m.hintSerializedLen(),
+            .filteradd => |m| m.hintSerializedLen(),
         };
     }
 };
