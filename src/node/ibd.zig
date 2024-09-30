@@ -8,6 +8,6 @@ pub const IBD = struct {
             .p2p = p2p,
         };
     }
-    
+
     pub fn start(_: *IBD) !void {}
 };
