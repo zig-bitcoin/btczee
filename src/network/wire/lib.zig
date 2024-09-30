@@ -131,6 +131,10 @@ pub fn receiveMessage(
         protocol.messages.Message{ .filterclear = try protocol.messages.FilterClearMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.FilterAddMessage.name()))
         protocol.messages.Message{ .filteradd = try protocol.messages.FilterAddMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.NotFoundMessage.name()))
+        protocol.messages.Message{ .notfound = try protocol.messages.NotFoundMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.FeeFilterMessage.name()))
+        protocol.messages.Message{ .feefilter = try protocol.messages.FeeFilterMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.FilterLoadMessage.name()))
         protocol.messages.Message{ .filterload = try protocol.messages.FilterLoadMessage.deserializeReader(allocator, r) }
     else {
