@@ -63,11 +63,9 @@ pub const ScriptBuilder = struct {
         // Get the bytes from the integer and copy them to the array
         std.mem.copyForwards(u8, &byteArray, std.mem.asBytes(&num));
 
-        // const p = @to(num);
         if (canonicalDataSize(&byteArray) + self.script.items.len >= MAX_SCRIPT_SIZE) {
             return ScriptBuilderError.ScriptTooLong;
         }
-        // return try self.addBytes(std.mem.asBytes(std.mem.nativeToLittle(i32, num)));
         switch (num) {
             0 => {
                 try self.script.append(Opcode.OP_0.toBytes());
@@ -77,10 +75,6 @@ pub const ScriptBuilder = struct {
         }
         return self;
     }
-
-    // pub fn addBytes(self: *ScriptBuilder, data: []const u8) !*ScriptBuilder {
-    //     try self.script.appendSlice(data);
-    // }
 
     pub fn addData(self: *ScriptBuilder, data: []const u8) !*ScriptBuilder {
         const bytes_length: usize = @intCast(canonicalDataSize(data));
@@ -98,32 +92,25 @@ pub const ScriptBuilder = struct {
         } else if (data.len < Opcode.OP_PUSHDATA1.toBytes()) {
             try self.script.append(@intCast(data.len));
             try self.script.appendSlice(data);
-        } else if (data.len <= 0xff) { //<=255
-
+        } else if (data.len <= 0xff) {
             try self.script.append(Opcode.OP_PUSHDATA1.toBytes());
-            //cast is required since append expects `u8` and data.len is of type `usize`
             try self.script.append(@intCast(data.len));
 
             try self.script.appendSlice(data);
-        } else if (data.len <= 0xffff) { //<=65535
+        } else if (data.len <= 0xffff) {
             try self.script.append(Opcode.OP_PUSHDATA2.toBytes());
             const length: u16 = @intCast(data.len);
-            const n: [2]u8 = [2]u8{
-                @intCast(length & 0xFF), // lower byte (least significant byte)
-                @intCast((length >> 8) & 0xFF), // upper byte (most significant byte)
-            };
+            var n: [2]u8 = undefined;
+            std.mem.writeInt(u16, &n, length, .little);
             try self.script.appendSlice(&n);
 
             try self.script.appendSlice(data);
-        } else if (data.len <= 0xFFFFFFFF) {
+        } else {
             try self.script.append(Opcode.OP_PUSHDATA4.toBytes());
             const length: u32 = @intCast(data.len);
-            var n: [4]u8 = [4]u8{
-                @intCast(length & 0xFF), // lower byte (LSB)
-                @intCast(length >> 8 & 0xFF), // next byte
-                @intCast(length >> 16 & 0xFF), // next byte
-                @intCast((length >> 24) & 0xFF), // upper byte (MSB)
-            };
+            var n: [4]u8 = undefined;
+            std.mem.writeInt(u32, &n, length, .little);
+
             try self.script.appendSlice(&n);
             try self.script.appendSlice(data);
         }
@@ -135,7 +122,7 @@ pub const ScriptBuilder = struct {
         self.script.deinit();
     }
 
-    ///Build the script. It creates and returns an engine instance.
+    /// Build the script. It creates and returns an engine instance.
     ///
     /// Returns
     /// Instance of the engine
@@ -146,6 +133,7 @@ pub const ScriptBuilder = struct {
         return script_engine;
     }
 
+    /// Returns the Size in Bytes of the data to be added
     fn canonicalDataSize(data: []const u8) usize {
         const dataLen = data.len;
 
@@ -166,6 +154,45 @@ pub const ScriptBuilder = struct {
         }
 
         return 5 + dataLen;
+    }
+
+    /// Private Function to addData without checking MAX_SCRIPT_SIZE
+    /// Only to be used for testing soundess of the ScriptBuilder struct
+    /// Cannot be called from other files
+    fn unchecked_addData(self: *ScriptBuilder, data: []const u8) !*ScriptBuilder {
+        if (data.len == 0 or data.len == 1 and data[0] == 0) {
+            _ = try self.addOpcode(Opcode.OP_0);
+        } else if (data.len == 1 and data[0] <= 16) {
+            const op = Opcode.OP_1.toBytes() - 1 + data[0];
+            try self.script.append(op);
+        } else if (data.len == 1 and data[0] == 0x81) {
+            _ = try self.addOpcode(Opcode.OP_1NEGATE);
+        } else if (data.len < Opcode.OP_PUSHDATA1.toBytes()) {
+            try self.script.append(@intCast(data.len));
+            try self.script.appendSlice(data);
+        } else if (data.len <= 0xff) {
+            try self.script.append(Opcode.OP_PUSHDATA1.toBytes());
+            try self.script.append(@intCast(data.len));
+
+            try self.script.appendSlice(data);
+        } else if (data.len <= 0xffff) {
+            try self.script.append(Opcode.OP_PUSHDATA2.toBytes());
+            const length: u16 = @intCast(data.len);
+            var n: [2]u8 = undefined;
+            std.mem.writeInt(u16, &n, length, .little);
+            try self.script.appendSlice(&n);
+
+            try self.script.appendSlice(data);
+        } else {
+            try self.script.append(Opcode.OP_PUSHDATA4.toBytes());
+            const length: u32 = @intCast(data.len);
+            var n: [4]u8 = undefined;
+            std.mem.writeInt(u32, &n, length, .little);
+
+            try self.script.appendSlice(&n);
+            try self.script.appendSlice(data);
+        }
+        return self;
     }
 };
 
@@ -337,4 +364,66 @@ test "ScriptBuilder addData data.len <= 0xFFFFFFFF" {
 
     const result_failed = sb.addData(&array);
     try std.testing.expectError(ScriptBuilderError.ScriptTooLong, result_failed);
+}
+
+test "ScriptBuilder UNCHECKED_ADD_DATA data.len <= 0xFFFF" {
+    var sb = try ScriptBuilder.new(std.testing.allocator, 65000);
+    defer sb.deinit();
+
+    var array: [65000]u8 = undefined;
+    var expected: [65003]u8 = undefined;
+
+    for (0..65000) |i| {
+        array[i] = 42;
+    }
+
+    expected[0] = Opcode.OP_PUSHDATA2.toBytes();
+    const n: [2]u8 = [2]u8{
+        @intCast(65000 & 0xFF), // lower byte (least significant byte)
+        @intCast((65000 >> 8) & 0xFF), // upper byte (most significant byte)
+    };
+    expected[1] = n[0];
+    expected[2] = n[1];
+    for (3..65003) |i| {
+        expected[i] = 42;
+    }
+
+    _ = try sb.unchecked_addData(&array);
+    var e = try sb.build();
+    defer e.deinit();
+
+    try std.testing.expectEqualSlices(u8, &expected, e.script.data);
+}
+
+test "ScriptBuilder UNCHECKED_ADD_DATA data.len <= 0xFFFFFFFF" {
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
+
+    var array: [70000]u8 = undefined;
+    var expected: [70005]u8 = undefined;
+
+    for (0..70000) |i| {
+        array[i] = 42;
+    }
+
+    expected[0] = Opcode.OP_PUSHDATA4.toBytes();
+    const n: [4]u8 = [4]u8{
+        @intCast(70000 & 0xFF), // lower byte (LSB)
+        @intCast(70000 >> 8 & 0xFF), // next byte
+        @intCast(70000 >> 16 & 0xFF), // next byte
+        @intCast((70000 >> 24) & 0xFF), // upper byte (MSB)
+    };
+    expected[1] = n[0];
+    expected[2] = n[1];
+    expected[3] = n[2];
+    expected[4] = n[3];
+    for (5..70005) |i| {
+        expected[i] = 42;
+    }
+
+    _ = try sb.unchecked_addData(&array);
+    var e = try sb.build();
+    defer e.deinit();
+
+    try std.testing.expectEqualSlices(u8, &expected, e.script.data);
 }
