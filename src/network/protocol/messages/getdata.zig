@@ -9,7 +9,6 @@ const protocol = @import("../lib.zig");
 pub const GetdataMessage = struct {
     inventory: []const message.InventoryItem,
 
-
     pub inline fn name() *const [12]u8 {
         return protocol.CommandNames.GETDATA ++ [_]u8{0} ** 5;
     }
@@ -47,9 +46,7 @@ pub const GetdataMessage = struct {
         try count.encodeToWriter(w);
 
         for (self.inventory) |item| {
-            try w.writeInt(u32, item.type, .little);
-
-            try w.writeAll(&item.hash);
+            try item.serialize(w);
         }
     }
 
@@ -98,8 +95,7 @@ pub const GetdataMessage = struct {
         const inventory = try allocator.alloc(message.InventoryItem, count);
 
         for (inventory) |*item| {
-            item.type = try r.readInt(u32, .little);
-            try r.readNoEof(&item.hash);
+            item.* = try message.InventoryItem.deserialize(r);
         }
 
         return GetdataMessage{
@@ -119,10 +115,9 @@ pub const GetdataMessage = struct {
         if (self.inventory.len != other.inventory.len) return false;
 
         for (0..self.inventory.len) |i| {
-            if (self.inventory[i].type != other.inventory[i].type) {
-                return false;
-            }
-            if (!std.mem.eql(u8, &self.inventory[i].hash, &other.inventory[i].hash)) {
+            const item_self = self.inventory[i];
+            const item_other = other.inventory[i];
+            if (!item_self.eql(&item_other)) {
                 return false;
             }
         }

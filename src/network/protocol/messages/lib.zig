@@ -42,6 +42,31 @@ pub const MessageTypes = enum {
 pub const InventoryItem = struct {
     type: u32,
     hash: [32]u8,
+
+    pub fn serialize(self: *const InventoryItem, w: anytype) !void {
+        try w.writeInt(u32, self.type, .little);
+        try w.writeAll(&self.hash);
+    }
+
+    pub fn deserialize(r: anytype) !InventoryItem {
+        comptime {
+            if (!std.meta.hasFn(@TypeOf(r), "readInt")) @compileError("Expects reader to have fn 'readInt'.");
+            if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects reader to have fn 'readNoEof'.");
+        }
+
+        const item_type = try r.readInt(u32, .little);
+        var hash: [32]u8 = undefined;
+        try r.readNoEof(&hash);
+
+        return InventoryItem{
+            .type = item_type,
+            .hash = hash,
+        };
+    }
+
+    pub fn eql(self: *const InventoryItem, other: *const InventoryItem) bool {
+        return self.type == other.type and std.mem.eql(u8, &self.hash, &other.hash);
+    }
 };
 
 
