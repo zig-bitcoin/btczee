@@ -1,5 +1,6 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
+const genericChecksum = @import("lib.zig").genericChecksum;
 
 /// VerackMessage represents the "verack" message
 ///
@@ -12,9 +13,7 @@ pub const VerackMessage = struct {
     }
 
     pub fn checksum(self: VerackMessage) [4]u8 {
-        _ = self;
-        // If payload is empty, the checksum is always 0x5df6e0e2 (SHA256(SHA256("")))
-        return [4]u8{ 0x5d, 0xf6, 0xe0, 0xe2 };
+        return genericChecksum(self, false);
     }
 
     /// Serialize a message as bytes and return them.

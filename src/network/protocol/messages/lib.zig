@@ -111,7 +111,7 @@ pub const Message = union(MessageTypes) {
     }
 };
 
-pub fn checksum(m: anytype, hasPayload: bool) [4]u8 {
+pub fn genericChecksum(m: anytype, hasPayload: bool) [4]u8 {
     comptime {
         if (!std.meta.hasFn(@TypeOf(m), "serializeToWriter")) @compileError("Expects m to have fn 'serializeToWriter'.");
     }
