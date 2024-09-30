@@ -3,7 +3,6 @@ const Allocator = std.mem.Allocator;
 const Stack = @import("stack.zig").Stack;
 const Script = @import("lib.zig").Script;
 const asBool = @import("lib.zig").asBool;
-const ScriptNum = @import("lib.zig").ScriptNum;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
 const arithmetic = @import("opcodes/arithmetic.zig");
 const Opcode = @import("opcodes/constant.zig").Opcode;
@@ -13,6 +12,7 @@ const ScriptBuilder = @import("scriptBuilder.zig").ScriptBuilder;
 const sha1 = std.crypto.hash.Sha1;
 const ripemd160 = @import("bitcoin-primitives").hashes.Ripemd160;
 const Sha256 = std.crypto.hash.sha2.Sha256;
+const hash160 = @import("bitcoin-primitives").hashes.Hash160;
 /// Engine is the virtual machine that executes Bitcoin scripts
 pub const Engine = struct {
     /// The script being executed
@@ -57,11 +57,11 @@ pub const Engine = struct {
     /// Log debug information
     fn log(self: *Engine, comptime format: []const u8, args: anytype) void {
         _ = self;
-        // _ = format;
-        // _ = args;
+        _ = format;
+        _ = args;
         // Uncomment this if you need to access the log
         // In the future it would be cool to log somewhere else than stderr
-        std.debug.print(format, args);
+        // std.debug.print(format, args);
     }
 
     /// Execute the script
@@ -455,11 +455,16 @@ pub const Engine = struct {
     /// # Returns
     /// - `EngineError`: If an error occurs during execution
     fn opHash160(self: *Engine) !void {
-        _ = try self.stack.pop();
-        // For now, just set the hash to a dummy value
-        const hash: [20]u8 = [_]u8{0x00} ** 20;
-        // TODO: Implement SHA256 and RIPEMD160
-        try self.stack.pushByteArray(&hash);
+        const data = try self.stack.pop();
+        defer self.allocator.free(data);
+
+        var hash: [Sha256.digest_length]u8 = undefined;
+        Sha256.hash(data, &hash, .{});
+
+        var hash_160: [ripemd160.digest_length]u8 = undefined;
+        ripemd160.hash(&hash, &hash_160, .{});
+
+        try self.stack.pushByteArray(&hash_160);
     }
 
     /// OP_CHECKSIG: Verify a signature
@@ -1065,6 +1070,45 @@ test "Script execution - OP_SHA256" {
     var expected_hash: [Sha256.digest_length]u8 = undefined;
     Sha256.hash(&[_]u8{1}, &expected_hash, .{});
     try std.testing.expectEqualSlices(u8, expected_hash[0..], hash_bytes);
+}
+
+test "Script execution = OP_HASH160" {
+    const test_cases = [_]struct {
+        input: []const u8,
+        expected: []const u8,
+    }{
+        .{ .input = "hello", .expected = "b6a9c8c230722b7c748331a8b450f05566dc7d0f" },
+        .{ .input = "blockchain", .expected = "755f6f4af6e11c5cf642f0ed6ecda89d8619cee7" },
+        .{ .input = "abc", .expected = "bb1be98c142444d7a56aa3981c3942a978e4dc33" },
+        .{ .input = "bitcoin", .expected = "6b2904910f9b40b2244eed93a7b8d992b22f8d32" },
+    };
+
+    for (test_cases) |case| {
+        const allocator = std.testing.allocator;
+
+        const script_bytes = [_]u8{Opcode.OP_HASH160.toBytes()};
+        const script = Script.init(&script_bytes);
+
+        var engine = Engine.init(allocator, script, .{});
+        defer engine.deinit();
+
+        // Push the input onto the stack
+        try engine.stack.pushByteArray(case.input);
+
+        // Call opHash160
+        try engine.execute();
+
+        // Pop the result from the stack
+        const result = try engine.stack.pop();
+        defer engine.allocator.free(result); // Free the result after use
+
+        // Convert expected hash to bytes
+        var expected_output: [ripemd160.digest_length]u8 = undefined;
+        _ = try std.fmt.hexToBytes(&expected_output, case.expected);
+
+        // Compare the result with the expected hash
+        try std.testing.expectEqualSlices(u8, &expected_output, result);
+    }
 }
 
 //METHOD 2

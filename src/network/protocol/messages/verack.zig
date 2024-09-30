@@ -1,13 +1,5 @@
 const std = @import("std");
-const native_endian = @import("builtin").target.cpu.arch.endian();
 const protocol = @import("../lib.zig");
-
-const ServiceFlags = protocol.ServiceFlags;
-
-const Endian = std.builtin.Endian;
-const Sha256 = std.crypto.hash.sha2.Sha256;
-
-const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 
 /// VerackMessage represents the "verack" message
 ///
@@ -15,7 +7,7 @@ const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 pub const VerackMessage = struct {
     // verack message do not contain any payload, thus there is no field
 
-    pub inline fn name() *const [12]u8 {
+    pub fn name() *const [12]u8 {
         return protocol.CommandNames.VERACK ++ [_]u8{0} ** 6;
     }
 

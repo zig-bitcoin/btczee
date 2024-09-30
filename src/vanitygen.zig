@@ -2,9 +2,7 @@ const std = @import("std");
 const bitcoin_primitives = @import("bitcoin-primitives");
 const secp256k1 = bitcoin_primitives.secp256k1;
 const address_lib = @import("btczee").address;
-const crypto = std.crypto;
 const mpmc = @import("util/sync/mpmc.zig");
-const ref = @import("util/sync/ref.zig");
 const clap = @import("clap");
 const builtin = @import("builtin");
 

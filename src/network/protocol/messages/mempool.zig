@@ -1,6 +1,4 @@
-
 const std = @import("std");
-const native_endian = @import("builtin").target.cpu.arch.endian();
 const protocol = @import("../lib.zig");
 
 /// MempoolMessage represents the "mempool" message
@@ -9,7 +7,7 @@ const protocol = @import("../lib.zig");
 pub const MempoolMessage = struct {
     // mempool message do not contain any payload, thus there is no field
 
-    pub inline fn name() *const [12]u8 {
+    pub fn name() *const [12]u8 {
         return protocol.CommandNames.MEMPOOL ++ [_]u8{0} ** 5;
     }
 
@@ -36,7 +34,6 @@ pub const MempoolMessage = struct {
         _ = self;
         return 0;
     }
-
 };
 
 // TESTS

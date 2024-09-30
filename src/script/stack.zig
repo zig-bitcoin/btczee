@@ -5,7 +5,6 @@ const ScriptNum = script.ScriptNum;
 const asBool = script.asBool;
 const asInt = script.asInt;
 const testing = std.testing;
-const native_endian = @import("builtin").target.cpu.arch.endian();
 
 /// Errors that can occur during stack operations
 pub const StackError = error{
