@@ -316,12 +316,17 @@ pub const Engine = struct {
 
     /// OP_2ROT: The fifth and sixth items back are moved to the top of the stack
     fn op2Rot(self: *Engine) !void {
-        const index = self.stack.items.items.len - 6;
-        var i: usize = 2;
-        while (i > 0) : (i -= 1) {
-            const value = self.stack.items.orderedRemove(index);
-            try self.stack.pushElement(value);
-        }
+        const first = self.stack.items.items.len - 1;
+        const second = self.stack.items.items.len - 2;
+        const third = self.stack.items.items.len - 3;
+        const fourth = self.stack.items.items.len - 4;
+        const fifth = self.stack.items.items.len - 5;
+        const sixth = self.stack.items.items.len - 6;
+
+        try self.stack.swap(sixth, fourth);
+        try self.stack.swap(fifth, third);
+        try self.stack.swap(fourth, second);
+        try self.stack.swap(third, first);
     }
 
     // OP_2OVER: Copies the pair of items two spaces back in the stack to the front
@@ -367,12 +372,12 @@ pub const Engine = struct {
 
     /// OP_ROT: The top three items on the stack are rotated to the left
     fn opRot(self: *Engine) !void {
-        const index = self.stack.items.items.len - 3;
-        var i: usize = 1;
-        while (i > 0) : (i -= 1) {
-            const value = self.stack.items.orderedRemove(index);
-            try self.stack.pushElement(value);
-        }
+        const first = self.stack.items.items.len - 1;
+        const second = self.stack.items.items.len - 2;
+        const third = self.stack.items.items.len - 3;
+        
+        try self.stack.swap(third, second);
+        try self.stack.swap(second, first);
     }
 
     /// OP_NIP: Removes the second-to-top stack item
@@ -697,7 +702,6 @@ test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_3Dup" {
 test "Script execution - OP_2ROT" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_2 OP_3 OP_4 OP_5 OP_6 OP_2ROT
     const script_bytes = [_]u8{
         Opcode.OP_0.toBytes(),
         Opcode.OP_1.toBytes(),
@@ -888,7 +892,6 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
 test "Script execution - OP_ROT" {
     const allocator = std.testing.allocator;
 
-    // Simple script: OP_1 OP_2 OP_3 OP_ROT
     const script_bytes = [_]u8{
         Opcode.OP_0.toBytes(),
         Opcode.OP_1.toBytes(),
@@ -906,11 +909,13 @@ test "Script execution - OP_ROT" {
     const element0 = try engine.stack.peekInt(0);
     const element1 = try engine.stack.peekInt(1);
     const element2 = try engine.stack.peekInt(2);
+    const element3 = try engine.stack.peekInt(3);
 
     try std.testing.expectEqual(4, engine.stack.len());
     try std.testing.expectEqual(1, element0);
     try std.testing.expectEqual(3, element1);
     try std.testing.expectEqual(2, element2);
+    try std.testing.expectEqual(0, element3);
 }
 
 test "Script execution - OP_PICK" {
