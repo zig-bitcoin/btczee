@@ -72,19 +72,21 @@ pub const FilterLoadMessage = struct {
             if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects r to have fn 'readNoEof'.");
         }
 
-        var fl: Self = undefined;
-
         const filter_len = (try CompactSizeUint.decodeReader(r)).value();
         const filter = try allocator.alloc(u8, filter_len);
         errdefer allocator.free(filter);
         try r.readNoEof(filter);
     
-        fl.filter = filter;
-        fl.hash_func = try r.readInt(u32, .little);
-        fl.tweak = try r.readInt(u32, .little);
-        fl.flags = try r.readInt(u8, .little);
+        const hash_func = try r.readInt(u32, .little);
+        const tweak = try r.readInt(u32, .little);
+        const flags = try r.readInt(u8, .little);
 
-        return fl;
+        return Self{
+            .filter = filter,
+            .hash_func = hash_func,
+            .tweak = tweak,
+            .flags = flags,
+        };
     }
 
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
