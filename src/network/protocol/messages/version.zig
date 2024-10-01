@@ -6,6 +6,7 @@ const ServiceFlags = protocol.ServiceFlags;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
+const genericChecksum = @import("lib.zig").genericChecksum;
 
 /// VersionMessage represents the "version" message
 ///
@@ -35,19 +36,11 @@ pub const VersionMessage = struct {
     ///
     /// Computed as `Sha256(Sha256(self.serialize()))[0..4]`
     pub fn checksum(self: *const Self) [4]u8 {
-        var digest: [32]u8 = undefined;
-        var hasher = Sha256.init(.{});
-        const writer = hasher.writer();
-        self.serializeToWriter(writer) catch unreachable; // Sha256.write is infaible
-        hasher.final(&digest);
-
-        Sha256.hash(&digest, &digest, .{});
-
-        return digest[0..4].*;
+        return genericChecksum(self);
     }
 
     /// Free the `user_agent` if there is one
-    pub fn deinit(self: *const Self, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
         if (self.user_agent) |ua| {
             allocator.free(ua);
         }
@@ -242,7 +235,7 @@ test "ok_full_flow_VersionMessage" {
 
         const payload = try vm.serialize(allocator);
         defer allocator.free(payload);
-        const deserialized_vm = try VersionMessage.deserializeSlice(allocator, payload);
+        var deserialized_vm = try VersionMessage.deserializeSlice(allocator, payload);
         defer deserialized_vm.deinit(allocator);
 
         try std.testing.expect(vm.eql(&deserialized_vm));
@@ -268,7 +261,7 @@ test "ok_full_flow_VersionMessage" {
 
         const payload = try vm.serialize(allocator);
         defer allocator.free(payload);
-        const deserialized_vm = try VersionMessage.deserializeSlice(allocator, payload);
+        var deserialized_vm = try VersionMessage.deserializeSlice(allocator, payload);
         defer deserialized_vm.deinit(allocator);
 
         try std.testing.expect(vm.eql(&deserialized_vm));
@@ -295,7 +288,7 @@ test "ok_full_flow_VersionMessage" {
 
         const payload = try vm.serialize(allocator);
         defer allocator.free(payload);
-        const deserialized_vm = try VersionMessage.deserializeSlice(allocator, payload);
+        var deserialized_vm = try VersionMessage.deserializeSlice(allocator, payload);
         defer deserialized_vm.deinit(allocator);
 
         try std.testing.expect(vm.eql(&deserialized_vm));

@@ -122,12 +122,14 @@ pub const Engine = struct {
             Opcode.OP_2DROP => try self.op2Drop(),
             Opcode.OP_2DUP => try self.op2Dup(),
             Opcode.OP_3DUP => try self.op3Dup(),
+            Opcode.OP_2ROT => try self.op2Rot(),
             Opcode.OP_2OVER => try self.op2Over(),
             Opcode.OP_2SWAP => try self.op2Swap(),
             Opcode.OP_IFDUP => self.opIfDup(),
             Opcode.OP_DEPTH => self.opDepth(),
             Opcode.OP_DROP => try self.opDrop(),
             Opcode.OP_DUP => try self.opDup(),
+            Opcode.OP_ROT => try self.opRot(),
             Opcode.OP_EQUAL => try self.opEqual(),
             Opcode.OP_EQUALVERIFY => try self.opEqualVerify(),
             Opcode.OP_1ADD => try arithmetic.op1Add(self),
@@ -313,6 +315,16 @@ pub const Engine = struct {
         try self.stack.pushByteArray(first);
     }
 
+    /// OP_2ROT: The fifth and sixth items back are moved to the top of the stack
+    fn op2Rot(self: *Engine) !void {
+        const start = self.stack.items.items.len - 1;
+
+        try self.stack.swap(start-5, start-3);
+        try self.stack.swap(start-4, start-2);
+        try self.stack.swap(start-3, start-1);
+        try self.stack.swap(start-2, start);
+    }
+
     // OP_2OVER: Copies the pair of items two spaces back in the stack to the front
     fn op2Over(self: *Engine) !void {
         const fourth = try self.stack.peek(3);
@@ -352,6 +364,14 @@ pub const Engine = struct {
     fn opDup(self: *Engine) !void {
         const value = try self.stack.peek(0);
         try self.stack.pushByteArray(value);
+    }
+
+    /// OP_ROT: The top three items on the stack are rotated to the left
+    fn opRot(self: *Engine) !void {
+        const start = self.stack.items.items.len - 1;
+        
+        try self.stack.swap(start-2, start-1);
+        try self.stack.swap(start-1, start);
     }
 
     /// OP_NIP: Removes the second-to-top stack item
@@ -673,6 +693,44 @@ test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_3Dup" {
     try std.testing.expectEqual(1, element6);
 }
 
+test "Script execution - OP_2ROT" {
+    const allocator = std.testing.allocator;
+
+    const script_bytes = [_]u8{
+        Opcode.OP_0.toBytes(),
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_2.toBytes(),
+        Opcode.OP_3.toBytes(),
+        Opcode.OP_4.toBytes(),
+        Opcode.OP_5.toBytes(),
+        Opcode.OP_6.toBytes(),
+        Opcode.OP_2ROT.toBytes(),
+    };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+    const element2 = try engine.stack.peekInt(2);
+    const element3 = try engine.stack.peekInt(3);
+    const element4 = try engine.stack.peekInt(4);
+    const element5 = try engine.stack.peekInt(5);
+    const element6 = try engine.stack.peekInt(6);
+
+    try std.testing.expectEqual(7, engine.stack.len());
+    try std.testing.expectEqual(2, element0);
+    try std.testing.expectEqual(1, element1);
+    try std.testing.expectEqual(6, element2);
+    try std.testing.expectEqual(5, element3);
+    try std.testing.expectEqual(4, element4);
+    try std.testing.expectEqual(3, element5);
+    try std.testing.expectEqual(0, element6);
+}
+
 test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_2OVER" {
     const allocator = std.testing.allocator;
 
@@ -823,6 +881,35 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
     const element0 = try engine.stack.peekInt(0);
 
     try std.testing.expectEqual(1, element0);
+}
+
+test "Script execution - OP_ROT" {
+    const allocator = std.testing.allocator;
+
+    const script_bytes = [_]u8{
+        Opcode.OP_0.toBytes(),
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_2.toBytes(),
+        Opcode.OP_3.toBytes(),
+        Opcode.OP_ROT.toBytes(),
+    };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    const element0 = try engine.stack.peekInt(0);
+    const element1 = try engine.stack.peekInt(1);
+    const element2 = try engine.stack.peekInt(2);
+    const element3 = try engine.stack.peekInt(3);
+
+    try std.testing.expectEqual(4, engine.stack.len());
+    try std.testing.expectEqual(1, element0);
+    try std.testing.expectEqual(3, element1);
+    try std.testing.expectEqual(2, element2);
+    try std.testing.expectEqual(0, element3);
 }
 
 test "Script execution - OP_PICK" {
