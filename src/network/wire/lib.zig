@@ -18,7 +18,7 @@ pub const Error = error{
     MessageTooLarge,
 };
 
-const BlockHeader = @import("../../types/BlockHeader.zig");
+const BlockHeader = @import("../../types/block_header.zig");
 /// Return the checksum of a slice
 ///
 /// Use it on serialized messages to compute the header's value
@@ -109,7 +109,7 @@ pub fn receiveMessage(
     try validateMessageSize(payload_len);
 
     // Read payload
-    const message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name()))
+    var message: protocol.messages.Message = if (std.mem.eql(u8, &command, protocol.messages.VersionMessage.name()))
         protocol.messages.Message{ .version = try protocol.messages.VersionMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.VerackMessage.name()))
         protocol.messages.Message{ .verack = try protocol.messages.VerackMessage.deserializeReader(allocator, r) }
@@ -117,6 +117,8 @@ pub fn receiveMessage(
         protocol.messages.Message{ .mempool = try protocol.messages.MempoolMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.GetaddrMessage.name()))
         protocol.messages.Message{ .getaddr = try protocol.messages.GetaddrMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.BlockMessage.name()))
+        protocol.messages.Message{ .block = try protocol.messages.BlockMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.GetblocksMessage.name()))
         protocol.messages.Message{ .getblocks = try protocol.messages.GetblocksMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.PingMessage.name()))
@@ -192,7 +194,7 @@ test "ok_send_version_message" {
         .start_height = 1000,
         .relay = false,
     };
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
@@ -218,7 +220,7 @@ test "ok_send_verack_message" {
 
     const message = VerackMessage{};
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
@@ -244,7 +246,7 @@ test "ok_send_mempool_message" {
 
     const message = MempoolMessage{};
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
@@ -284,7 +286,7 @@ test "ok_send_getblocks_message" {
         }
     }
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
@@ -310,7 +312,7 @@ test "ok_send_ping_message" {
 
     const message = PingMessage.new(21000000);
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
@@ -339,7 +341,7 @@ test "ok_send_merkleblock_message" {
         .prev_block = [_]u8{0} ** 32,
         .merkle_root = [_]u8{1} ** 32,
         .timestamp = 1234567890,
-        .bits = 0x1d00ffff,
+        .nbits = 0x1d00ffff,
         .nonce = 987654321,
     };
     const hashes = try test_allocator.alloc([32]u8, 3);
@@ -363,7 +365,7 @@ test "ok_send_merkleblock_message" {
     const deserialized = try MerkleBlockMessage.deserializeSlice(test_allocator, serialized);
     defer deserialized.deinit(test_allocator);
 
-    const received_message = try write_and_read_message(test_allocator, &list, Config.BitcoinNetworkId.MAINNET, Config.PROTOCOL_VERSION, message) orelse unreachable;
+    var received_message = try write_and_read_message(test_allocator, &list, Config.BitcoinNetworkId.MAINNET, Config.PROTOCOL_VERSION, message) orelse unreachable;
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
@@ -388,7 +390,7 @@ test "ok_send_pong_message" {
 
     const message = PongMessage.new(21000000);
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
@@ -414,7 +416,7 @@ test "ok_send_sendheaders_message" {
 
     const message = SendHeadersMessage.new();
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
@@ -563,7 +565,7 @@ test "ok_send_sendcmpct_message" {
         .version = 1,
     };
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,

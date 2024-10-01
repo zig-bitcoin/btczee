@@ -2,7 +2,7 @@ const std = @import("std");
 const protocol = @import("../lib.zig");
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
-const BlockHeader = @import("../../../types/BlockHeader.zig");
+const BlockHeader = @import("../../../types/block_header.zig");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
 /// MerkleBlockMessage represents the "MerkleBlock" message
@@ -124,7 +124,7 @@ test "MerkleBlockMessage serialization and deserialization" {
         .prev_block = [_]u8{0} ** 32,
         .merkle_root = [_]u8{1} ** 32,
         .timestamp = 1234567890,
-        .bits = 0x1d00ffff,
+        .nbits = 0x1d00ffff,
         .nonce = 987654321,
     };
     const hashes = try test_allocator.alloc([32]u8, 3);

@@ -3,6 +3,7 @@ const protocol = @import("../lib.zig");
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
+const genericChecksum = @import("lib.zig").genericChecksum;
 
 /// FilterLoadMessage represents the "filterload" message
 ///
@@ -21,15 +22,7 @@ pub const FilterLoadMessage = struct {
 
     /// Returns the message checksum
     pub fn checksum(self: *const Self) [4]u8 {
-        var digest: [32]u8 = undefined;
-        var hasher = Sha256.init(.{});
-        const writer = hasher.writer();
-        self.serializeToWriter(writer) catch unreachable; // Sha256.write is infaible
-        hasher.final(&digest);
-
-        Sha256.hash(&digest, &digest, .{});
-
-        return digest[0..4].*;
+        return genericChecksum(self);
     }
 
     /// Serialize the message as bytes and write them to the Writer.
