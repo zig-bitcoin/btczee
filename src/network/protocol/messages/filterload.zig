@@ -1,9 +1,9 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
+const genericChecksum = @import("lib.zig").genericChecksum;
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
-const genericChecksum = @import("lib.zig").genericChecksum;
 
 /// FilterLoadMessage represents the "filterload" message
 ///
