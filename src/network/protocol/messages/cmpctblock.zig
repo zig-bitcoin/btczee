@@ -16,7 +16,7 @@ pub const CmpctBlockMessage = struct {
     const Self = @This();
 
     pub const PrefilledTransaction = struct {
-        index: CompactSizeUint,
+        index: usize,
         tx: []u8,
     };
 
@@ -48,8 +48,9 @@ pub const CmpctBlockMessage = struct {
 
         const prefilled_txns_count = CompactSizeUint.new(self.prefilled_txns.len);
         try prefilled_txns_count.encodeToWriter(w);
+
         for (self.prefilled_txns) |txn| {
-            try txn.index.encodeToWriter(w);
+            try CompactSizeUint.new(txn.index).encodeToWriter(w);
             const tx_size = CompactSizeUint.new(txn.tx.len);
             try tx_size.encodeToWriter(w);
             try w.writeAll(txn.tx);
@@ -95,7 +96,7 @@ pub const CmpctBlockMessage = struct {
             try r.readNoEof(tx);
 
             txn.* = PrefilledTransaction{
-                .index = index,
+                .index = index.value(),
                 .tx = tx,
             };
         }
@@ -119,7 +120,7 @@ pub const CmpctBlockMessage = struct {
         len += self.short_ids.len * 8;
         len += CompactSizeUint.new(self.prefilled_txns.len).hint_encoded_len();
         for (self.prefilled_txns) |txn| {
-            len += txn.index.hint_encoded_len();
+            len += CompactSizeUint.new(txn.index).hint_encoded_len();
             len += CompactSizeUint.new(txn.tx.len).hint_encoded_len();
             len += txn.tx.len;
         }
@@ -147,7 +148,7 @@ test "CmpctBlockMessage serialization and deserialization" {
     const prefilled_txns = try test_allocator.alloc(CmpctBlockMessage.PrefilledTransaction, 1);
     defer test_allocator.free(prefilled_txns);
     prefilled_txns[0] = .{
-        .index = CompactSizeUint.new(0),
+        .index = 0,
         .tx = try test_allocator.dupe(u8, &[_]u8{ 0xde, 0xad, 0xbe, 0xef }),
     };
     defer test_allocator.free(prefilled_txns[0].tx);
@@ -169,6 +170,6 @@ test "CmpctBlockMessage serialization and deserialization" {
     try std.testing.expectEqual(msg.nonce, deserialized.nonce);
     try std.testing.expectEqualSlices(u64, msg.short_ids, deserialized.short_ids);
     try std.testing.expectEqual(msg.prefilled_txns.len, deserialized.prefilled_txns.len);
-    try std.testing.expectEqual(msg.prefilled_txns[0].index.value(), deserialized.prefilled_txns[0].index.value());
+    try std.testing.expectEqual(msg.prefilled_txns[0].index, deserialized.prefilled_txns[0].index);
     try std.testing.expectEqualSlices(u8, msg.prefilled_txns[0].tx, deserialized.prefilled_txns[0].tx);
 }
