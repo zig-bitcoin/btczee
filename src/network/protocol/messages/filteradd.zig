@@ -1,5 +1,6 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
+const genericChecksum = @import("lib.zig").genericChecksum;
 
 /// FilterAddMessage represents the "filteradd" message
 ///
@@ -15,10 +16,7 @@ pub const FilterAddMessage = struct {
 
     /// Returns the message checksum
     pub fn checksum(self: *const Self) [4]u8 {
-        var digest: [32]u8 = undefined;
-        std.crypto.hash.sha2.Sha256.hash(self.element, &digest, .{});
-        std.crypto.hash.sha2.Sha256.hash(&digest, &digest, .{});
-        return digest[0..4].*;
+        return genericChecksum(self);
     }
 
     /// Serialize the message as bytes and write them to the Writer.

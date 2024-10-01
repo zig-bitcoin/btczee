@@ -4,7 +4,7 @@ const protocol = @import("../lib.zig");
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const BlockHeader = @import("../../../types/BlockHeader.zig");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
-
+const genericChecksum = @import("lib.zig").genericChecksum;
 /// MerkleBlockMessage represents the "MerkleBlock" message
 ///
 /// https://developer.bitcoin.org/reference/p2p_networking.html#merkleblock
@@ -22,14 +22,7 @@ pub const MerkleBlockMessage = struct {
 
     /// Returns the message checksum
     pub fn checksum(self: *const Self) [4]u8 {
-        var digest: [32]u8 = undefined;
-        var hasher = Sha256.init(.{});
-        self.serializeToWriter(hasher.writer()) catch unreachable;
-        hasher.final(&digest);
-
-        Sha256.hash(&digest, &digest, .{});
-
-        return digest[0..4].*;
+        return genericChecksum(self);
     }
 
     /// Free the allocated memory
