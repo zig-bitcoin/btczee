@@ -165,7 +165,7 @@ pub const Message = union(MessageTypes) {
             .filteradd => |*m| m.hintSerializedLen(),
             .notfound => |m| m.hintSerializedLen(),
             .sendheaders => |m| m.hintSerializedLen(),
-            .filterload => |m| m.hintSerializedLen(),
+            .filterload => |*m| m.hintSerializedLen(),
         };
     }
 };
