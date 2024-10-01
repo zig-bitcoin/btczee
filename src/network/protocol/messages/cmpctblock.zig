@@ -16,8 +16,8 @@ pub const CmpctBlockMessage = struct {
     const Self = @This();
 
     pub const PrefilledTransaction = struct {
-        index: usize,
-        tx: Transaction,
+        index: CompactSizeUint,
+        tx: []u8,
     };
 
     pub fn name() *const [12]u8 {
@@ -126,7 +126,7 @@ test "CmpctBlockMessage serialization and deserialization" {
         .prev_block = [_]u8{0} ** 32,
         .merkle_root = [_]u8{1} ** 32,
         .timestamp = 1234567890,
-        .bits = 0x1d00ffff,
+        .nbits = 0x1d00ffff,
         .nonce = 987654321,
     };
 
