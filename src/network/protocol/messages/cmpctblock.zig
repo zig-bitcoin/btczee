@@ -72,31 +72,40 @@ pub const CmpctBlockMessage = struct {
     }
 
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
-        var cmpct_block_message: Self = undefined;
-        cmpct_block_message.header = try BlockHeader.deserializeReader(r);
-        cmpct_block_message.nonce = try r.readInt(u64, .little);
+        const header = try BlockHeader.deserializeReader(r);
+        const nonce = try r.readInt(u64, .little);
 
         const short_ids_count = try CompactSizeUint.decodeReader(r);
-        cmpct_block_message.short_ids = try allocator.alloc(u64, short_ids_count.value());
-        errdefer allocator.free(cmpct_block_message.short_ids);
+        const short_ids = try allocator.alloc(u64, short_ids_count.value());
+        errdefer allocator.free(short_ids);
 
-        for (cmpct_block_message.short_ids) |*id| {
+        for (short_ids) |*id| {
             id.* = try r.readInt(u64, .little);
         }
 
         const prefilled_txns_count = try CompactSizeUint.decodeReader(r);
-        cmpct_block_message.prefilled_txns = try allocator.alloc(PrefilledTransaction, prefilled_txns_count.value());
-        errdefer allocator.free(cmpct_block_message.prefilled_txns);
+        const prefilled_txns = try allocator.alloc(PrefilledTransaction, prefilled_txns_count.value());
+        errdefer allocator.free(prefilled_txns);
 
-        for (cmpct_block_message.prefilled_txns) |*txn| {
-            txn.index = try CompactSizeUint.decodeReader(r);
+        for (prefilled_txns) |*txn| {
+            const index = try CompactSizeUint.decodeReader(r);
             const tx_size = try CompactSizeUint.decodeReader(r);
-            txn.tx = try allocator.alloc(u8, tx_size.value());
-            errdefer allocator.free(txn.tx);
-            try r.readNoEof(txn.tx);
+            const tx = try allocator.alloc(u8, tx_size.value());
+            errdefer allocator.free(tx);
+            try r.readNoEof(tx);
+
+            txn.* = PrefilledTransaction{
+                .index = index,
+                .tx = tx,
+            };
         }
 
-        return cmpct_block_message;
+        return Self{
+            .header = header,
+            .nonce = nonce,
+            .short_ids = short_ids,
+            .prefilled_txns = prefilled_txns,
+        };
     }
 
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
