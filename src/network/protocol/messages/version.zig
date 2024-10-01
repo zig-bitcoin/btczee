@@ -40,7 +40,7 @@ pub const VersionMessage = struct {
     }
 
     /// Free the `user_agent` if there is one
-    pub fn deinit(self: *const Self, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
         if (self.user_agent) |ua| {
             allocator.free(ua);
         }
@@ -235,7 +235,7 @@ test "ok_full_flow_VersionMessage" {
 
         const payload = try vm.serialize(allocator);
         defer allocator.free(payload);
-        const deserialized_vm = try VersionMessage.deserializeSlice(allocator, payload);
+        var deserialized_vm = try VersionMessage.deserializeSlice(allocator, payload);
         defer deserialized_vm.deinit(allocator);
 
         try std.testing.expect(vm.eql(&deserialized_vm));
@@ -261,7 +261,7 @@ test "ok_full_flow_VersionMessage" {
 
         const payload = try vm.serialize(allocator);
         defer allocator.free(payload);
-        const deserialized_vm = try VersionMessage.deserializeSlice(allocator, payload);
+        var deserialized_vm = try VersionMessage.deserializeSlice(allocator, payload);
         defer deserialized_vm.deinit(allocator);
 
         try std.testing.expect(vm.eql(&deserialized_vm));
@@ -288,7 +288,7 @@ test "ok_full_flow_VersionMessage" {
 
         const payload = try vm.serialize(allocator);
         defer allocator.free(payload);
-        const deserialized_vm = try VersionMessage.deserializeSlice(allocator, payload);
+        var deserialized_vm = try VersionMessage.deserializeSlice(allocator, payload);
         defer deserialized_vm.deinit(allocator);
 
         try std.testing.expect(vm.eql(&deserialized_vm));
