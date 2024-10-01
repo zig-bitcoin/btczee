@@ -22,7 +22,7 @@ pub const MerkleBlockMessage = struct {
 
     /// Returns the message checksum
     pub fn checksum(self: *const Self) [4]u8 {
-        return genericChecksum(self, true);
+        return genericChecksum(self);
     }
 
     /// Free the allocated memory

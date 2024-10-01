@@ -111,12 +111,11 @@ pub const Message = union(MessageTypes) {
     }
 };
 
-pub fn genericChecksum(m: anytype, hasPayload: bool) [4]u8 {
+pub const default_checksum: [4]u8 = [_]u8{ 0x5d, 0xf6, 0xe0, 0xe2 };
+
+pub fn genericChecksum(m: anytype) [4]u8 {
     comptime {
-        if (!std.meta.hasFn(@TypeOf(m), "serializeToWriter")) @compileError("Expects m to have fn 'serializeToWriter'.");
-    }
-    if (!hasPayload) {
-        return [4]u8{ 0x5d, 0xf6, 0xe0, 0xe2 };
+        if (!std.meta.hasMethod(@TypeOf(m), "serializeToWriter")) @compileError("Expects m to have fn 'serializeToWriter'.");
     }
 
     var digest: [32]u8 = undefined;

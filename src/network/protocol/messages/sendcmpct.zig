@@ -21,7 +21,7 @@ pub const SendCmpctMessage = struct {
     ///
     /// Computed as `Sha256(Sha256(self.serialize()))[0..4]`
     pub fn checksum(self: *const SendCmpctMessage) [4]u8 {
-        return genericChecksum(self, true);
+        return genericChecksum(self);
     }
     /// Serialize the message as bytes and write them to the Writer.
     pub fn serializeToWriter(self: *const SendCmpctMessage, w: anytype) !void {
