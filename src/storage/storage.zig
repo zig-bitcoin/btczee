@@ -1,6 +1,6 @@
 const std = @import("std");
 const Config = @import("../config/config.zig").Config;
-const Block = @import("../types/block.zig").Block;
+const Block = @import("../types/block.zig");
 const lmdb = @import("lmdb");
 
 /// Storage handler.

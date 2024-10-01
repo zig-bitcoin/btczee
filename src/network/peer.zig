@@ -127,7 +127,7 @@ pub const Peer = struct {
                     // TODO: Implement logic to filter transactions based on the received feerate
                 },
                 // TODO: handle other messages correctly
-                else => |m| {
+                else => |*m| {
                     std.log.info("Peer {any} sent a `{s}` message", .{ self.address, m.name() });
                     continue;
                 },

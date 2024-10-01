@@ -4,6 +4,7 @@ const protocol = @import("../lib.zig");
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
+const genericChecksum = @import("lib.zig").genericChecksum;
 
 /// SendCmpctMessage represents the "sendcmpct" message
 ///
@@ -20,15 +21,7 @@ pub const SendCmpctMessage = struct {
     ///
     /// Computed as `Sha256(Sha256(self.serialize()))[0..4]`
     pub fn checksum(self: *const SendCmpctMessage) [4]u8 {
-        var digest: [32]u8 = undefined;
-        var hasher = Sha256.init(.{});
-        const writer = hasher.writer();
-        self.serializeToWriter(writer) catch unreachable; // Sha256.write is infallible
-        hasher.final(&digest);
-
-        Sha256.hash(&digest, &digest, .{});
-
-        return digest[0..4].*;
+        return genericChecksum(self);
     }
     /// Serialize the message as bytes and write them to the Writer.
     pub fn serializeToWriter(self: *const SendCmpctMessage, w: anytype) !void {
