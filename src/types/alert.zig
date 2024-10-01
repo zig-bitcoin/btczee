@@ -31,8 +31,8 @@ pub fn serializeToWriter(self: *const Self, w: anytype) !void {
 
     const compact_set_cancel_len = CompactSizeUint.new(self.set_cancel.len);
     try compact_set_cancel_len.encodeToWriter(w);
-    for (self.set_cancel) |fuck_cancel| {
-        try w.writeInt(u32, fuck_cancel, .little);
+    for (self.set_cancel) |set_cancel| {
+        try w.writeInt(u32, set_cancel, .little);
     }
 
     try w.writeInt(u32, self.min_ver, .little);
