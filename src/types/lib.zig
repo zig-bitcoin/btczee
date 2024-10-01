@@ -9,3 +9,4 @@ pub const Input = @import("input.zig");
 pub const Output = @import("output.zig");
 pub const Script = @import("script.zig");
 pub const Transaction = @import("transaction.zig");
+pub const Alert = @import("alert.zig");
