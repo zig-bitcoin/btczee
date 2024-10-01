@@ -16,6 +16,7 @@ pub const FilterAddMessage = @import("filteradd.zig").FilterAddMessage;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 pub const NotFoundMessage = @import("notfound.zig").NotFoundMessage;
 pub const SendHeadersMessage = @import("sendheaders.zig").SendHeadersMessage;
+pub const FilterLoadMessage = @import("filterload.zig").FilterLoadMessage;
 
 pub const InventoryVector = struct {
     type: u32,
@@ -63,6 +64,7 @@ pub const MessageTypes = enum {
     filteradd,
     notfound,
     sendheaders,
+    filterload,
 };
 
 pub const Message = union(MessageTypes) {
@@ -81,6 +83,7 @@ pub const Message = union(MessageTypes) {
     filteradd: FilterAddMessage,
     notfound: NotFoundMessage,
     sendheaders: SendHeadersMessage,
+    filterload: FilterLoadMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -99,6 +102,7 @@ pub const Message = union(MessageTypes) {
             .filteradd => |m| @TypeOf(m).name(),
             .notfound => |m| @TypeOf(m).name(),
             .sendheaders => |m| @TypeOf(m).name(),
+            .filterload => |m| @TypeOf(m).name(),
         };
     }
 
@@ -119,6 +123,7 @@ pub const Message = union(MessageTypes) {
             .filteradd => |*m| m.deinit(allocator),
             .notfound => {},
             .sendheaders => {},
+            .filterload => {},
         }
     }
 
@@ -139,6 +144,7 @@ pub const Message = union(MessageTypes) {
             .filteradd => |*m| m.checksum(),
             .notfound => |*m| m.checksum(),
             .sendheaders => |*m| m.checksum(),
+            .filterload => |*m| m.checksum(),
         };
     }
 
@@ -159,6 +165,7 @@ pub const Message = union(MessageTypes) {
             .filteradd => |*m| m.hintSerializedLen(),
             .notfound => |m| m.hintSerializedLen(),
             .sendheaders => |m| m.hintSerializedLen(),
+            .filterload => |*m| m.hintSerializedLen(),
         };
     }
 };
