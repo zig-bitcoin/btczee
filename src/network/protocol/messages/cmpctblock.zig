@@ -5,7 +5,7 @@ const Transaction = @import("../../../types/Transaction.zig");
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const BlockHeader = @import("../../../types/BlockHeader.zig");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
-const GenericChecksum = @import("lib.zig").gen
+const genericChecksum = @import("lib.zig").genericChecksum;
 
 pub const CmpctBlockMessage = struct {
     header: BlockHeader,
@@ -25,14 +25,7 @@ pub const CmpctBlockMessage = struct {
     }
 
     pub fn checksum(self: *const Self) [4]u8 {
-        var digest: [32]u8 = undefined;
-        var hasher = Sha256.init(.{});
-        self.serializeToWriter(hasher.writer()) catch unreachable;
-        hasher.final(&digest);
-
-        Sha256.hash(&digest, &digest, .{});
-
-        return digest[0..4].*;
+        return genericChecksum(self);
     }
 
     pub fn deinit(self: *const Self, allocator: std.mem.Allocator) void {
