@@ -12,6 +12,7 @@ pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
 pub const FilterClearMessage = @import("filterclear.zig").FilterClearMessage;
 pub const FilterAddMessage = @import("filteradd.zig").FilterAddMessage;
 pub const NotFoundMessage = @import("notfound.zig").NotFoundMessage;
+pub const SendHeadersMessage = @import("sendheaders.zig").SendHeadersMessage;
 pub const FilterLoadMessage = @import("filterload.zig").FilterLoadMessage;
 
 pub const InventoryVector = struct {
@@ -58,6 +59,7 @@ pub const MessageTypes = enum {
     filterclear,
     filteradd,
     notfound,
+    sendheaders,
     filterload,
 };
 
@@ -75,6 +77,7 @@ pub const Message = union(MessageTypes) {
     filterclear: FilterClearMessage,
     filteradd: FilterAddMessage,
     notfound: NotFoundMessage,
+    sendheaders: SendHeadersMessage,
     filterload: FilterLoadMessage,
 
     pub fn name(self: Message) *const [12]u8 {
@@ -92,6 +95,7 @@ pub const Message = union(MessageTypes) {
             .filterclear => |m| @TypeOf(m).name(),
             .filteradd => |m| @TypeOf(m).name(),
             .notfound => |m| @TypeOf(m).name(),
+            .sendheaders => |m| @TypeOf(m).name(),
             .filterload => |m| @TypeOf(m).name(),
         };
     }
@@ -111,6 +115,7 @@ pub const Message = union(MessageTypes) {
             .filterclear => {},
             .filteradd => |m| m.deinit(allocator),
             .notfound => {},
+            .sendheaders => {},
             .filterload => {},
         }
     }
@@ -130,6 +135,7 @@ pub const Message = union(MessageTypes) {
             .filterclear => |m| m.checksum(),
             .filteradd => |m| m.checksum(),
             .notfound => |m| m.checksum(),
+            .sendheaders => |m| m.checksum(),
             .filterload => |m| m.checksum(),
         };
     }
@@ -149,6 +155,7 @@ pub const Message = union(MessageTypes) {
             .filterclear => |m| m.hintSerializedLen(),
             .filteradd => |m| m.hintSerializedLen(),
             .notfound => |m| m.hintSerializedLen(),
+            .sendheaders => |m| m.hintSerializedLen(),
             .filterload => |m| m.hintSerializedLen(),
         };
     }

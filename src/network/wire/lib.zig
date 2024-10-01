@@ -135,6 +135,8 @@ pub fn receiveMessage(
         protocol.messages.Message{ .notfound = try protocol.messages.NotFoundMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.FeeFilterMessage.name()))
         protocol.messages.Message{ .feefilter = try protocol.messages.FeeFilterMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.SendHeadersMessage.name()))
+        protocol.messages.Message{ .sendheaders = try protocol.messages.SendHeadersMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.FilterLoadMessage.name()))
         protocol.messages.Message{ .filterload = try protocol.messages.FilterLoadMessage.deserializeReader(allocator, r) }
     else {
@@ -397,6 +399,32 @@ test "ok_send_pong_message" {
 
     switch (received_message) {
         .pong => |pong_message| try std.testing.expectEqual(message.nonce, pong_message.nonce),
+        else => unreachable,
+    }
+}
+
+test "ok_send_sendheaders_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const SendHeadersMessage = protocol.messages.SendHeadersMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const message = SendHeadersMessage.new();
+
+    const received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .sendheaders => {},
         else => unreachable,
     }
 }
