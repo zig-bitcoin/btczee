@@ -11,6 +11,7 @@ pub const FeeFilterMessage = @import("feefilter.zig").FeeFilterMessage;
 pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
 pub const FilterClearMessage = @import("filterclear.zig").FilterClearMessage;
 pub const FilterAddMessage = @import("filteradd.zig").FilterAddMessage;
+const Sha256 = std.crypto.hash.sha2.Sha256;
 pub const NotFoundMessage = @import("notfound.zig").NotFoundMessage;
 pub const SendHeadersMessage = @import("sendheaders.zig").SendHeadersMessage;
 pub const FilterLoadMessage = @import("filterload.zig").FilterLoadMessage;
@@ -160,3 +161,20 @@ pub const Message = union(MessageTypes) {
         };
     }
 };
+
+pub const default_checksum: [4]u8 = [_]u8{ 0x5d, 0xf6, 0xe0, 0xe2 };
+
+pub fn genericChecksum(m: anytype) [4]u8 {
+    comptime {
+        if (!std.meta.hasMethod(@TypeOf(m), "serializeToWriter")) @compileError("Expects m to have fn 'serializeToWriter'.");
+    }
+
+    var digest: [32]u8 = undefined;
+    var hasher = Sha256.init(.{});
+    m.serializeToWriter(hasher.writer()) catch unreachable;
+    hasher.final(&digest);
+
+    Sha256.hash(&digest, &digest, .{});
+
+    return digest[0..4].*;
+}
