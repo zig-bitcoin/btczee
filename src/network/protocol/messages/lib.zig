@@ -122,7 +122,7 @@ pub const Message = union(MessageTypes) {
             .block => |*m| m.deinit(allocator),
             .filteradd => |*m| m.deinit(allocator),
             .notfound => {},
-            .cmpctblock => |m| m.deinit(allocator),
+            .cmpctblock => |*m| m.deinit(allocator),
             .sendheaders => {},
         }
     }
