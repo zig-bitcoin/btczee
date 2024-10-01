@@ -414,7 +414,7 @@ test "ok_send_sendheaders_message" {
 
     const message = SendHeadersMessage.new();
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,
