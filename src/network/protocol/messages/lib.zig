@@ -13,6 +13,38 @@ pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
 pub const FilterClearMessage = @import("filterclear.zig").FilterClearMessage;
 pub const Block = @import("block.zig").BlockMessage;
 pub const FilterAddMessage = @import("filteradd.zig").FilterAddMessage;
+pub const NotFoundMessage = @import("notfound.zig").NotFoundMessage;
+pub const SendHeadersMessage = @import("sendheaders.zig").SendHeadersMessage;
+
+pub const InventoryVector = struct {
+    type: u32,
+    hash: [32]u8,
+
+    pub fn serializeToWriter(self: InventoryVector, writer: anytype) !void {
+        comptime {
+            if (!std.meta.hasFn(@TypeOf(writer), "writeInt")) @compileError("Expects writer to have fn 'writeInt'.");
+            if (!std.meta.hasFn(@TypeOf(writer), "writeAll")) @compileError("Expects writer to have fn 'writeAll'.");
+        }
+        try writer.writeInt(u32, self.type, .little);
+        try writer.writeAll(&self.hash);
+    }
+
+    pub fn deserializeReader(r: anytype) !InventoryVector {
+        comptime {
+            if (!std.meta.hasFn(@TypeOf(r), "readInt")) @compileError("Expects r to have fn 'readInt'.");
+            if (!std.meta.hasFn(@TypeOf(r), "readBytesNoEof")) @compileError("Expects r to have fn 'readBytesNoEof'.");
+        }
+
+        const type_value = try r.readInt(u32, .little);
+        var hash: [32]u8 = undefined;
+        try r.readNoEof(&hash);
+
+        return InventoryVector{
+            .type = type_value,
+            .hash = hash,
+        };
+    }
+};
 
 pub const MessageTypes = enum {
     version,
@@ -28,6 +60,8 @@ pub const MessageTypes = enum {
     filterclear,
     block,
     filteradd,
+    notfound,
+    sendheaders,
 };
 
 pub const Message = union(MessageTypes) {
@@ -44,6 +78,8 @@ pub const Message = union(MessageTypes) {
     filterclear: FilterClearMessage,
     block: Block,
     filteradd: FilterAddMessage,
+    notfound: NotFoundMessage,
+    sendheaders: SendHeadersMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -60,6 +96,8 @@ pub const Message = union(MessageTypes) {
             .filterclear => |m| @TypeOf(m).name(),
             .block => |m| @TypeOf(m).name(),
             .filteradd => |m| @TypeOf(m).name(),
+            .notfound => |m| @TypeOf(m).name(),
+            .sendheaders => |m| @TypeOf(m).name(),
         };
     }
 
@@ -78,6 +116,8 @@ pub const Message = union(MessageTypes) {
             .filterclear => {},
             .block => |*m| m.deinit(allocator),
             .filteradd => |*m| m.deinit(allocator),
+            .notfound => {},
+            .sendheaders => {},
         }
     }
 
@@ -96,6 +136,8 @@ pub const Message = union(MessageTypes) {
             .filterclear => |*m| m.checksum(),
             .block => |*m| m.checksum(),
             .filteradd => |*m| m.checksum(),
+            .notfound => |*m| m.checksum(),
+            .sendheaders => |*m| m.checksum(),
         };
     }
 
@@ -114,6 +156,8 @@ pub const Message = union(MessageTypes) {
             .filterclear => |*m| m.hintSerializedLen(),
             .block => |*m| m.hintSerializedLen(),
             .filteradd => |*m| m.hintSerializedLen(),
+            .notfound => |m| m.hintSerializedLen(),
+            .sendheaders => |m| m.hintSerializedLen(),
         };
     }
 };
