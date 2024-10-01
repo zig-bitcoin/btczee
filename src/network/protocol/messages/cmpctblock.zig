@@ -1,9 +1,11 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
+const Transaction = @import("../../../types/Transaction.zig");
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const BlockHeader = @import("../../../types/BlockHeader.zig");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
+const GenericChecksum = @import("lib.zig").gen
 
 pub const CmpctBlockMessage = struct {
     header: BlockHeader,
@@ -14,8 +16,8 @@ pub const CmpctBlockMessage = struct {
     const Self = @This();
 
     pub const PrefilledTransaction = struct {
-        index: CompactSizeUint,
-        tx: []u8, // Serialized transaction
+        index: usize,
+        tx: Transaction,
     };
 
     pub fn name() *const [12]u8 {
