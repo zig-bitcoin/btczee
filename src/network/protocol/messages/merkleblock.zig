@@ -33,6 +33,10 @@ pub const MerkleBlockMessage = struct {
 
     /// Serialize the message as bytes and write them to the Writer.
     pub fn serializeToWriter(self: *const Self, w: anytype) !void {
+        comptime {
+            if (!std.meta.hasFn(@TypeOf(w), "writeInt")) @compileError("Expects w to have fn 'writeInt'.");
+            if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects w to have fn 'writeAll'.");
+        }
         try self.block_header.serializeToWriter(w);
         try w.writeInt(u32, self.transaction_count, .little);
         const hash_count = CompactSizeUint.new(self.hashes.len);
@@ -78,6 +82,10 @@ pub const MerkleBlockMessage = struct {
     }
 
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
+        comptime {
+            if (!std.meta.hasFn(@TypeOf(r), "readInt")) @compileError("Expects r to have fn 'readInt'.");
+            if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects r to have fn 'readNoEof'.");
+        }
         var merkle_block_message: Self = undefined;
         merkle_block_message.block_header = try BlockHeader.deserializeReader(r);
         merkle_block_message.transaction_count = try r.readInt(u32, .little);
