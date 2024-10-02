@@ -215,8 +215,6 @@ test "CmpctBlockMessage serialization and deserialization" {
     var deserialized = try CmpctBlockMessage.deserializeSlice(test_allocator, serialized);
     defer deserialized.deinit(test_allocator);
 
-    try testing.expect(msg.eql(&deserialized));
-
     // Verify deserialized data
     try testing.expectEqual(msg.header, deserialized.header);
     try testing.expectEqual(msg.nonce, deserialized.nonce);
@@ -224,6 +222,7 @@ test "CmpctBlockMessage serialization and deserialization" {
     try testing.expectEqual(msg.prefilled_txns.len, deserialized.prefilled_txns.len);
     try testing.expectEqual(msg.prefilled_txns[0].index, deserialized.prefilled_txns[0].index);
     try testing.expect(msg.prefilled_txns[0].tx.eql(deserialized.prefilled_txns[0].tx));
+    try testing.expect(msg.eql(&deserialized));
 
     // Test checksum
     const checksum = msg.checksum();
