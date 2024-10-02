@@ -3,7 +3,7 @@ const protocol = @import("../lib.zig");
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const InventoryVector = @import("lib.zig").InventoryVector;
 const genericChecksum = @import("lib.zig").genericChecksum;
-const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
+const genericSerializeToSlice = @import("lib.zig").genericSerializeToSlice;
 
 /// NotFoundMessage represents the "notfound" message
 ///
@@ -28,8 +28,7 @@ pub const NotFoundMessage = struct {
     ///
     /// buffer.len must be >= than self.hintSerializedLen()
     pub fn serializeToSlice(self: *const Self, buffer: []u8) !void {
-        var fbs = std.io.fixedBufferStream(buffer);
-        try self.serializeToWriter(fbs.writer());
+        try genericSerializeToSlice(self, buffer);
     }
 
     /// Serialize the message as bytes and write them to the Writer.
@@ -73,7 +72,10 @@ pub const NotFoundMessage = struct {
 
     /// Deserialize bytes into a `NotFoundMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
-        return genericDeserializeSlice(self, bytes);
+        var fbs = std.io.fixedBufferStream(bytes);
+        const reader = fbs.reader();
+
+        return try Self.deserializeReader(allocator, reader);
     }
 
     pub fn hintSerializedLen(self: *const Self) usize {

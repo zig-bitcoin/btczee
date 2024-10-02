@@ -1,6 +1,7 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
 const genericChecksum = @import("lib.zig").genericChecksum;
+const genericSerializeToSlice = @import("lib.zig").genericSerializeToSlice;
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
@@ -64,9 +65,7 @@ pub const GetblocksMessage = struct {
     ///
     /// buffer.len must be >= than self.hintSerializedLen()
     pub fn serializeToSlice(self: *const GetblocksMessage, buffer: []u8) !void {
-        var fbs = std.io.fixedBufferStream(buffer);
-        const writer = fbs.writer();
-        try self.serializeToWriter(writer);
+        try genericSerializeToSlice(self, buffer);
     }
 
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !GetblocksMessage {

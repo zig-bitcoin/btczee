@@ -2,6 +2,7 @@ const std = @import("std");
 const protocol = @import("../lib.zig");
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const genericChecksum = @import("lib.zig").genericChecksum;
+const genericSerializeToSlice = @import("lib.zig").genericSerializeToSlice;
 
 /// PongMessage represents the "Pong" message
 ///
@@ -26,8 +27,7 @@ pub const PongMessage = struct {
     ///
     /// buffer.len must be >= than self.hintSerializedLen()
     pub fn serializeToSlice(self: *const Self, buffer: []u8) !void {
-        var fbs = std.io.fixedBufferStream(buffer);
-        try self.serializeToWriter(fbs.writer());
+        try genericSerializeToSlice(self, buffer);
     }
 
     /// Serialize a message as bytes and return them.
