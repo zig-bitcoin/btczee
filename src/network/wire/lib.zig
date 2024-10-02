@@ -14,6 +14,13 @@ const protocol = @import("../protocol/lib.zig");
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
+const Transaction = @import("../../types/transaction.zig");
+const OutPoint = @import("../../types/outpoint.zig");
+const OpCode = @import("../../script/opcodes/constant.zig").Opcode;
+const Hash = @import("../../types/hash.zig");
+const Script = @import("../../types/script.zig");
+const CmpctBlockMessage = @import("../protocol/messages/cmpctblock.zig").CmpctBlockMessage;
+
 pub const Error = error{
     MessageTooLarge,
 };
@@ -580,4 +587,76 @@ test "ok_send_sendcmpct_message" {
         .sendcmpct => |sendcmpct_message| try std.testing.expect(message.eql(&sendcmpct_message)),
         else => unreachable,
     }
+}
+
+test "ok_send_cmpctblock_message" {
+    const allocator = std.testing.allocator;
+
+    // Create a sample BlockHeader
+    const header = BlockHeader{
+        .version = 1,
+        .prev_block = [_]u8{0} ** 32, // Zero-filled array of 32 bytes
+        .merkle_root = [_]u8{0} ** 32, // Zero-filled array of 32 bytes
+        .timestamp = 1631234567,
+        .nbits = 0x1d00ffff,
+        .nonce = 12345,
+    };
+
+    // Create sample short_ids
+    const short_ids = try allocator.alloc(u64, 2);
+    defer allocator.free(short_ids);
+    short_ids[0] = 123456789;
+    short_ids[1] = 987654321;
+
+    // Create a sample Transaction
+    var tx = try Transaction.init(allocator);
+    defer tx.deinit();
+    try tx.addInput(OutPoint{ .hash = Hash.newZeroed(), .index = 0 });
+    {
+        var script_pubkey = try Script.init(allocator);
+        defer script_pubkey.deinit();
+        try script_pubkey.push(&[_]u8{ OpCode.OP_DUP.toBytes(), OpCode.OP_HASH160.toBytes(), OpCode.OP_EQUALVERIFY.toBytes(), OpCode.OP_CHECKSIG.toBytes() });
+        try tx.addOutput(50000, script_pubkey);
+    }
+
+    // Create sample prefilled_txns
+    const prefilled_txns = try allocator.alloc(CmpctBlockMessage.PrefilledTransaction, 1);
+    defer allocator.free(prefilled_txns);
+    prefilled_txns[0] = .{
+        .index = 0,
+        .tx = tx,
+    };
+
+    // Create CmpctBlockMessage
+    const msg = CmpctBlockMessage{
+        .header = header,
+        .nonce = 9876543210,
+        .short_ids = short_ids,
+        .prefilled_txns = prefilled_txns,
+    };
+
+    // Test serialization
+    const serialized = try msg.serialize(allocator);
+    defer allocator.free(serialized);
+
+    // Test deserialization
+    var deserialized = try CmpctBlockMessage.deserializeSlice(allocator, serialized);
+    defer deserialized.deinit(allocator);
+
+    // Verify deserialized data
+    try std.testing.expectEqual(msg.header, deserialized.header);
+    try std.testing.expectEqual(msg.nonce, deserialized.nonce);
+    try std.testing.expectEqualSlices(u64, msg.short_ids, deserialized.short_ids);
+    try std.testing.expectEqual(msg.prefilled_txns.len, deserialized.prefilled_txns.len);
+    try std.testing.expectEqual(msg.prefilled_txns[0].index, deserialized.prefilled_txns[0].index);
+    try std.testing.expect(msg.prefilled_txns[0].tx.eql(deserialized.prefilled_txns[0].tx));
+
+    // Test checksum
+    const checksum = msg.checksum();
+    try std.testing.expect(checksum.len == 4);
+
+    // Test hintSerializedLen
+    const hint_len = msg.hintSerializedLen();
+    try std.testing.expect(hint_len > 0);
+    try std.testing.expect(hint_len >= serialized.len);
 }
