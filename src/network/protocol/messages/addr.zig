@@ -133,7 +133,7 @@ pub const AddrMessage = struct {
         // 4 + 8 + 16 + 2
         const fixed_length_per_ip = 30;
         const count = CompactSizeUint.new(self.ip_addresses.len).hint_encoded_len();
-        return count + self.ip_addresses.len * fixed_length_per_ip;  
+        return count + self.ip_addresses.len * fixed_length_per_ip;
     }
 
     pub fn eql(self: *const AddrMessage, other: *const AddrMessage) bool {
