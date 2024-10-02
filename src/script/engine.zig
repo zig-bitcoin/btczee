@@ -645,7 +645,7 @@ pub const Engine = struct {
 
     /// OP_ENFIF: Ends an if/else block.
     fn opEndIf(self: *Engine) !void {
-        _ = try self.cond_stack.pop();
+        try self.cond_stack.delete();
     }
 };
 

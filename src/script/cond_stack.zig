@@ -42,11 +42,9 @@ pub const ConditionalStack = struct {
         };
     }
 
-    /// Pop an item from the stack
-    pub fn pop(self: *ConditionalStack) ConditionalStackError!ConditionalValues {
-        // _ = self.stack.popOrNull() orelse return ConditionalStackError.StackUnderflow;
-        // self.stack.items.len -= 1;
-        return self.stack.pop();
+    /// Delete an item from the stack
+    pub fn delete(self: *ConditionalStack) ConditionalStackError!void {
+        self.stack.items.len -= 1;
     }
 
     pub fn branchExecuting(self: ConditionalStack) bool {
@@ -56,6 +54,8 @@ pub const ConditionalStack = struct {
         return self.stack.items[self.stack.items.len-1] == ConditionalValues.True;
     }
 
+    /// Swap the top value of the conditional stack between True and False.
+    /// If the top value is Skip, it remains unchanged.
     pub fn swap(self: *ConditionalStack) ConditionalStackError!void {
         if (self.stack.items.len == 0) {
             return ConditionalStackError.StackUnderflow;
@@ -91,7 +91,7 @@ test "ConditionalStack basic operations" {
     try cond_stack.push(ConditionalValues.False);
     try testing.expectEqual(2, cond_stack.len());
     
-    // Tese pop
-    _ = try cond_stack.pop();
+    // Test pop
+    try cond_stack.delete();
     try testing.expectEqual(1, cond_stack.len());
 }
