@@ -134,7 +134,6 @@ pub const GetblocksMessage = struct {
 };
 
 // TESTS
-
 test "ok_full_flow_GetBlocksMessage" {
     const allocator = std.testing.allocator;
 

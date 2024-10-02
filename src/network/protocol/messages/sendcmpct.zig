@@ -74,8 +74,8 @@ pub const SendCmpctMessage = struct {
         return self.announce == other.announce and self.version == other.version;
     }
 };
-// TESTS
 
+// TESTS
 test "ok_full_flow_SendCmpctMessage" {
     const allocator = std.testing.allocator;
 

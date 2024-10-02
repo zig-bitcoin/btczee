@@ -168,3 +168,10 @@ pub fn genericChecksum(m: anytype) [4]u8 {
 
     return digest[0..4].*;
 }
+
+pub fn genericDeserializeSlice(m: anytype, buffer: []u8) !void {
+    var fbs = std.io.fixedBufferStream(bytes);
+    const reader = fbs.reader();
+
+    return try Self.deserializeReader(allocator, reader);
+}

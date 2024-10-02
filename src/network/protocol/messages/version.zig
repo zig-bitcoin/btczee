@@ -211,7 +211,6 @@ pub const VersionMessage = struct {
 };
 
 // TESTS
-
 test "ok_full_flow_VersionMessage" {
     const allocator = std.testing.allocator;
 

@@ -121,7 +121,6 @@ pub const BlockMessage = struct {
 };
 
 // TESTS
-
 test "ok_full_flow_BlockMessage" {
     const OpCode = @import("../../../script/opcodes/constant.zig").Opcode;
     const allocator = std.testing.allocator;

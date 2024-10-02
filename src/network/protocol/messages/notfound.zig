@@ -3,6 +3,7 @@ const protocol = @import("../lib.zig");
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const InventoryVector = @import("lib.zig").InventoryVector;
 const genericChecksum = @import("lib.zig").genericChecksum;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 /// NotFoundMessage represents the "notfound" message
 ///
@@ -72,10 +73,7 @@ pub const NotFoundMessage = struct {
 
     /// Deserialize bytes into a `NotFoundMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
-        var fbs = std.io.fixedBufferStream(bytes);
-        const reader = fbs.reader();
-
-        return try Self.deserializeReader(allocator, reader);
+        return genericDeserializeSlice(self, bytes);
     }
 
     pub fn hintSerializedLen(self: *const Self) usize {
@@ -93,7 +91,6 @@ pub const NotFoundMessage = struct {
     }
 };
 
-// TESTS
 // TESTS
 test "ok_fullflow_notfound_message" {
     const allocator = std.testing.allocator;

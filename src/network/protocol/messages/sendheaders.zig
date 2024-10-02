@@ -42,7 +42,6 @@ pub const SendHeadersMessage = struct {
 };
 
 // TESTS
-
 test "ok_full_flow_SendHeaders" {
     const allocator = std.testing.allocator;
 
