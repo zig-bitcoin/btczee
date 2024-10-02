@@ -287,7 +287,7 @@ test "ok_send_getdata_message" {
         .inventory = inventory,
     };
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,

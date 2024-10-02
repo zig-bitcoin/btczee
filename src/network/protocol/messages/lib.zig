@@ -11,6 +11,7 @@ pub const MerkleBlockMessage = @import("merkleblock.zig").MerkleBlockMessage;
 pub const FeeFilterMessage = @import("feefilter.zig").FeeFilterMessage;
 pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
 pub const FilterClearMessage = @import("filterclear.zig").FilterClearMessage;
+pub const GetdataMessage = @import("getdata.zig").GetdataMessage;
 pub const Block = @import("block.zig").BlockMessage;
 pub const FilterAddMessage = @import("filteradd.zig").FilterAddMessage;
 const Sha256 = std.crypto.hash.sha2.Sha256;
@@ -133,6 +134,7 @@ pub const Message = union(MessageTypes) {
             .notfound => {},
             .sendheaders => {},
             .filterload => {},
+            .getdata => |*m| m.deinit(allocator),
         }
     }
 
