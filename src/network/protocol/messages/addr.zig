@@ -17,6 +17,13 @@ pub const NetworkIPAddr = struct {
         return self.time == other.time and self.services == other.services and std.mem.eql(u8, &self.ip, &other.ip) and self.port == other.port;
     }
 
+    pub fn serializeWriter(self: *const NetworkIPAddr, writer: anytype) !void {
+        try writer.writeInt(u32, self.time, .little);
+        try writer.writeInt(u64, self.services, .little);
+        try writer.writeAll(&self.ip);
+        try writer.writeInt(u16, self.port, .big);
+    }
+
     pub fn deserializeReader(reader: anytype) !NetworkIPAddr {
         return NetworkIPAddr{
             .time = try reader.readInt(u32, .little),
@@ -65,15 +72,9 @@ pub const AddrMessage = struct {
             if (!std.meta.hasFn(@TypeOf(w), "writeInt")) @compileError("Expects r to have fn 'writeInt'.");
             if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects r to have fn 'writeAll'.");
         }
-        //try CompactSizeUint.new(@intCast(self.ip_addresses.len)).encodeToWriter(w);
         try CompactSizeUint.new(self.ip_addresses.len).encodeToWriter(w);
-
-        // Serialize each IP address
-        for (self.ip_addresses) |*ip_address| {
-            try w.writeInt(u32, ip_address.time, .little);
-            try w.writeInt(u64, ip_address.services, .little);
-            try w.writeAll(std.mem.asBytes(&ip_address.ip));
-            try w.writeInt(u16, ip_address.port, .big);
+        for (self.ip_addresses) |*addr| {
+            try addr.serializeWriter(w);
         }
     }
 
