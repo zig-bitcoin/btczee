@@ -78,18 +78,18 @@ pub const GetBlockTxnMessage = struct {
     }
 
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
-        var blocktxn_message: Self = undefined;
-        try r.readNoEof(&blocktxn_message.block_hash);
+        var getblocktxn_message: Self = undefined;
+        try r.readNoEof(&getblocktxn_message.block_hash);
 
         const indexes_count = try CompactSizeUint.decodeReader(r);
-        blocktxn_message.indexes = try allocator.alloc(CompactSizeUint, indexes_count.value());
-        errdefer allocator.free(blocktxn_message.indexes);
+        getblocktxn_message.indexes = try allocator.alloc(CompactSizeUint, indexes_count.value());
+        errdefer allocator.free(getblocktxn_message.indexes);
 
-        for (blocktxn_message.indexes) |*index| {
+        for (getblocktxn_message.indexes) |*index| {
             index.* = try CompactSizeUint.decodeReader(r);
         }
 
-        return blocktxn_message;
+        return getblocktxn_message;
     }
 
     /// Deserialize bytes into a `GetBlockTxnMessage`
