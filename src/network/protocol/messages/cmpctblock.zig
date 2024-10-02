@@ -7,12 +7,6 @@ const BlockHeader = @import("../../../types/block_header.zig");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
 
-const testing = std.testing;
-const Hash = @import("../../../types/hash.zig");
-const Script = @import("../../../types/script.zig");
-const OutPoint = @import("../../../types/outpoint.zig");
-const OpCode = @import("../../../script/opcodes/constant.zig").Opcode;
-
 pub const CmpctBlockMessage = struct {
     header: BlockHeader,
     nonce: u64,
@@ -148,6 +142,12 @@ pub const CmpctBlockMessage = struct {
 };
 
 test "CmpctBlockMessage serialization and deserialization" {
+    const testing = std.testing;
+    const Hash = @import("../../../types/hash.zig");
+    const Script = @import("../../../types/script.zig");
+    const OutPoint = @import("../../../types/outpoint.zig");
+    const OpCode = @import("../../../script/opcodes/constant.zig").Opcode;
+
     const test_allocator = testing.allocator;
 
     // Create a sample BlockHeader
