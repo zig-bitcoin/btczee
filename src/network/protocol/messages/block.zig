@@ -1,6 +1,7 @@
 const std = @import("std");
 const native_endian = @import("builtin").target.cpu.arch.endian();
 const protocol = @import("../lib.zig");
+const genericChecksum = @import("lib.zig").genericChecksum;
 
 const ServiceFlags = protocol.ServiceFlags;
 
@@ -28,15 +29,7 @@ pub const BlockMessage = struct {
     }
 
     pub fn checksum(self: BlockMessage) [4]u8 {
-        var digest: [32]u8 = undefined;
-        var hasher = Sha256.init(.{});
-        const writer = hasher.writer();
-        self.serializeToWriter(writer) catch unreachable; // Sha256.write is infaible
-        hasher.final(&digest);
-
-        Sha256.hash(&digest, &digest, .{});
-
-        return digest[0..4].*;
+        return genericChecksum(self);
     }
 
     pub fn deinit(self: *BlockMessage, allocator: std.mem.Allocator) void {

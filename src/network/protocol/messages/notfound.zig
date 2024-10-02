@@ -1,6 +1,8 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
 const Sha256 = std.crypto.hash.sha2.Sha256;
+const InventoryVector = @import("lib.zig").InventoryVector;
+const genericChecksum = @import("lib.zig").genericChecksum;
 
 /// NotFoundMessage represents the "notfound" message
 ///
@@ -18,15 +20,7 @@ pub const NotFoundMessage = struct {
     ///
     /// Computed as `Sha256(Sha256(self.serialize()))[0..4]`
     pub fn checksum(self: *const Self) [4]u8 {
-        var digest: [32]u8 = undefined;
-        var hasher = Sha256.init(.{});
-        const writer = hasher.writer();
-        self.serializeToWriter(writer) catch unreachable; // Sha256.write is infallible
-        hasher.final(&digest);
-
-        Sha256.hash(&digest, &digest, .{});
-
-        return digest[0..4].*;
+        return genericChecksum(self);
     }
 
     /// Serialize a message as bytes and write them to the buffer.
