@@ -1,5 +1,6 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
+const genericChecksum = @import("lib.zig").genericChecksum;
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
@@ -21,19 +22,11 @@ pub const GetblocksMessage = struct {
     ///
     /// Computed as `Sha256(Sha256(self.serialize()))[0..4]`
     pub fn checksum(self: *const GetblocksMessage) [4]u8 {
-        var digest: [32]u8 = undefined;
-        var hasher = Sha256.init(.{});
-        const writer = hasher.writer();
-        self.serializeToWriter(writer) catch unreachable; // Sha256.write is infaible
-        hasher.final(&digest);
-
-        Sha256.hash(&digest, &digest, .{});
-
-        return digest[0..4].*;
+        return genericChecksum(self);
     }
 
     /// Free the `header_hashes`
-    pub fn deinit(self: GetblocksMessage, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *GetblocksMessage, allocator: std.mem.Allocator) void {
         allocator.free(self.header_hashes);
     }
 
@@ -152,10 +145,10 @@ test "ok_full_flow_GetBlocksMessage" {
             .header_hashes = try allocator.alloc([32]u8, 2),
             .stop_hash = [_]u8{0} ** 32,
         };
-
         defer allocator.free(gb.header_hashes);
 
         // Fill in the header_hashes
+
         for (gb.header_hashes) |*hash| {
             for (hash) |*byte| {
                 byte.* = 0xab;

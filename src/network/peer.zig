@@ -3,6 +3,7 @@ const net = std.net;
 const protocol = @import("./protocol/lib.zig");
 const wire = @import("./wire/lib.zig");
 const Config = @import("../config/config.zig").Config;
+const MessageUtils = @import("./message/utils.zig");
 
 pub const Boundness = enum {
     inbound,
@@ -89,11 +90,13 @@ pub const Peer = struct {
     }
 
     /// Send version message to peer
-    fn sendVersionMessage(self: *Peer) !void {
+    fn sendVersionMessage(self: *const Peer) !void {
+        const address = if (self.address.any.family == std.posix.AF.INET) MessageUtils.convertIPv4ToIPv6(self.address) else self.address;
+
         const message = protocol.messages.VersionMessage.new(
             self.config.protocol_version,
             .{ .ip = std.mem.zeroes([16]u8), .port = 0, .services = self.config.services },
-            .{ .ip = self.address.in6.sa.addr, .port = self.address.in6.getPort(), .services = 0 },
+            .{ .ip = address.in6.sa.addr, .port = address.in6.getPort(), .services = 0 },
             std.crypto.random.int(u64),
             self.config.bestBlock(),
         );
@@ -127,7 +130,7 @@ pub const Peer = struct {
                     // TODO: Implement logic to filter transactions based on the received feerate
                 },
                 // TODO: handle other messages correctly
-                else => |m| {
+                else => |*m| {
                     std.log.info("Peer {any} sent a `{s}` message", .{ self.address, m.name() });
                     continue;
                 },
