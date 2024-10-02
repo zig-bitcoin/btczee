@@ -14,13 +14,6 @@ const protocol = @import("../protocol/lib.zig");
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
-const Transaction = @import("../../types/transaction.zig");
-const OutPoint = @import("../../types/outpoint.zig");
-const OpCode = @import("../../script/opcodes/constant.zig").Opcode;
-const Hash = @import("../../types/hash.zig");
-const Script = @import("../../types/script.zig");
-const CmpctBlockMessage = @import("../protocol/messages/cmpctblock.zig").CmpctBlockMessage;
-
 pub const Error = error{
     MessageTooLarge,
 };
@@ -590,6 +583,13 @@ test "ok_send_sendcmpct_message" {
 }
 
 test "ok_send_cmpctblock_message" {
+    const Transaction = @import("../../types/transaction.zig");
+    const OutPoint = @import("../../types/outpoint.zig");
+    const OpCode = @import("../../script/opcodes/constant.zig").Opcode;
+    const Hash = @import("../../types/hash.zig");
+    const Script = @import("../../types/script.zig");
+    const CmpctBlockMessage = @import("../protocol/messages/cmpctblock.zig").CmpctBlockMessage;
+
     const allocator = std.testing.allocator;
 
     // Create a sample BlockHeader
