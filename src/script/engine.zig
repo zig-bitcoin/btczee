@@ -2,6 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Stack = @import("stack.zig").Stack;
 const ConditionalStack = @import("cond_stack.zig").ConditionalStack;
+const ConditionalValues = @import("cond_stack.zig").ConditionalValues;
 const Script = @import("lib.zig").Script;
 const asBool = @import("lib.zig").asBool;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
@@ -610,28 +611,28 @@ pub const Engine = struct {
 
     /// OP_IF: If the top stack value is not False, the statements are executed. The top stack value is removed.
     fn opIf(self: *Engine) !void {
-        var cond: u8 = 0;
+        var cond: ConditionalValues = ConditionalValues.False;
         if (self.cond_stack.branchExecuting()) {
             const ok = try self.stack.popBool();
             if (ok) {
-                cond = 1;
+                cond = ConditionalValues.True;
             }
         } else {
-            cond = 2;
+            cond = ConditionalValues.Skip;
         }
         try self.cond_stack.push(cond);
     }
 
     /// OP_NOTIF: If the top stack value is False, the statements are executed. The top stack value is removed.
     fn opNotIf(self: *Engine) !void {
-        var cond: u8 = 0;
+        var cond: ConditionalValues = ConditionalValues.False;
         if (self.cond_stack.branchExecuting()) {
             const ok = try self.stack.popBool();
             if (!ok) {
-                cond = 1;
+                cond = ConditionalValues.True;
             }
         } else {
-            cond = 2;
+            cond = ConditionalValues.Skip;
         }
         try self.cond_stack.push(cond);
     }
@@ -644,7 +645,7 @@ pub const Engine = struct {
 
     /// OP_ENFIF: Ends an if/else block.
     fn opEndIf(self: *Engine) !void {
-        try self.cond_stack.pop();
+        _ = try self.cond_stack.pop();
     }
 };
 

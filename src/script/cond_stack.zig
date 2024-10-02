@@ -9,17 +9,23 @@ pub const ConditionalStackError = error{
     InvalidValue,
 };
 
+pub const ConditionalValues = enum(u8) {
+    False = 0,
+    True = 1,
+    Skip = 2,
+};
+
 /// ConditionalStack for script execution
 ///
 pub const ConditionalStack = struct {
-    stack: std.ArrayList(u8),
+    stack: std.ArrayList(ConditionalValues),
     /// Memory allocator used for managing item storage
     allocator: Allocator,
 
     /// Initialize a new ConditionalStack
     pub fn init(allocator: Allocator) ConditionalStack {
         return .{
-            .stack = std.ArrayList(u8).init(allocator),
+            .stack = std.ArrayList(ConditionalValues).init(allocator),
             .allocator = allocator,
         };
     }
@@ -30,23 +36,24 @@ pub const ConditionalStack = struct {
     }
 
     /// Push an item onto the stack
-    pub fn push(self: *ConditionalStack, item: u8) ConditionalStackError!void {
+    pub fn push(self: *ConditionalStack, item: ConditionalValues) ConditionalStackError!void {
         self.stack.append(item) catch {
             return ConditionalStackError.OutOfMemory;
         };
     }
 
     /// Pop an item from the stack
-    pub fn pop(self: *ConditionalStack) ConditionalStackError!void {
+    pub fn pop(self: *ConditionalStack) ConditionalStackError!ConditionalValues {
         // _ = self.stack.popOrNull() orelse return ConditionalStackError.StackUnderflow;
-        self.stack.items.len -= 1;
+        // self.stack.items.len -= 1;
+        return self.stack.pop();
     }
 
     pub fn branchExecuting(self: ConditionalStack) bool {
         if (self.stack.items.len == 0) {
             return true;
         }
-        return self.stack.items[self.stack.items.len-1] == 1;
+        return self.stack.items[self.stack.items.len-1] == ConditionalValues.True;
     }
 
     pub fn swap(self: *ConditionalStack) ConditionalStackError!void {
@@ -56,10 +63,9 @@ pub const ConditionalStack = struct {
         const index = self.stack.items.len - 1;
 
         switch (self.stack.items[index]) {
-            0 => self.stack.items[index] = 1,
-            1 => self.stack.items[index] = 0,
-            2 => self.stack.items[index] = 3,
-            else => return ConditionalStackError.InvalidValue,
+            ConditionalValues.False => self.stack.items[index] = ConditionalValues.True,
+            ConditionalValues.True => self.stack.items[index] = ConditionalValues.False,
+            ConditionalValues.Skip => {},
         }
     }
 
@@ -78,14 +84,14 @@ test "ConditionalStack basic operations" {
     try testing.expectEqual(true, cond_stack.branchExecuting());
 
     // Test push and len
-    try cond_stack.push(5);
+    try cond_stack.push(ConditionalValues.True);
     try testing.expectEqual(1, cond_stack.len());
 
     // Test push and len
-    try cond_stack.push(10);
+    try cond_stack.push(ConditionalValues.False);
     try testing.expectEqual(2, cond_stack.len());
     
     // Tese pop
-    try cond_stack.pop();
+    _ = try cond_stack.pop();
     try testing.expectEqual(1, cond_stack.len());
 }
