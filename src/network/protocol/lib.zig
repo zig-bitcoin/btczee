@@ -1,5 +1,8 @@
 pub const messages = @import("./messages/lib.zig");
-pub const NetworkAddress = @import("NetworkAddress.zig");
+pub const NetworkAddress = @import("types/NetworkAddress.zig");
+pub const InventoryItem = @import("types/InventoryItem.zig");
+pub const InventoryVector = @import("types/InventoryVector.zig");
+
 /// Network services
 pub const ServiceFlags = struct {
     pub const NODE_NETWORK: u64 = 0x1;

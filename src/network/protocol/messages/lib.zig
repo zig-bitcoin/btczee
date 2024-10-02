@@ -40,40 +40,6 @@ pub const MessageTypes = enum {
     getdata,
 };
 
-pub const InventoryItem = struct {
-    type: u32,
-    hash: [32]u8,
-
-    pub fn serialize(self: *const InventoryItem, w: anytype) !void {
-        comptime {
-            if (!std.meta.hasFn(@TypeOf(w), "writeInt")) @compileError("Expects r to have fn 'writeInt'.");
-            if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects r to have fn 'writeAll'.");
-        }
-        try w.writeInt(u32, self.type, .little);
-        try w.writeAll(&self.hash);
-    }
-
-    pub fn deserialize(r: anytype) !InventoryItem {
-        comptime {
-            if (!std.meta.hasFn(@TypeOf(r), "readInt")) @compileError("Expects reader to have fn 'readInt'.");
-            if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects reader to have fn 'readNoEof'.");
-        }
-
-        const item_type = try r.readInt(u32, .little);
-        var hash: [32]u8 = undefined;
-        try r.readNoEof(&hash);
-
-        return InventoryItem{
-            .type = item_type,
-            .hash = hash,
-        };
-    }
-
-    pub fn eql(self: *const InventoryItem, other: *const InventoryItem) bool {
-        return self.type == other.type and std.mem.eql(u8, &self.hash, &other.hash);
-    }
-};
-
 
 pub const Message = union(MessageTypes) {
     version: VersionMessage,
@@ -119,22 +85,12 @@ pub const Message = union(MessageTypes) {
     pub fn deinit(self: *Message, allocator: std.mem.Allocator) void {
         switch (self.*) {
             .version => |*m| m.deinit(allocator),
-            .verack => {},
-            .mempool => {},
-            .getaddr => {},
             .getblocks => |*m| m.deinit(allocator),
-            .ping => {},
-            .pong => {},
             .merkleblock => |*m| m.deinit(allocator),
-            .sendcmpct => {},
-            .feefilter => {},
-            .filterclear => {},
             .block => |*m| m.deinit(allocator),
             .filteradd => |*m| m.deinit(allocator),
-            .notfound => {},
-            .sendheaders => {},
-            .filterload => {},
             .getdata => |*m| m.deinit(allocator),
+            else => {}
         }
     }
 

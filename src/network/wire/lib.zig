@@ -11,7 +11,6 @@
 
 const std = @import("std");
 const protocol = @import("../protocol/lib.zig");
-const messagesProtocol = @import("../protocol/messages/lib.zig");
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
@@ -273,7 +272,7 @@ test "ok_send_getdata_message" {
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
 
-    const inventory = try test_allocator.alloc(messagesProtocol.InventoryItem, 5);
+    const inventory = try test_allocator.alloc(protocol.InventoryItem, 5);
     defer test_allocator.free(inventory);
 
     for (inventory) |*item| {

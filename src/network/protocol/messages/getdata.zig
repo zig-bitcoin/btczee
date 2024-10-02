@@ -1,13 +1,14 @@
 const std = @import("std");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const message = @import("./lib.zig");
+const genericChecksum = @import("lib.zig").genericChecksum;
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const protocol = @import("../lib.zig");
 
 pub const GetdataMessage = struct {
-    inventory: []const message.InventoryItem,
+    inventory: []const protocol.InventoryItem,
 
     pub inline fn name() *const [12]u8 {
         return protocol.CommandNames.GETDATA ++ [_]u8{0} ** 5;
@@ -17,15 +18,7 @@ pub const GetdataMessage = struct {
     ///
     /// Computed as `Sha256(Sha256(self.serialize()))[0..4]`
     pub fn checksum(self: *const GetdataMessage) [4]u8 {
-        var digest: [32]u8 = undefined;
-        var hasher = Sha256.init(.{});
-        const writer = hasher.writer();
-        self.serializeToWriter(writer) catch unreachable; // Sha256.write is infaible
-        hasher.final(&digest);
-
-        Sha256.hash(&digest, &digest, .{});
-
-        return digest[0..4].*;
+        return genericChecksum(self);
     }
 
     /// Free the `inventory`
@@ -37,16 +30,11 @@ pub const GetdataMessage = struct {
     ///
     /// `w` should be a valid `Writer`.
     pub fn serializeToWriter(self: *const GetdataMessage, w: anytype) !void {
-        comptime {
-            if (!std.meta.hasFn(@TypeOf(w), "writeInt")) @compileError("Expects writer to have fn 'writeInt'.");
-            if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects writer to have fn 'writeAll'.");
-        }
-
         const count = CompactSizeUint.new(self.inventory.len);
         try count.encodeToWriter(w);
 
         for (self.inventory) |item| {
-            try item.serialize(w);
+            try item.encodeToWriter(w);
         }
     }
 
@@ -84,18 +72,20 @@ pub const GetdataMessage = struct {
     }
 
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !GetdataMessage {
-        comptime {
-            if (!std.meta.hasFn(@TypeOf(r), "readInt")) @compileError("Expects reader to have fn 'readInt'.");
-            if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects reader to have fn 'readNoEof'.");
-        }
 
         const compact_count = try CompactSizeUint.decodeReader(r);
         const count = compact_count.value();
+        if (count == 0) {
+            return GetdataMessage{
+                .inventory = &[_]protocol.InventoryItem{},
+            };
+        }
 
-        const inventory = try allocator.alloc(message.InventoryItem, count);
+        const inventory = try allocator.alloc(protocol.InventoryItem, count);
+        errdefer allocator.free(inventory);
 
         for (inventory) |*item| {
-            item.* = try message.InventoryItem.deserialize(r);
+            item.* = try protocol.InventoryItem.decodeReader(r);
         }
 
         return GetdataMessage{
@@ -134,7 +124,7 @@ test "ok_full_flow_GetdataMessage" {
 
     // With some inventory items
     {
-        const inventory_items = [_]message.InventoryItem{
+        const inventory_items = [_]protocol.InventoryItem{
             .{ .type = 1, .hash = [_]u8{0xab} ** 32 },
             .{ .type = 2, .hash = [_]u8{0xcd} ** 32 },
             .{ .type = 2, .hash = [_]u8{0xef} ** 32 },
