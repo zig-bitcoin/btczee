@@ -135,7 +135,6 @@ pub const CmpctBlockMessage = struct {
     }
 
     pub fn eql(self: *const Self, other: *const Self) bool {
-        // Compare BlockHeader fields directly
         if (self.header.version != other.header.version or
             !std.mem.eql(u8, &self.header.prev_block, &other.header.prev_block) or
             !std.mem.eql(u8, &self.header.merkle_root, &other.header.merkle_root) or
