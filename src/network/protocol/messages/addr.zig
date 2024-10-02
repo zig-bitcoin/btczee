@@ -16,6 +16,15 @@ pub const NetworkIPAddr = struct {
     pub fn eql(self: *const NetworkIPAddr, other: *const NetworkIPAddr) bool {
         return self.time == other.time and self.services == other.services and std.mem.eql(u8, &self.ip, &other.ip) and self.port == other.port;
     }
+
+    pub fn deserializeReader(reader: anytype) !NetworkIPAddr {
+        return NetworkIPAddr{
+            .time = try reader.readInt(u32, .little),
+            .services = try reader.readInt(u64, .little),
+            .ip = try reader.readBytesNoEof(16),
+            .port = try reader.readInt(u16, .big),
+        };
+    }
 };
 
 /// AddrMessage represents the "addr" message
@@ -97,22 +106,19 @@ pub const AddrMessage = struct {
             if (!std.meta.hasFn(@TypeOf(r), "readAll")) @compileError("Expects r to have fn 'readAll'.");
         }
 
-        var vm: AddrMessage = undefined;
         const ip_address_count = try CompactSizeUint.decodeReader(r);
 
         // Allocate space for IP addresses
         const ip_addresses = try allocator.alloc(NetworkIPAddr, ip_address_count.value());
+        errdefer allocator.free(ip_addresses);
 
-        vm.ip_addresses = ip_addresses;
-
-        for (vm.ip_addresses) |*ip_address| {
-            ip_address.time = try r.readInt(u32, .little);
-            ip_address.services = try r.readInt(u64, .little);
-            try r.readNoEof(&ip_address.ip);
-            ip_address.port = try r.readInt(u16, .big);
+        for (ip_addresses) |*ip_address| {
+            ip_address.* = try NetworkIPAddr.deserializeReader(r);
         }
 
-        return vm;
+        return AddrMessage{
+            .ip_addresses = ip_addresses,
+        };
     }
 
     /// Deserialize bytes into a `AddrMessage`
