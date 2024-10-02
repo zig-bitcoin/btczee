@@ -44,6 +44,10 @@ pub const InventoryItem = struct {
     hash: [32]u8,
 
     pub fn serialize(self: *const InventoryItem, w: anytype) !void {
+        comptime {
+            if (!std.meta.hasFn(@TypeOf(w), "writeInt")) @compileError("Expects r to have fn 'writeInt'.");
+            if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects r to have fn 'writeAll'.");
+        }
         try w.writeInt(u32, self.type, .little);
         try w.writeAll(&self.hash);
     }
