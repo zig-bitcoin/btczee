@@ -86,8 +86,6 @@ test "ConditionalStack basic operations" {
     try testing.expectEqual(2, cond_stack.len());
     
     // Tese pop
-    {
-        try cond_stack.pop();
-        try testing.expectEqual(1, cond_stack.len());
-    }
+    try cond_stack.pop();
+    try testing.expectEqual(1, cond_stack.len());
 }
