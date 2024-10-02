@@ -643,6 +643,8 @@ test "ok_send_cmpctblock_message" {
     var deserialized = try CmpctBlockMessage.deserializeSlice(allocator, serialized);
     defer deserialized.deinit(allocator);
 
+    try std.testing.expect(msg.eql(&deserialized));
+
     // Verify deserialized data
     try std.testing.expectEqual(msg.header, deserialized.header);
     try std.testing.expectEqual(msg.nonce, deserialized.nonce);
@@ -651,12 +653,8 @@ test "ok_send_cmpctblock_message" {
     try std.testing.expectEqual(msg.prefilled_txns[0].index, deserialized.prefilled_txns[0].index);
     try std.testing.expect(msg.prefilled_txns[0].tx.eql(deserialized.prefilled_txns[0].tx));
 
-    // Test checksum
-    const checksum = msg.checksum();
-    try std.testing.expect(checksum.len == 4);
-
     // Test hintSerializedLen
     const hint_len = msg.hintSerializedLen();
     try std.testing.expect(hint_len > 0);
-    try std.testing.expect(hint_len >= serialized.len);
+    try std.testing.expect(hint_len == serialized.len);
 }

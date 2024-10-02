@@ -133,6 +133,27 @@ pub const CmpctBlockMessage = struct {
         }
         return len;
     }
+
+    pub fn eql(self: *const Self, other: *const Self) bool {
+        // Compare BlockHeader fields directly
+        if (self.header.version != other.header.version or
+            !std.mem.eql(u8, &self.header.prev_block, &other.header.prev_block) or
+            !std.mem.eql(u8, &self.header.merkle_root, &other.header.merkle_root) or
+            self.header.timestamp != other.header.timestamp or
+            self.header.nbits != other.header.nbits or
+            self.header.nonce != other.header.nonce or
+            self.nonce != other.nonce) return false;
+
+        if (self.short_ids.len != other.short_ids.len) return false;
+        for (self.short_ids, other.short_ids) |a, b| {
+            if (a != b) return false;
+        }
+        if (self.prefilled_txns.len != other.prefilled_txns.len) return false;
+        for (self.prefilled_txns, other.prefilled_txns) |a, b| {
+            if (a.index != b.index or !a.tx.eql(b.tx)) return false;
+        }
+        return true;
+    }
 };
 
 test "CmpctBlockMessage serialization and deserialization" {
@@ -195,6 +216,8 @@ test "CmpctBlockMessage serialization and deserialization" {
     var deserialized = try CmpctBlockMessage.deserializeSlice(test_allocator, serialized);
     defer deserialized.deinit(test_allocator);
 
+    try testing.expect(msg.eql(&deserialized));
+
     // Verify deserialized data
     try testing.expectEqual(msg.header, deserialized.header);
     try testing.expectEqual(msg.nonce, deserialized.nonce);
@@ -210,5 +233,5 @@ test "CmpctBlockMessage serialization and deserialization" {
     // Test hintSerializedLen
     const hint_len = msg.hintSerializedLen();
     try testing.expect(hint_len > 0);
-    try testing.expect(hint_len >= serialized.len);
+    try testing.expect(hint_len == serialized.len);
 }
