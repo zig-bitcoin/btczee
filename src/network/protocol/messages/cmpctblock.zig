@@ -38,11 +38,8 @@ pub const CmpctBlockMessage = struct {
 
     pub fn serializeToWriter(self: *const Self, w: anytype) !void {
         comptime {
-            if (!@hasDecl(BlockHeader, "serializeToWriter")) {
-                @compileError("BlockHeader must be serializable");
-            }
-            if (!@hasDecl(Transaction, "serializeToWriter")) {
-                @compileError("Transaction must be serializable");
+            if (!@hasDecl(@TypeOf(w), "writeInt")) {
+                @compileError("Writer must have a writeInt method");
             }
         }
 
@@ -82,11 +79,8 @@ pub const CmpctBlockMessage = struct {
 
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
         comptime {
-            if (!@hasDecl(BlockHeader, "deserializeReader")) {
-                @compileError("BlockHeader must have a deserializeReader method");
-            }
-            if (!@hasDecl(Transaction, "deserializeReader")) {
-                @compileError("Transaction must have a deserializeReader method");
+            if (!@hasDecl(@TypeOf(r), "readInt")) {
+                @compileError("Reader must have a readInt method");
             }
         }
 
