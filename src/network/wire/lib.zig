@@ -435,7 +435,7 @@ test "ok_send_sendheaders_message" {
     }
 }
 
-test "ok_send_blocktxn_message" {
+test "ok_send_getblocktxn_message" {
     const Config = @import("../../config/config.zig").Config;
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
