@@ -5,17 +5,17 @@ const Sha256 = std.crypto.hash.sha2.Sha256;
 const BlockHeader = @import("../../../types/block_header.zig");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
-/// BlockTxnMessage represents the "BlockTxn" message
+/// GetBlockTxnMessage represents the "GetBlockTxn" message
 ///
-/// https://developer.bitcoin.org/reference/p2p_networking.html#blocktxn
-pub const BlockTxnMessage = struct {
+/// https://developer.bitcoin.org/reference/p2p_networking.html#getblocktxn
+pub const GetBlockTxnMessage = struct {
     block_hash: [32]u8,
     indexes: []CompactSizeUint,
 
     const Self = @This();
 
     pub fn name() *const [12]u8 {
-        return protocol.CommandNames.BLOCKTXN ++ [_]u8{0} ** 4;
+        return protocol.CommandNames.GETBLOCKTXN ++ [_]u8{0} ** 4;
     }
 
     /// Returns the message checksum
@@ -92,7 +92,7 @@ pub const BlockTxnMessage = struct {
         return blocktxn_message;
     }
 
-    /// Deserialize bytes into a `BlockTxnMessage`
+    /// Deserialize bytes into a `GetBlockTxnMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
         var fbs = std.io.fixedBufferStream(bytes);
         return try Self.deserializeReader(allocator, fbs.reader());
@@ -106,20 +106,20 @@ pub const BlockTxnMessage = struct {
     }
 };
 
-test "BlockTxnMessage serialization and deserialization" {
+test "GetBlockTxnMessage serialization and deserialization" {
     const test_allocator = std.testing.allocator;
 
     const block_hash: [32]u8 = [_]u8{0} ** 32;
     const indexes = try test_allocator.alloc(CompactSizeUint, 1);
     indexes[0] = CompactSizeUint.new(123);
-    const msg = BlockTxnMessage.new(block_hash, indexes);
+    const msg = GetBlockTxnMessage.new(block_hash, indexes);
 
     defer msg.deinit(test_allocator);
 
     const serialized = try msg.serialize(test_allocator);
     defer test_allocator.free(serialized);
 
-    const deserialized = try BlockTxnMessage.deserializeSlice(test_allocator, serialized);
+    const deserialized = try GetBlockTxnMessage.deserializeSlice(test_allocator, serialized);
     defer deserialized.deinit(test_allocator);
 
     try std.testing.expectEqual(msg.block_hash, deserialized.block_hash);

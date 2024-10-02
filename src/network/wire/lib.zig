@@ -143,8 +143,8 @@ pub fn receiveMessage(
         protocol.messages.Message{ .sendheaders = try protocol.messages.SendHeadersMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.FilterLoadMessage.name()))
         protocol.messages.Message{ .filterload = try protocol.messages.FilterLoadMessage.deserializeReader(allocator, r) }
-    else if (std.mem.eql(u8, &command, protocol.messages.BlockTxnMessage.name()))
-        protocol.messages.Message{ .blocktxn = try protocol.messages.BlockTxnMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.GetBlockTxnMessage.name()))
+        protocol.messages.Message{ .getblocktxn = try protocol.messages.GetBlockTxnMessage.deserializeReader(allocator, r) }
     else {
         try r.skipBytes(payload_len, .{}); // Purge the wire
         return error.UnknownMessage;
@@ -439,7 +439,7 @@ test "ok_send_blocktxn_message" {
     const Config = @import("../../config/config.zig").Config;
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
-    const BlockTxnMessage = protocol.messages.BlockTxnMessage;
+    const GetBlockTxnMessage = protocol.messages.GetBlockTxnMessage;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -448,7 +448,7 @@ test "ok_send_blocktxn_message" {
     const indexes = try test_allocator.alloc(CompactSizeUint, 1);
     indexes[0] = CompactSizeUint.new(1000);
     defer test_allocator.free(indexes);
-    const message = BlockTxnMessage.new(block_hash, indexes);
+    const message = GetBlockTxnMessage.new(block_hash, indexes);
 
     var received_message = try write_and_read_message(
         test_allocator,
@@ -460,9 +460,9 @@ test "ok_send_blocktxn_message" {
     defer received_message.deinit(test_allocator);
 
     switch (received_message) {
-        .blocktxn => {
-            try std.testing.expectEqual(message.block_hash, received_message.blocktxn.block_hash);
-            try std.testing.expectEqual(indexes[0].value(), received_message.blocktxn.indexes[0].value());
+        .getblocktxn => {
+            try std.testing.expectEqual(message.block_hash, received_message.getblocktxn.block_hash);
+            try std.testing.expectEqual(indexes[0].value(), received_message.getblocktxn.indexes[0].value());
         },
         else => unreachable,
     }
