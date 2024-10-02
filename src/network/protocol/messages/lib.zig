@@ -150,7 +150,7 @@ pub const Message = union(MessageTypes) {
             .notfound => |*m| m.checksum(),
             .sendheaders => |*m| m.checksum(),
             .filterload => |*m| m.checksum(),
-            .cmpctblock => |m| m.checksum(),
+            .cmpctblock => |*m| m.checksum(),
         };
     }
 
@@ -172,7 +172,7 @@ pub const Message = union(MessageTypes) {
             .notfound => |m| m.hintSerializedLen(),
             .sendheaders => |m| m.hintSerializedLen(),
             .filterload => |*m| m.hintSerializedLen(),
-            .cmpctblock => |m| m.hintSerializedLen(),
+            .cmpctblock => |*m| m.hintSerializedLen(),
         };
     }
 };
