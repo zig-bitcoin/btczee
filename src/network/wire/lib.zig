@@ -407,7 +407,6 @@ test "ok_send_pong_message" {
     }
 }
 
-<<<<<<< HEAD
 test "ok_send_addr_message" {
     const Config = @import("../../config/config.zig").Config;
     const NetworkIPAddr = @import("../protocol/messages/addr.zig").NetworkIPAddr;
@@ -433,7 +432,7 @@ test "ok_send_addr_message" {
         .ip_addresses = ip_addresses,
     };
 
-    const received_message = try write_and_read_message(
+    var received_message = try write_and_read_message(
         test_allocator,
         &list,
         Config.BitcoinNetworkId.MAINNET,

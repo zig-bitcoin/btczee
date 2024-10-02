@@ -7,11 +7,8 @@ pub const BlockMessage = @import("block.zig").BlockMessage;
 pub const GetblocksMessage = @import("getblocks.zig").GetblocksMessage;
 pub const PingMessage = @import("ping.zig").PingMessage;
 pub const PongMessage = @import("pong.zig").PongMessage;
-<<<<<<< HEAD
 pub const AddrMessage = @import("addr.zig").AddrMessage;
-=======
 pub const MerkleBlockMessage = @import("merkleblock.zig").MerkleBlockMessage;
->>>>>>> main
 pub const FeeFilterMessage = @import("feefilter.zig").FeeFilterMessage;
 pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
 pub const FilterClearMessage = @import("filterclear.zig").FilterClearMessage;
