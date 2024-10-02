@@ -1,7 +1,7 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
 const genericChecksum = @import("lib.zig").genericChecksum;
-const genericSerializeToSlice = @import("lib.zig").genericSerializeToSlice;
+const genericSerialize = @import("lib.zig").genericSerialize;
 
 /// FilterAddMessage represents the "filteradd" message
 ///
@@ -30,16 +30,7 @@ pub const FilterAddMessage = struct {
 
     /// Serialize a message as bytes and return them.
     pub fn serialize(self: *const Self, allocator: std.mem.Allocator) ![]u8 {
-        const serialized_len = self.hintSerializedLen();
-        const ret = try allocator.alloc(u8, serialized_len);
-        errdefer allocator.free(ret);
-        try self.serializeToSlice(ret);
-        return ret;
-    }
-
-    /// Serialize a message as bytes and write them to the buffer.
-    pub fn serializeToSlice(self: *const Self, buffer: []u8) !void {
-        try genericSerializeToSlice(self, buffer);
+        return genericSerialize(self, allocator);
     }
 
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {

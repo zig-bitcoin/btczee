@@ -5,7 +5,7 @@ const Sha256 = std.crypto.hash.sha2.Sha256;
 const BlockHeader = @import("../../../types/block_header.zig");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
-const genericSerializeToSlice = @import("lib.zig").genericSerializeToSlice;
+const genericSerialize = @import("lib.zig").genericSerialize;
 
 /// MerkleBlockMessage represents the "MerkleBlock" message
 ///
@@ -48,22 +48,10 @@ pub const MerkleBlockMessage = struct {
         try flag_bytes.encodeToWriter(w);
         try w.writeAll(self.flags);
     }
-    /// Serialize a message as bytes and write them to the buffer.
-    ///
-    /// buffer.len must be >= than self.hintSerializedLen()
-    pub fn serializeToSlice(self: *const Self, buffer: []u8) !void {
-        try genericSerializeToSlice(self, buffer);
-    }
 
     /// Serialize a message as bytes and return them.
     pub fn serialize(self: *const Self, allocator: std.mem.Allocator) ![]u8 {
-        const serialized_len = self.hintSerializedLen();
-        const ret = try allocator.alloc(u8, serialized_len);
-        errdefer allocator.free(ret);
-
-        try self.serializeToSlice(ret);
-
-        return ret;
+        return genericSerialize(self, allocator);
     }
 
     /// Returns the hint of the serialized length of the message.

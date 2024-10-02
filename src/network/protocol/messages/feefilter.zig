@@ -2,7 +2,7 @@ const std = @import("std");
 const protocol = @import("../lib.zig");
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const genericChecksum = @import("lib.zig").genericChecksum;
-const genericSerializeToSlice = @import("lib.zig").genericSerializeToSlice;
+const genericSerialize = @import("lib.zig").genericSerialize;
 
 /// FeeFilterMessage represents the "feefilter" message
 ///
@@ -23,12 +23,6 @@ pub const FeeFilterMessage = struct {
         return genericChecksum(self);
     }
 
-    /// Serialize a message as bytes and write them to the buffer.
-    ///
-    /// buffer.len must be >= than self.hintSerializedLen()
-    pub fn serializeToSlice(self: *const Self, buffer: []u8) !void {
-        try genericSerializeToSlice(self, buffer);
-    }
 
     /// Serialize the message as bytes and write them to the Writer.
     pub fn serializeToWriter(self: *const Self, w: anytype) !void {
@@ -37,14 +31,7 @@ pub const FeeFilterMessage = struct {
 
     /// Serialize a message as bytes and return them.
     pub fn serialize(self: *const Self, allocator: std.mem.Allocator) ![]u8 {
-        const serialized_len = self.hintSerializedLen();
-
-        const ret = try allocator.alloc(u8, serialized_len);
-        errdefer allocator.free(ret);
-
-        try self.serializeToSlice(ret);
-
-        return ret;
+        return genericSerialize(self, allocator);
     }
 
     /// Deserialize a Reader bytes as a `FeeFilterMessage`

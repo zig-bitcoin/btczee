@@ -169,7 +169,14 @@ pub fn genericChecksum(m: anytype) [4]u8 {
     return digest[0..4].*;
 }
 
-pub fn genericSerializeToSlice(m: anytype, buffer: []u8) !void {
+pub fn genericSerialize(m: anytype, allocator: std.mem.Allocator) ![]u8 {
+    const serialized_len = m.hintSerializedLen();
+
+    const buffer = try allocator.alloc(u8, serialized_len);
+    errdefer allocator.free(buffer);
+
     var fbs = std.io.fixedBufferStream(buffer);
     try m.serializeToWriter(fbs.writer());
+
+    return buffer;
 }

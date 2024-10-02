@@ -2,7 +2,7 @@ const std = @import("std");
 const native_endian = @import("builtin").target.cpu.arch.endian();
 const protocol = @import("../lib.zig");
 const genericChecksum = @import("lib.zig").genericChecksum;
-const genericSerializeToSlice = @import("lib.zig").genericSerializeToSlice;
+const genericSerialize = @import("lib.zig").genericSerialize;
 
 const ServiceFlags = protocol.ServiceFlags;
 
@@ -58,23 +58,9 @@ pub const BlockMessage = struct {
         }
     }
 
-    /// Serialize a message as bytes and write them to the buffer.
-    ///
-    /// buffer.len must be >= than self.hintSerializedLen()
-    pub fn serializeToSlice(self: *const Self, buffer: []u8) !void {
-        try genericSerializeToSlice(self, buffer);
-    }
-
     /// Serialize a message as bytes and return them.
     pub fn serialize(self: *const BlockMessage, allocator: std.mem.Allocator) ![]u8 {
-        const serialized_len = self.hintSerializedLen();
-
-        const ret = try allocator.alloc(u8, serialized_len);
-        errdefer allocator.free(ret);
-
-        try self.serializeToSlice(ret);
-
-        return ret;
+        return genericSerialize(self, allocator);
     }
 
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !BlockMessage {
