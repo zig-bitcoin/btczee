@@ -21,6 +21,10 @@ const external_dependencies = [_]build_helpers.Dependency{
         .name = "bitcoin-primitives",
         .module_name = "bitcoin-primitives",
     },
+    .{
+        .name = "libxev",
+        .module_name = "xev",
+    },
 };
 
 pub fn build(b: *std.Build) !void {
