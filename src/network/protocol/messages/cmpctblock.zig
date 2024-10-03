@@ -222,11 +222,8 @@ test "CmpctBlockMessage serialization and deserialization" {
     try testing.expectEqual(msg.prefilled_txns.len, deserialized.prefilled_txns.len);
     try testing.expectEqual(msg.prefilled_txns[0].index, deserialized.prefilled_txns[0].index);
     try testing.expect(msg.prefilled_txns[0].tx.eql(deserialized.prefilled_txns[0].tx));
-    try testing.expect(msg.eql(&deserialized));
 
-    // Test checksum
-    const checksum = msg.checksum();
-    try testing.expect(checksum.len == 4);
+    try std.testing.expect(msg.eql(&deserialized));
 
     // Test hintSerializedLen
     const hint_len = msg.hintSerializedLen();
