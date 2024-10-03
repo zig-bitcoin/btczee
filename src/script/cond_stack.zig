@@ -91,7 +91,7 @@ test "ConditionalStack basic operations" {
     try cond_stack.push(ConditionalValues.False);
     try testing.expectEqual(2, cond_stack.len());
     
-    // Test pop
+    // Test delete
     try cond_stack.delete();
     try testing.expectEqual(1, cond_stack.len());
 }
