@@ -41,6 +41,7 @@ pub const GetBlockTxnMessage = struct {
             try compact_index.encodeToWriter(w);
         }
     }
+
     /// Serialize a message as bytes and write them to the buffer.
     ///
     /// buffer.len must be >= than self.hintSerializedLen()
@@ -67,7 +68,10 @@ pub const GetBlockTxnMessage = struct {
 
         const indexes_count_length: usize = CompactSizeUint.new(self.indexes.len).hint_encoded_len();
 
-        const compact_indexes_length: usize = self.indexes.len * 8;
+        var compact_indexes_length: usize = 0;
+        for (self.indexes) |index| {
+            compact_indexes_length += CompactSizeUint.new(index).hint_encoded_len();
+        }
 
         const variable_length = indexes_count_length + compact_indexes_length;
 
@@ -122,5 +126,5 @@ test "GetBlockTxnMessage serialization and deserialization" {
 
     try std.testing.expectEqual(msg.block_hash, deserialized.block_hash);
     try std.testing.expectEqual(msg.indexes[0], msg.indexes[0]);
-    try std.testing.expectEqual(msg.hintSerializedLen(), 32 + 1 + 8);
+    try std.testing.expectEqual(msg.hintSerializedLen(), 32 + 1 + 1);
 }

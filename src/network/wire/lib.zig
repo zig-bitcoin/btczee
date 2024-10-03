@@ -153,8 +153,6 @@ pub fn receiveMessage(
     };
     errdefer message.deinit(allocator);
 
-    std.debug.print("{}", .{message});
-
     if (!std.mem.eql(u8, &message.checksum(), &checksum)) {
         return error.InvalidChecksum;
     }
@@ -451,9 +449,8 @@ test "ok_send_getblocktxn_message" {
     const block_hash = [_]u8{1} ** 32;
     const indexes = try test_allocator.alloc(u64, 1);
     indexes[0] = 1;
-    defer test_allocator.free(indexes);
     const message = GetBlockTxnMessage.new(block_hash, indexes);
-
+    defer message.deinit(test_allocator);
     var received_message = try write_and_read_message(
         test_allocator,
         &list,
