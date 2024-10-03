@@ -216,13 +216,6 @@ test "CmpctBlockMessage serialization and deserialization" {
     defer deserialized.deinit(test_allocator);
 
     // Verify deserialized data
-    try testing.expectEqual(msg.header, deserialized.header);
-    try testing.expectEqual(msg.nonce, deserialized.nonce);
-    try testing.expectEqualSlices(u64, msg.short_ids, deserialized.short_ids);
-    try testing.expectEqual(msg.prefilled_txns.len, deserialized.prefilled_txns.len);
-    try testing.expectEqual(msg.prefilled_txns[0].index, deserialized.prefilled_txns[0].index);
-    try testing.expect(msg.prefilled_txns[0].tx.eql(deserialized.prefilled_txns[0].tx));
-
     try std.testing.expect(msg.eql(&deserialized));
 
     // Test hintSerializedLen
