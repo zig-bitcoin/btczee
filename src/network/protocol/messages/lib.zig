@@ -160,12 +160,9 @@ pub const Message = union(MessageTypes) {
             .notfound => |*m| m.checksum(),
             .sendheaders => |*m| m.checksum(),
             .filterload => |*m| m.checksum(),
-<<<<<<< HEAD
             .addr => |*m| m.checksum(),
-=======
             .headers => |*m| m.checksum(),
             .cmpctblock => |*m| m.checksum(),
->>>>>>> origin/main
         };
     }
 
@@ -187,12 +184,9 @@ pub const Message = union(MessageTypes) {
             .notfound => |m| m.hintSerializedLen(),
             .sendheaders => |m| m.hintSerializedLen(),
             .filterload => |*m| m.hintSerializedLen(),
-<<<<<<< HEAD
             .addr => |*m| m.hintSerializedLen(),
-=======
             .headers => |*m| m.hintSerializedLen(),
             .cmpctblock => |*m| m.hintSerializedLen(),
->>>>>>> origin/main
         };
     }
 };
