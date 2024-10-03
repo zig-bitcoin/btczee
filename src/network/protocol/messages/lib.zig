@@ -18,7 +18,6 @@ const Sha256 = std.crypto.hash.sha2.Sha256;
 pub const NotFoundMessage = @import("notfound.zig").NotFoundMessage;
 pub const SendHeadersMessage = @import("sendheaders.zig").SendHeadersMessage;
 pub const FilterLoadMessage = @import("filterload.zig").FilterLoadMessage;
-pub const GetdataMessage = @import("getdata.zig").GetdataMessage;
 pub const HeadersMessage = @import("headers.zig").HeadersMessage;
 pub const CmpctBlockMessage = @import("cmpctblock.zig").CmpctBlockMessage;
 
@@ -98,10 +97,7 @@ pub const Message = union(MessageTypes) {
             .block => |*m| m.deinit(allocator),
             .filteradd => |*m| m.deinit(allocator),
             .getdata => |*m| m.deinit(allocator),
-            .notfound => {},
             .cmpctblock => |*m| m.deinit(allocator),
-            .sendheaders => {},
-            .filterload => {},
             .headers => |*m| m.deinit(allocator),
             else => {}
         }
@@ -125,7 +121,7 @@ pub const Message = union(MessageTypes) {
             .notfound => |*m| m.checksum(),
             .sendheaders => |*m| m.checksum(),
             .filterload => |*m| m.checksum(),
-            .getdata => |m| *m.checksum(),
+            .getdata => |*m| m.checksum(),
             .headers => |*m| m.checksum(),
             .cmpctblock => |*m| m.checksum(),
         };

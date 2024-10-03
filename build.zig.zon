@@ -6,14 +6,6 @@
             .url = "https://github.com/karlseguin/zul/archive/ae0c27350c0db6b460f22cba30b6b0c4a02d1ffd.zip",
             .hash = "1220457e2c8867f6734520d9b335f01e1d851d6fe7adaa7f6f0756158acaf6c5e87f",
         },
-        .httpz = .{
-            .url = "git+https://github.com/karlseguin/http.zig#d3e3fb3cf2f3caa2432338282dbe750f85e24254",
-            .hash = "12205748a52926d9e6dbb1ac07462d8772c1e2fd6f52e4d822d8bf282f425efd1330",
-        },
-        .clap = .{
-            .url = "git+https://github.com/Hejsil/zig-clap#2d9db156ae928860a9acf2f1260750d3b44a4c98",
-            .hash = "122005e589ab3b6bff8e589b45f5b12cd27ce79f266bdac17e9f33ebfe2fbaff7fe3",
-        },
         .lmdb = .{
             .url = "git+https://github.com/zig-bitcoin/zig-lmdb#eb7436d091464131551759b0f80d4f1d1a15ece1",
             .hash = "1220f9e1eb744c8dc2750c1e6e1ceb1c2d521bedb161ddead1a6bb772032e576d74a",
@@ -21,6 +13,18 @@
         .@"bitcoin-primitives" = .{
             .url = "git+https://github.com/zig-bitcoin/bitcoin-primitives#6595846b34c8c157175c52380f5c7cc6fc9ca108",
             .hash = "12208a138853cd57db1c5e3348d60a74aa54d5c0a63393b6367098f1c150a0c31438",
+        },
+        .clap = .{
+            .url = "https://github.com/Hejsil/zig-clap/archive/refs/tags/0.9.1.tar.gz",
+            .hash = "122062d301a203d003547b414237229b09a7980095061697349f8bef41be9c30266b",
+        },
+        .libxev = .{
+            .url = "https://github.com/mitchellh/libxev/archive/main.tar.gz",
+            .hash = "1220612bc023c21d75234882ec9a8c6a1cbd9d642da3dfb899297f14bb5bd7b6cd78",
+        },
+        .httpz = .{
+            .url = "https://github.com/karlseguin/http.zig/archive/zig-0.13.tar.gz",
+            .hash = "12208c1f2c5f730c4c03aabeb0632ade7e21914af03e6510311b449458198d0835d6",
         },
     },
     .paths = .{

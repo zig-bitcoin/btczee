@@ -54,13 +54,12 @@ pub const RPC = struct {
     /// The RPC server will start a HTTP server and listen on the RPC port.
     pub fn start(self: *RPC) !void {
         std.log.info("Starting RPC server on port {}", .{self.config.rpc_port});
-        var handler = Handler{};
 
-        var server = try httpz.Server(*Handler).init(self.allocator, .{ .port = self.config.rpc_port }, &handler);
-        var router = server.router(.{});
+        var server = try httpz.Server().init(self.allocator, .{ .port = self.config.rpc_port });
+        var router = server.router();
         // Register routes.
-        router.get("/", index, .{});
-        router.get("/error", @"error", .{});
+        router.get("/", index);
+        router.get("/error", @"error");
 
         std.log.info("RPC server listening on http://localhost:{d}/\n", .{self.config.rpc_port});
 
@@ -74,7 +73,7 @@ const Handler = struct {
 
     // If the handler defines a special "notFound" function, it'll be called
     // when a request is made and no route matches.
-    pub fn notFound(_: *Handler, _: *httpz.Request, res: *httpz.Response) !void {
+    pub fn notFound(_: *httpz.Request, res: *httpz.Response) !void {
         res.status = 404;
         res.body = "NOPE!";
     }
@@ -83,7 +82,7 @@ const Handler = struct {
     // called when an action returns an error.
     // Note that this function takes an additional parameter (the error) and
     // returns a `void` rather than a `!void`.
-    pub fn uncaughtError(_: *Handler, req: *httpz.Request, res: *httpz.Response, err: anyerror) void {
+    pub fn uncaughtError(req: *httpz.Request, res: *httpz.Response, err: anyerror) void {
         std.debug.print("uncaught http error at {s}: {}\n", .{ req.url.path, err });
 
         // Alternative to res.content_type = .TYPE
@@ -96,13 +95,13 @@ const Handler = struct {
     }
 };
 
-fn index(_: *Handler, _: *httpz.Request, res: *httpz.Response) !void {
+fn index(_: *httpz.Request, res: *httpz.Response) !void {
     res.body =
         \\<!DOCTYPE html>
         \\ <p>Running Bitcoin.
     ;
 }
 
-fn @"error"(_: *Handler, _: *httpz.Request, _: *httpz.Response) !void {
+fn @"error"(_: *httpz.Request, _: *httpz.Response) !void {
     return error.ActionError;
 }
