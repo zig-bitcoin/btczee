@@ -1,5 +1,7 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
+const genericChecksum = @import("lib.zig").genericChecksum;
+const NetworkAddress = @import("../NetworkAddress.zig").NetworkAddress;
 
 const Endian = std.builtin.Endian;
 const Sha256 = std.crypto.hash.sha2.Sha256;
@@ -8,28 +10,22 @@ const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 
 pub const NetworkIPAddr = struct {
     time: u32, // Unix epoch time
-    services: u64, // Services offered by the node
-    ip: [16]u8, // IPv6 address (including IPv4-mapped)
-    port: u16, // Port number
+    address: NetworkAddress,
 
     // NetworkIPAddr eql
     pub fn eql(self: *const NetworkIPAddr, other: *const NetworkIPAddr) bool {
-        return self.time == other.time and self.services == other.services and std.mem.eql(u8, &self.ip, &other.ip) and self.port == other.port;
+        return self.time == other.time and self.address.eql(&other.address);
     }
 
-    pub fn serializeWriter(self: *const NetworkIPAddr, writer: anytype) !void {
+    pub fn serializeToWriter(self: *const NetworkIPAddr, writer: anytype) !void {
         try writer.writeInt(u32, self.time, .little);
-        try writer.writeInt(u64, self.services, .little);
-        try writer.writeAll(&self.ip);
-        try writer.writeInt(u16, self.port, .big);
+        try self.address.serializeToWriter(writer);
     }
 
     pub fn deserializeReader(reader: anytype) !NetworkIPAddr {
         return NetworkIPAddr{
             .time = try reader.readInt(u32, .little),
-            .services = try reader.readInt(u64, .little),
-            .ip = try reader.readBytesNoEof(16),
-            .port = try reader.readInt(u16, .big),
+            .address = try NetworkAddress.deserializeReader(reader),
         };
     }
 };
@@ -47,16 +43,8 @@ pub const AddrMessage = struct {
     /// Returns the message checksum
     ///
     /// Computed as `Sha256(Sha256(self.serialize()))[0..4]`
-    pub fn checksum(self: AddrMessage) [4]u8 {
-        var digest: [32]u8 = undefined;
-        var hasher = Sha256.init(.{});
-        const writer = hasher.writer();
-        self.serializeToWriter(writer) catch unreachable; // Sha256.write is infaible
-        hasher.final(&digest);
-
-        Sha256.hash(&digest, &digest, .{});
-
-        return digest[0..4].*;
+    pub fn checksum(self: *const AddrMessage) [4]u8 {
+        return genericChecksum(self);
     }
 
     /// Free the `user_agent` if there is one
@@ -68,13 +56,9 @@ pub const AddrMessage = struct {
     ///
     /// `w` should be a valid `Writer`.
     pub fn serializeToWriter(self: *const AddrMessage, w: anytype) !void {
-        comptime {
-            if (!std.meta.hasFn(@TypeOf(w), "writeInt")) @compileError("Expects r to have fn 'writeInt'.");
-            if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects r to have fn 'writeAll'.");
-        }
         try CompactSizeUint.new(self.ip_addresses.len).encodeToWriter(w);
         for (self.ip_addresses) |*addr| {
-            try addr.serializeWriter(w);
+            try addr.serializeToWriter(w);
         }
     }
 
@@ -101,12 +85,6 @@ pub const AddrMessage = struct {
 
     /// Deserialize a Reader bytes as a `AddrMessage`
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !AddrMessage {
-        comptime {
-            if (!std.meta.hasFn(@TypeOf(r), "readInt")) @compileError("Expects r to have fn 'readInt'.");
-            if (!std.meta.hasFn(@TypeOf(r), "readNoEof")) @compileError("Expects r to have fn 'readNoEof'.");
-            if (!std.meta.hasFn(@TypeOf(r), "readAll")) @compileError("Expects r to have fn 'readAll'.");
-        }
-
         const ip_address_count = try CompactSizeUint.decodeReader(r);
 
         // Allocate space for IP addresses
@@ -157,9 +135,11 @@ test "ok_full_flow_AddrMessage" {
 
         ip_addresses[0] = NetworkIPAddr{
             .time = 1414012889,
-            .services = 1,
-            .ip = [16]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0, 2, 51 },
-            .port = 8080,
+            .address = NetworkAddress{
+                .services = 1,
+                .ip = [16]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0, 2, 51 },
+                .port = 8080,
+            }
         };
         const am = AddrMessage{
             .ip_addresses = ip_addresses[0..],

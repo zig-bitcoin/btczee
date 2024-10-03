@@ -7,22 +7,19 @@ const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
+const NetworkAddress = @import("../NetworkAddress.zig").NetworkAddress;
 
 /// VersionMessage represents the "version" message
 ///
 /// https://developer.bitcoin.org/reference/p2p_networking.html#version
 pub const VersionMessage = struct {
-    recv_ip: [16]u8,
-    trans_ip: [16]u8,
     timestamp: i64,
     services: u64 = 0,
     nonce: u64,
-    recv_services: u64,
-    trans_services: u64,
+    addr_recv: NetworkAddress,
+    addr_from: NetworkAddress,
     version: i32,
     start_height: i32,
-    recv_port: u16,
-    trans_port: u16,
     user_agent: ?[]const u8 = null,
     relay: ?bool = null,
 
@@ -64,13 +61,9 @@ pub const VersionMessage = struct {
         try w.writeInt(i32, self.version, .little);
         try w.writeInt(u64, self.services, .little);
         try w.writeInt(i64, self.timestamp, .little);
-        try w.writeInt(u64, self.recv_services, .little);
-        try w.writeAll(std.mem.asBytes(&self.recv_ip));
-        try w.writeInt(u16, self.recv_port, .big);
-        try w.writeInt(u64, self.trans_services, .little);
-        try w.writeAll(std.mem.asBytes(&self.trans_ip));
-        try w.writeInt(u16, self.trans_port, .big);
         try w.writeInt(u64, self.nonce, .little);
+        try self.addr_recv.serializeToWriter(w);
+        try self.addr_from.serializeToWriter(w);
         try compact_user_agent_len.encodeToWriter(w);
         if (user_agent_len != 0) {
             try w.writeAll(self.user_agent.?);
@@ -115,13 +108,10 @@ pub const VersionMessage = struct {
         vm.version = try r.readInt(i32, .little);
         vm.services = try r.readInt(u64, .little);
         vm.timestamp = try r.readInt(i64, .little);
-        vm.recv_services = try r.readInt(u64, .little);
-        try r.readNoEof(&vm.recv_ip);
-        vm.recv_port = try r.readInt(u16, .big);
-        vm.trans_services = try r.readInt(u64, .little);
-        try r.readNoEof(&vm.trans_ip);
-        vm.trans_port = try r.readInt(u16, .big);
         vm.nonce = try r.readInt(u64, .little);
+
+        vm.addr_recv = try NetworkAddress.deserializeReader(r);
+        vm.addr_from = try NetworkAddress.deserializeReader(r);
 
         const user_agent_len = (try CompactSizeUint.decodeReader(r)).value();
 
@@ -161,13 +151,15 @@ pub const VersionMessage = struct {
         if (self.version != other.version //
         or self.services != other.services //
         or self.timestamp != other.timestamp //
-        or self.recv_services != other.recv_services //
-        or !std.mem.eql(u8, &self.recv_ip, &other.recv_ip) //
-        or self.recv_port != other.recv_port //
-        or self.trans_services != other.trans_services //
-        or !std.mem.eql(u8, &self.trans_ip, &other.trans_ip) //
-        or self.trans_port != other.trans_port //
+                                             //
         or self.nonce != other.nonce) {
+            return false;
+        }
+        
+        // Compare NetworkAddress fields
+        if (!self.addr_recv.eql(&other.addr_recv) or
+            !self.addr_from.eql(&other.addr_from))
+        {
             return false;
         }
 
@@ -194,16 +186,12 @@ pub const VersionMessage = struct {
         return true;
     }
 
-    pub fn new(protocol_version: i32, me: protocol.NetworkAddress, you: protocol.NetworkAddress, nonce: u64, last_block: i32) Self {
+    pub fn new(protocol_version: i32, me: NetworkAddress, you: NetworkAddress, nonce: u64, last_block: i32) Self {
         return .{
             .version = protocol_version,
             .timestamp = std.time.timestamp(),
-            .recv_services = you.services,
-            .trans_services = me.services,
-            .recv_ip = you.ip,
-            .trans_ip = me.ip,
-            .recv_port = you.port,
-            .trans_port = me.port,
+            .addr_recv = you,
+            .addr_from = me,
             .nonce = nonce,
             .start_height = last_block,
         };
@@ -221,12 +209,16 @@ test "ok_full_flow_VersionMessage" {
             .version = 42,
             .services = ServiceFlags.NODE_NETWORK,
             .timestamp = 43,
-            .recv_services = ServiceFlags.NODE_WITNESS,
-            .trans_services = ServiceFlags.NODE_BLOOM,
-            .recv_ip = [_]u8{13} ** 16,
-            .trans_ip = [_]u8{12} ** 16,
-            .recv_port = 33,
-            .trans_port = 22,
+            .addr_recv = NetworkAddress{
+            .services = ServiceFlags.NODE_WITNESS,
+            .ip = [_]u8{13} ** 16,
+            .port = 33,
+            },
+        .addr_from = NetworkAddress{
+            .services = ServiceFlags.NODE_BLOOM,
+            .ip = [_]u8{12} ** 16,
+            .port = 22,
+        },
             .nonce = 31,
             .user_agent = null,
             .start_height = 1000,
@@ -247,12 +239,16 @@ test "ok_full_flow_VersionMessage" {
             .version = 42,
             .services = ServiceFlags.NODE_NETWORK,
             .timestamp = 43,
-            .recv_services = ServiceFlags.NODE_WITNESS,
-            .trans_services = ServiceFlags.NODE_BLOOM,
-            .recv_ip = [_]u8{13} ** 16,
-            .trans_ip = [_]u8{12} ** 16,
-            .recv_port = 33,
-            .trans_port = 22,
+            .addr_recv = NetworkAddress {
+            .services = ServiceFlags.NODE_WITNESS,
+            .ip = [_]u8{13} ** 16,
+            .port = 33,
+            },
+        .addr_from = NetworkAddress {
+            .services = ServiceFlags.NODE_BLOOM,
+            .ip = [_]u8{12} ** 16,
+            .port = 22,
+        },
             .nonce = 31,
             .user_agent = null,
             .start_height = 1000,
@@ -274,12 +270,16 @@ test "ok_full_flow_VersionMessage" {
             .version = 42,
             .services = ServiceFlags.NODE_NETWORK,
             .timestamp = 43,
-            .recv_services = ServiceFlags.NODE_WITNESS,
-            .trans_services = ServiceFlags.NODE_BLOOM,
-            .recv_ip = [_]u8{13} ** 16,
-            .trans_ip = [_]u8{12} ** 16,
-            .recv_port = 33,
-            .trans_port = 22,
+            .addr_recv = NetworkAddress {
+            .services = ServiceFlags.NODE_WITNESS,
+            .ip = [_]u8{13} ** 16,
+            .port = 33,
+            },
+            .addr_from = NetworkAddress {
+            .services = ServiceFlags.NODE_BLOOM,
+            .ip = [_]u8{12} ** 16,
+            .port = 22,
+            },
             .nonce = 31,
             .user_agent = &user_agent,
             .start_height = 1000,
