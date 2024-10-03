@@ -48,6 +48,7 @@ pub const InventoryVector = struct {
         };
     }
 };
+pub const CmpctBlockMessage = @import("cmpctblock.zig").CmpctBlockMessage;
 
 pub const MessageTypes = enum {
     version,
@@ -67,6 +68,7 @@ pub const MessageTypes = enum {
     sendheaders,
     filterload,
     headers,
+    cmpctblock,
 };
 
 pub const Message = union(MessageTypes) {
@@ -87,6 +89,7 @@ pub const Message = union(MessageTypes) {
     sendheaders: SendHeadersMessage,
     filterload: FilterLoadMessage,
     headers: HeadersMessage,
+    cmpctblock: CmpctBlockMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -107,6 +110,7 @@ pub const Message = union(MessageTypes) {
             .sendheaders => |m| @TypeOf(m).name(),
             .filterload => |m| @TypeOf(m).name(),
             .headers => |m| @TypeOf(m).name(),
+            .cmpctblock => |m| @TypeOf(m).name(),
         };
     }
 
@@ -126,6 +130,7 @@ pub const Message = union(MessageTypes) {
             .block => |*m| m.deinit(allocator),
             .filteradd => |*m| m.deinit(allocator),
             .notfound => {},
+            .cmpctblock => |*m| m.deinit(allocator),
             .sendheaders => {},
             .filterload => {},
             .headers => |*m| m.deinit(allocator),
@@ -151,6 +156,7 @@ pub const Message = union(MessageTypes) {
             .sendheaders => |*m| m.checksum(),
             .filterload => |*m| m.checksum(),
             .headers => |*m| m.checksum(),
+            .cmpctblock => |*m| m.checksum(),
         };
     }
 
@@ -173,6 +179,7 @@ pub const Message = union(MessageTypes) {
             .sendheaders => |m| m.hintSerializedLen(),
             .filterload => |*m| m.hintSerializedLen(),
             .headers => |*m| m.hintSerializedLen(),
+            .cmpctblock => |*m| m.hintSerializedLen(),
         };
     }
 };
