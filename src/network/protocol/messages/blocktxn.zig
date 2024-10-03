@@ -5,6 +5,7 @@ const Sha256 = std.crypto.hash.sha2.Sha256;
 const BlockHeader = @import("../../../types/block_header.zig");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
+
 /// BlockTxnMessage represents the "BlockTxn" message
 ///
 /// https://developer.bitcoin.org/reference/p2p_networking.html#blocktxn
@@ -62,7 +63,7 @@ pub const BlockTxnMessage = struct {
 
     /// Returns the hint of the serialized length of the message.
     pub fn hintSerializedLen(self: *const Self) usize {
-        // 32 bytes for the block header
+        // 32 bytes for the block hash
         const fixed_length = 32;
 
         const indexes_count_length: usize = CompactSizeUint.new(self.indexes.len).hint_encoded_len();

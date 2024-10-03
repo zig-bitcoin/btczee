@@ -11,15 +11,14 @@
 
 const std = @import("std");
 const protocol = @import("../protocol/lib.zig");
-
+const BlockHeader = @import("../../types/block_header.zig");
+const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
 pub const Error = error{
     MessageTooLarge,
 };
 
-const BlockHeader = @import("../../types/block_header.zig");
-const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 // Return the checksum of a slice
 ///
 /// Use it on serialized messages to compute the header's value
@@ -583,6 +582,7 @@ test "ok_send_sendcmpct_message" {
         .sendcmpct => |sendcmpct_message| try std.testing.expect(message.eql(&sendcmpct_message)),
         else => unreachable,
     }
+}
 
 test "ok_send_blocktxn_message" {
     const Config = @import("../../config/config.zig").Config;
@@ -615,6 +615,7 @@ test "ok_send_blocktxn_message" {
         },
         else => unreachable,
     }
+}
 
 test "ok_send_cmpctblock_message" {
     const Transaction = @import("../../types/transaction.zig");
