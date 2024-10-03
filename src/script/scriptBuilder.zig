@@ -59,39 +59,21 @@ pub const ScriptBuilder = struct {
 
     ///Push an Int to the SciptBuilder
     pub fn addInt(self: *ScriptBuilder, num: i32) !*ScriptBuilder {
-        var byteArray: [4]u8 = undefined;
-
-        // Get the bytes from the integer and copy them to the array
-        std.mem.copyForwards(u8, &byteArray, std.mem.asBytes(&num));
         if (self.script.items.len + 1 >= MAX_SCRIPT_SIZE) {
             return ScriptBuilderError.ScriptTooLong;
         }
         switch (num) {
-            -1 => try self.script.append(Opcode.OP_NEGATE.toBytes()),
             0 => try self.script.append(Opcode.OP_0.toBytes()),
-            1...16 => try self.script.append(@intCast(Opcode.OP_1.toBytes() - 1 + num)),
+            -1, 1...16 => try self.script.append(@intCast(Opcode.OP_1.toBytes() - 1 + num)),
             else => _ = try self.addData(try ScriptNum.new(num).toBytes(self.allocator)),
         }
 
         return self;
     }
-    ///Push an array of Ints to the SciptBuilder
+    /// Push an array of Ints to the SciptBuilder
     pub fn addInts(self: *ScriptBuilder, nums: []const i32) !*ScriptBuilder {
         for (nums) |num| {
-            var byteArray: [4]u8 = undefined;
-
-            // Get the bytes from the integer and copy them to the array
-            std.mem.copyForwards(u8, &byteArray, std.mem.asBytes(&num));
-
-            if (canonicalDataSize(&byteArray) + self.script.items.len >= MAX_SCRIPT_SIZE) {
-                return ScriptBuilderError.ScriptTooLong;
-            }
-            switch (num) {
-                -1 => try self.script.append(Opcode.OP_NEGATE.toBytes()),
-                0 => try self.script.append(Opcode.OP_0.toBytes()),
-                1...16 => try self.script.append(@intCast(Opcode.OP_1.toBytes() - 1 + num)),
-                else => _ = try self.addData(try ScriptNum.new(num).toBytes(self.allocator)),
-            }
+            _ = try self.addInt(num);
         }
         return self;
     }
@@ -154,7 +136,7 @@ pub const ScriptBuilder = struct {
             const op = Opcode.OP_1.toBytes() - 1 + data[0];
             try self.script.append(op);
         } else if (data.len == 1 and data[0] == 0x81) {
-            _ = try self.addOpcode(Opcode.OP_1NEGATE);
+            try self.script.append(Opcode.OP_1NEGATE.toBytes());
         } else if (data.len < Opcode.OP_PUSHDATA1.toBytes()) {
             try self.script.append(@intCast(data.len));
             try self.script.appendSlice(data);
@@ -261,7 +243,7 @@ test "ScriptBuilder addData PUSHDATA data.len < =opcode.pushdata1.toBytes()" {
     defer sb.deinit();
 
     const data = [_]u8{ 97, 98, 99, 100 };
-    const expected = [_]u8{ 4, 97, 98, 99, 100 };
+    const expected = [_]u8{ Opcode.OP_DATA_4.toBytes(), 97, 98, 99, 100 };
     _ = try sb.addData(&data);
 
     var e = try sb.build();
