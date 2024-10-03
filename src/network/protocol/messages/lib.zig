@@ -20,7 +20,7 @@ pub const SendHeadersMessage = @import("sendheaders.zig").SendHeadersMessage;
 pub const FilterLoadMessage = @import("filterload.zig").FilterLoadMessage;
 pub const GetdataMessage = @import("getdata.zig").GetdataMessage;
 pub const HeadersMessage = @import("headers.zig").HeadersMessage;
-
+pub const CmpctBlockMessage = @import("cmpctblock.zig").CmpctBlockMessage;
 
 pub const MessageTypes = enum {
     version,
@@ -41,6 +41,7 @@ pub const MessageTypes = enum {
     filterload,
     getdata,
     headers,
+    cmpctblock,
 };
 
 
@@ -63,6 +64,7 @@ pub const Message = union(MessageTypes) {
     filterload: FilterLoadMessage,
     getdata: GetdataMessage,
     headers: HeadersMessage,
+    cmpctblock: CmpctBlockMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -84,6 +86,7 @@ pub const Message = union(MessageTypes) {
             .filterload => |m| @TypeOf(m).name(),
             .getdata => |m| @TypeOf(m).name(),
             .headers => |m| @TypeOf(m).name(),
+            .cmpctblock => |m| @TypeOf(m).name(),
         };
     }
 
@@ -95,6 +98,10 @@ pub const Message = union(MessageTypes) {
             .block => |*m| m.deinit(allocator),
             .filteradd => |*m| m.deinit(allocator),
             .getdata => |*m| m.deinit(allocator),
+            .notfound => {},
+            .cmpctblock => |*m| m.deinit(allocator),
+            .sendheaders => {},
+            .filterload => {},
             .headers => |*m| m.deinit(allocator),
             else => {}
         }
@@ -120,6 +127,7 @@ pub const Message = union(MessageTypes) {
             .filterload => |*m| m.checksum(),
             .getdata => |m| *m.checksum(),
             .headers => |*m| m.checksum(),
+            .cmpctblock => |*m| m.checksum(),
         };
     }
 
@@ -143,6 +151,7 @@ pub const Message = union(MessageTypes) {
             .filterload => |*m| m.hintSerializedLen(),
             .getdata => |m| m.hintSerializedLen(),
             .headers => |*m| m.hintSerializedLen(),
+            .cmpctblock => |*m| m.hintSerializedLen(),
         };
     }
 };
