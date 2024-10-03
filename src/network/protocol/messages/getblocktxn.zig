@@ -4,6 +4,7 @@ const protocol = @import("../lib.zig");
 const BlockHeader = @import("../../../types/block_header.zig");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
+
 /// GetBlockTxnMessage represents the "GetBlockTxn" message
 ///
 /// https://developer.bitcoin.org/reference/p2p_networking.html#getblocktxn
