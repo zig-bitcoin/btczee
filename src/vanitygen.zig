@@ -151,7 +151,6 @@ fn threadSearcher(
         // send to sender
 
         if (f) {
-            @branchHint(.cold);
             return sender.send(keys_and_address) catch return;
         }
     }
