@@ -96,16 +96,16 @@ pub const Peer = struct {
 
         const message = protocol.messages.VersionMessage.new(
             self.config.protocol_version,
-        NetworkAddress{
-            .services = self.config.services,
-            .ip = std.mem.zeroes([16]u8),
-            .port = 0,
-        },
-        NetworkAddress{
-            .services = 0,
-            .ip = address.in6.sa.addr,
-            .port = address.in6.getPort(),
-        },
+            NetworkAddress{
+                .services = self.config.services,
+                .ip = std.mem.zeroes([16]u8),
+                .port = 0,
+            },
+            NetworkAddress{
+                .services = 0,
+                .ip = address.in6.sa.addr,
+                .port = address.in6.getPort(),
+            },
             std.crypto.random.int(u64),
             self.config.bestBlock(),
         );

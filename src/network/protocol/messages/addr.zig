@@ -133,14 +133,11 @@ test "ok_full_flow_AddrMessage" {
         const ip_addresses = try test_allocator.alloc(NetworkIPAddr, 1);
         defer test_allocator.free(ip_addresses);
 
-        ip_addresses[0] = NetworkIPAddr{
-            .time = 1414012889,
-            .address = NetworkAddress{
-                .services = 1,
-                .ip = [16]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0, 2, 51 },
-                .port = 8080,
-            }
-        };
+        ip_addresses[0] = NetworkIPAddr{ .time = 1414012889, .address = NetworkAddress{
+            .services = 1,
+            .ip = [16]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0, 2, 51 },
+            .port = 8080,
+        } };
         const am = AddrMessage{
             .ip_addresses = ip_addresses[0..],
         };

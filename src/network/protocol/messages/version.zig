@@ -151,11 +151,11 @@ pub const VersionMessage = struct {
         if (self.version != other.version //
         or self.services != other.services //
         or self.timestamp != other.timestamp //
-                                             //
+        //
         or self.nonce != other.nonce) {
             return false;
         }
-        
+
         // Compare NetworkAddress fields
         if (!self.addr_recv.eql(&other.addr_recv) or
             !self.addr_from.eql(&other.addr_from))
@@ -210,15 +210,15 @@ test "ok_full_flow_VersionMessage" {
             .services = ServiceFlags.NODE_NETWORK,
             .timestamp = 43,
             .addr_recv = NetworkAddress{
-            .services = ServiceFlags.NODE_WITNESS,
-            .ip = [_]u8{13} ** 16,
-            .port = 33,
+                .services = ServiceFlags.NODE_WITNESS,
+                .ip = [_]u8{13} ** 16,
+                .port = 33,
             },
-        .addr_from = NetworkAddress{
-            .services = ServiceFlags.NODE_BLOOM,
-            .ip = [_]u8{12} ** 16,
-            .port = 22,
-        },
+            .addr_from = NetworkAddress{
+                .services = ServiceFlags.NODE_BLOOM,
+                .ip = [_]u8{12} ** 16,
+                .port = 22,
+            },
             .nonce = 31,
             .user_agent = null,
             .start_height = 1000,
@@ -239,16 +239,16 @@ test "ok_full_flow_VersionMessage" {
             .version = 42,
             .services = ServiceFlags.NODE_NETWORK,
             .timestamp = 43,
-            .addr_recv = NetworkAddress {
-            .services = ServiceFlags.NODE_WITNESS,
-            .ip = [_]u8{13} ** 16,
-            .port = 33,
+            .addr_recv = NetworkAddress{
+                .services = ServiceFlags.NODE_WITNESS,
+                .ip = [_]u8{13} ** 16,
+                .port = 33,
             },
-        .addr_from = NetworkAddress {
-            .services = ServiceFlags.NODE_BLOOM,
-            .ip = [_]u8{12} ** 16,
-            .port = 22,
-        },
+            .addr_from = NetworkAddress{
+                .services = ServiceFlags.NODE_BLOOM,
+                .ip = [_]u8{12} ** 16,
+                .port = 22,
+            },
             .nonce = 31,
             .user_agent = null,
             .start_height = 1000,
@@ -270,15 +270,15 @@ test "ok_full_flow_VersionMessage" {
             .version = 42,
             .services = ServiceFlags.NODE_NETWORK,
             .timestamp = 43,
-            .addr_recv = NetworkAddress {
-            .services = ServiceFlags.NODE_WITNESS,
-            .ip = [_]u8{13} ** 16,
-            .port = 33,
+            .addr_recv = NetworkAddress{
+                .services = ServiceFlags.NODE_WITNESS,
+                .ip = [_]u8{13} ** 16,
+                .port = 33,
             },
-            .addr_from = NetworkAddress {
-            .services = ServiceFlags.NODE_BLOOM,
-            .ip = [_]u8{12} ** 16,
-            .port = 22,
+            .addr_from = NetworkAddress{
+                .services = ServiceFlags.NODE_BLOOM,
+                .ip = [_]u8{12} ** 16,
+                .port = 22,
             },
             .nonce = 31,
             .user_agent = &user_agent,

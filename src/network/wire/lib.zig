@@ -186,12 +186,12 @@ test "ok_send_version_message" {
         .version = 42,
         .services = ServiceFlags.NODE_NETWORK,
         .timestamp = 43,
-        .addr_recv = NetworkAddress {
+        .addr_recv = NetworkAddress{
             .services = ServiceFlags.NODE_WITNESS,
             .ip = [_]u8{13} ** 16,
             .port = 33,
         },
-        .addr_from = NetworkAddress {
+        .addr_from = NetworkAddress{
             .services = ServiceFlags.NODE_BLOOM,
             .ip = [_]u8{12} ** 16,
             .port = 22,
@@ -427,14 +427,11 @@ test "ok_send_addr_message" {
     const ip_addresses = try test_allocator.alloc(NetworkIPAddr, 1);
     defer test_allocator.free(ip_addresses);
 
-    ip_addresses[0] = NetworkIPAddr{
-        .time = 1414012889,
-            .address = NetworkAddress{
-                .services = 1,
-                .ip = [16]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0, 2, 51 },
-                .port = 8080,
-            }
-    };
+    ip_addresses[0] = NetworkIPAddr{ .time = 1414012889, .address = NetworkAddress{
+        .services = 1,
+        .ip = [16]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0, 2, 51 },
+        .port = 8080,
+    } };
 
     var message = AddrMessage{
         .ip_addresses = ip_addresses,
@@ -497,12 +494,12 @@ test "ko_receive_invalid_payload_length" {
         .version = 42,
         .services = ServiceFlags.NODE_NETWORK,
         .timestamp = 43,
-        .addr_recv = NetworkAddress {
+        .addr_recv = NetworkAddress{
             .services = ServiceFlags.NODE_WITNESS,
             .ip = [_]u8{13} ** 16,
             .port = 33,
         },
-        .addr_from = NetworkAddress {
+        .addr_from = NetworkAddress{
             .services = ServiceFlags.NODE_BLOOM,
             .ip = [_]u8{12} ** 16,
             .port = 22,
@@ -542,12 +539,12 @@ test "ko_receive_invalid_checksum" {
         .version = 42,
         .services = ServiceFlags.NODE_NETWORK,
         .timestamp = 43,
-        .addr_recv = NetworkAddress {
+        .addr_recv = NetworkAddress{
             .services = ServiceFlags.NODE_WITNESS,
             .ip = [_]u8{13} ** 16,
             .port = 33,
         },
-        .addr_from = NetworkAddress {
+        .addr_from = NetworkAddress{
             .services = ServiceFlags.NODE_BLOOM,
             .ip = [_]u8{12} ** 16,
             .port = 22,
@@ -587,12 +584,12 @@ test "ko_receive_invalid_command" {
         .version = 42,
         .services = ServiceFlags.NODE_NETWORK,
         .timestamp = 43,
-        .addr_recv = NetworkAddress {
+        .addr_recv = NetworkAddress{
             .services = ServiceFlags.NODE_WITNESS,
             .ip = [_]u8{13} ** 16,
             .port = 33,
         },
-        .addr_from = NetworkAddress {
+        .addr_from = NetworkAddress{
             .services = ServiceFlags.NODE_BLOOM,
             .ip = [_]u8{12} ** 16,
             .port = 22,
