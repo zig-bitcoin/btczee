@@ -38,3 +38,31 @@ pub fn deserializeReader(r: anytype) !Self {
 pub fn serializedLen() usize {
     return 80;
 }
+
+pub fn eql(self: *const Self, other: *const Self) bool {
+    if (self.version != other.version) {
+        return false;
+    }
+
+    if (!std.mem.eql(u8, &self.prev_block, &other.prev_block)) {
+        return false;
+    }
+
+    if (!std.mem.eql(u8, &self.merkle_root, &other.merkle_root)) {
+        return false;
+    }
+
+    if (self.timestamp != other.timestamp) {
+        return false;
+    }
+
+    if (self.nbits != other.nbits) {
+        return false;
+    }
+
+    if (self.nonce != other.nonce) {
+        return false;
+    }
+
+    return true;
+}

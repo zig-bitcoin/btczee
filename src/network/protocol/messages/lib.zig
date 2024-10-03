@@ -18,6 +18,7 @@ pub const NotFoundMessage = @import("notfound.zig").NotFoundMessage;
 pub const SendHeadersMessage = @import("sendheaders.zig").SendHeadersMessage;
 pub const FilterLoadMessage = @import("filterload.zig").FilterLoadMessage;
 pub const BlockTxnMessage = @import("blocktxn.zig").BlockTxnMessage;
+pub const HeadersMessage = @import("headers.zig").HeadersMessage;
 
 pub const InventoryVector = struct {
     type: u32,
@@ -48,6 +49,7 @@ pub const InventoryVector = struct {
         };
     }
 };
+pub const CmpctBlockMessage = @import("cmpctblock.zig").CmpctBlockMessage;
 
 pub const MessageTypes = enum {
     version,
@@ -67,6 +69,8 @@ pub const MessageTypes = enum {
     sendheaders,
     filterload,
     blocktxn,
+    headers,
+    cmpctblock,
 };
 
 pub const Message = union(MessageTypes) {
@@ -87,6 +91,8 @@ pub const Message = union(MessageTypes) {
     sendheaders: SendHeadersMessage,
     filterload: FilterLoadMessage,
     blocktxn: BlockTxnMessage,
+    headers: HeadersMessage,
+    cmpctblock: CmpctBlockMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -107,6 +113,8 @@ pub const Message = union(MessageTypes) {
             .sendheaders => |m| @TypeOf(m).name(),
             .filterload => |m| @TypeOf(m).name(),
             .blocktxn => |m| @TypeOf(m).name(),
+            .headers => |m| @TypeOf(m).name(),
+            .cmpctblock => |m| @TypeOf(m).name(),
         };
     }
 
@@ -126,10 +134,11 @@ pub const Message = union(MessageTypes) {
             .block => |*m| m.deinit(allocator),
             .filteradd => |*m| m.deinit(allocator),
             .notfound => {},
+            .cmpctblock => |*m| m.deinit(allocator),
             .sendheaders => {},
             .filterload => {},
             .blocktxn => |*m| m.deinit(allocator),
-        }
+            .headers => |*m| m.deinit(allocator),        }
     }
 
     pub fn checksum(self: *Message) [4]u8 {
@@ -151,6 +160,8 @@ pub const Message = union(MessageTypes) {
             .sendheaders => |*m| m.checksum(),
             .filterload => |*m| m.checksum(),
             .blocktxn => |*m| m.checksum(),
+            .headers => |*m| m.checksum(),
+            .cmpctblock => |*m| m.checksum(),
         };
     }
 
@@ -173,6 +184,8 @@ pub const Message = union(MessageTypes) {
             .sendheaders => |m| m.hintSerializedLen(),
             .filterload => |*m| m.hintSerializedLen(),
             .blocktxn => |*m| m.hintSerializedLen(),
+            .headers => |*m| m.hintSerializedLen(),
+            .cmpctblock => |*m| m.hintSerializedLen(),
         };
     }
 };
