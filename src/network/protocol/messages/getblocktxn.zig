@@ -1,7 +1,6 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
 
-const Sha256 = std.crypto.hash.sha2.Sha256;
 const BlockHeader = @import("../../../types/block_header.zig");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
