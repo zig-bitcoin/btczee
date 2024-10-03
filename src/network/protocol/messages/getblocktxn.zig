@@ -10,12 +10,12 @@ const genericChecksum = @import("lib.zig").genericChecksum;
 /// https://developer.bitcoin.org/reference/p2p_networking.html#getblocktxn
 pub const GetBlockTxnMessage = struct {
     block_hash: [32]u8,
-    indexes: []CompactSizeUint,
+    indexes: []u64,
 
     const Self = @This();
 
     pub fn name() *const [12]u8 {
-        return protocol.CommandNames.GETBLOCKTXN ++ [_]u8{0} ** 4;
+        return protocol.CommandNames.GETBLOCKTXN ++ [_]u8{0};
     }
 
     /// Returns the message checksum
@@ -31,14 +31,14 @@ pub const GetBlockTxnMessage = struct {
     /// Serialize the message as bytes and write them to the Writer.
     pub fn serializeToWriter(self: *const Self, w: anytype) !void {
         comptime {
-            if (!std.meta.hasFn(@TypeOf(w), "writeInt")) @compileError("Expects r to have fn 'writeInt'.");
-            if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects r to have fn 'writeAll'.");
+            if (!std.meta.hasFn(@TypeOf(w), "writeAll")) @compileError("Expects r to have fn 'writeAll");
         }
         try w.writeAll(&self.block_hash);
         const indexes_count = CompactSizeUint.new(self.indexes.len);
         try indexes_count.encodeToWriter(w);
         for (self.indexes) |*index| {
-            try index.encodeToWriter(w);
+            const compact_index = CompactSizeUint.new(index.*);
+            try compact_index.encodeToWriter(w);
         }
     }
     /// Serialize a message as bytes and write them to the buffer.
@@ -62,15 +62,12 @@ pub const GetBlockTxnMessage = struct {
 
     /// Returns the hint of the serialized length of the message.
     pub fn hintSerializedLen(self: *const Self) usize {
-        // 32 bytes for the block header
+        // 32 bytes for the block hash
         const fixed_length = 32;
 
         const indexes_count_length: usize = CompactSizeUint.new(self.indexes.len).hint_encoded_len();
 
-        var compact_indexes_length: usize = 0;
-        for (self.indexes) |index| {
-            compact_indexes_length += index.hint_encoded_len();
-        }
+        const compact_indexes_length: usize = self.indexes.len * 8;
 
         const variable_length = indexes_count_length + compact_indexes_length;
 
@@ -78,18 +75,19 @@ pub const GetBlockTxnMessage = struct {
     }
 
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !Self {
-        var getblocktxn_message: Self = undefined;
-        try r.readNoEof(&getblocktxn_message.block_hash);
+        var blockhash: [32]u8 = undefined;
+        try r.readNoEof(&blockhash);
 
         const indexes_count = try CompactSizeUint.decodeReader(r);
-        getblocktxn_message.indexes = try allocator.alloc(CompactSizeUint, indexes_count.value());
-        errdefer allocator.free(getblocktxn_message.indexes);
+        const indexes = try allocator.alloc(u64, indexes_count.value());
+        errdefer allocator.free(indexes);
 
-        for (getblocktxn_message.indexes) |*index| {
-            index.* = try CompactSizeUint.decodeReader(r);
+        for (indexes) |*index| {
+            const compact_index = try CompactSizeUint.decodeReader(r);
+            index.* = compact_index.value();
         }
 
-        return getblocktxn_message;
+        return new(blockhash, indexes);
     }
 
     /// Deserialize bytes into a `GetBlockTxnMessage`
@@ -98,7 +96,7 @@ pub const GetBlockTxnMessage = struct {
         return try Self.deserializeReader(allocator, fbs.reader());
     }
 
-    pub fn new(block_hash: [32]u8, indexes: []CompactSizeUint) Self {
+    pub fn new(block_hash: [32]u8, indexes: []u64) Self {
         return .{
             .block_hash = block_hash,
             .indexes = indexes,
@@ -110,8 +108,8 @@ test "GetBlockTxnMessage serialization and deserialization" {
     const test_allocator = std.testing.allocator;
 
     const block_hash: [32]u8 = [_]u8{0} ** 32;
-    const indexes = try test_allocator.alloc(CompactSizeUint, 1);
-    indexes[0] = CompactSizeUint.new(123);
+    const indexes = try test_allocator.alloc(u64, 1);
+    indexes[0] = 123;
     const msg = GetBlockTxnMessage.new(block_hash, indexes);
 
     defer msg.deinit(test_allocator);
@@ -123,6 +121,6 @@ test "GetBlockTxnMessage serialization and deserialization" {
     defer deserialized.deinit(test_allocator);
 
     try std.testing.expectEqual(msg.block_hash, deserialized.block_hash);
-    try std.testing.expectEqual(msg.indexes[0].value(), msg.indexes[0].value());
-    try std.testing.expectEqual(msg.hintSerializedLen(), 32 + 1 + 1);
+    try std.testing.expectEqual(msg.indexes[0], msg.indexes[0]);
+    try std.testing.expectEqual(msg.hintSerializedLen(), 32 + 1 + 8);
 }

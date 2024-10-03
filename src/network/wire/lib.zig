@@ -151,6 +151,8 @@ pub fn receiveMessage(
     };
     errdefer message.deinit(allocator);
 
+    std.debug.print("{}", .{message});
+
     if (!std.mem.eql(u8, &message.checksum(), &checksum)) {
         return error.InvalidChecksum;
     }
@@ -444,9 +446,9 @@ test "ok_send_getblocktxn_message" {
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
 
-    const block_hash = [_]u8{0} ** 32;
-    const indexes = try test_allocator.alloc(CompactSizeUint, 1);
-    indexes[0] = CompactSizeUint.new(1000);
+    const block_hash = [_]u8{1} ** 32;
+    const indexes = try test_allocator.alloc(u64, 1);
+    indexes[0] = 1;
     defer test_allocator.free(indexes);
     const message = GetBlockTxnMessage.new(block_hash, indexes);
 
@@ -462,7 +464,7 @@ test "ok_send_getblocktxn_message" {
     switch (received_message) {
         .getblocktxn => {
             try std.testing.expectEqual(message.block_hash, received_message.getblocktxn.block_hash);
-            try std.testing.expectEqual(indexes[0].value(), received_message.getblocktxn.indexes[0].value());
+            try std.testing.expectEqual(indexes[0], received_message.getblocktxn.indexes[0]);
         },
         else => unreachable,
     }
