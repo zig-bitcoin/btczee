@@ -492,13 +492,11 @@ pub const Engine = struct {
         const data = try self.stack.pop();
         defer self.allocator.free(data);
 
-        var hash1: [Sha256.digest_length]u8 = undefined;
-        Sha256.hash(data, &hash1, .{});
+        var digest: [Sha256.digest_length]u8 = undefined;
+        Sha256.hash(data, &digest, .{});
+        Sha256.hash(&digest, &digest, .{});
 
-        var hash2: [Sha256.digest_length]u8 = undefined;
-        Sha256.hash(&hash1, &hash2, .{});
-
-        try self.stack.pushByteArray(&hash2);
+        try self.stack.pushByteArray(&digest);
     }
 
     /// OP_CHECKSIG: Verify a signature
