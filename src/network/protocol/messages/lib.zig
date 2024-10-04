@@ -97,12 +97,9 @@ pub const Message = union(MessageTypes) {
         switch (self.*) {
             .version => |*m| m.deinit(allocator),
             .getblocks => |*m| m.deinit(allocator),
-<<<<<<< HEAD
             .ping => {},
             .pong => {},
             .addr => |m| m.deinit(allocator),
-=======
->>>>>>> bf535489e34dac03fabc9ab2dd605d0c5b17af69
             .merkleblock => |*m| m.deinit(allocator),
             .block => |*m| m.deinit(allocator),
             .filteradd => |*m| m.deinit(allocator),
