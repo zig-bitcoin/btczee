@@ -8,6 +8,8 @@ const Sha256 = std.crypto.hash.sha2.Sha256;
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
 const NetworkAddress = @import("../NetworkAddress.zig").NetworkAddress;
+const genericSerialize = @import("lib.zig").genericSerialize;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 /// VersionMessage represents the "version" message
 ///
@@ -74,24 +76,9 @@ pub const VersionMessage = struct {
         }
     }
 
-    /// Serialize a message as bytes and write them to the buffer.
-    ///
-    /// buffer.len must be >= than self.hintSerializedLen()
-    pub fn serializeToSlice(self: *const Self, buffer: []u8) !void {
-        var fbs = std.io.fixedBufferStream(buffer);
-        try self.serializeToWriter(fbs.writer());
-    }
-
     /// Serialize a message as bytes and return them.
     pub fn serialize(self: *const Self, allocator: std.mem.Allocator) ![]u8 {
-        const serialized_len = self.hintSerializedLen();
-
-        const ret = try allocator.alloc(u8, serialized_len);
-        errdefer allocator.free(ret);
-
-        try self.serializeToSlice(ret);
-
-        return ret;
+        return genericSerialize(self, allocator);
     }
 
     /// Deserialize a Reader bytes as a `VersionMessage`
@@ -131,8 +118,7 @@ pub const VersionMessage = struct {
 
     /// Deserialize bytes into a `VersionMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
-        var fbs = std.io.fixedBufferStream(bytes);
-        return try Self.deserializeReader(allocator, fbs.reader());
+        return genericDeserializeSlice(Self, allocator, bytes);
     }
 
     pub fn hintSerializedLen(self: *const Self) usize {
@@ -199,7 +185,6 @@ pub const VersionMessage = struct {
 };
 
 // TESTS
-
 test "ok_full_flow_VersionMessage" {
     const allocator = std.testing.allocator;
 

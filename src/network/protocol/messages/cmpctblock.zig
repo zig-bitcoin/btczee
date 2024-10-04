@@ -6,6 +6,7 @@ const Sha256 = std.crypto.hash.sha2.Sha256;
 const BlockHeader = @import("../../../types/block_header.zig");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 pub const CmpctBlockMessage = struct {
     header: BlockHeader,
@@ -118,8 +119,7 @@ pub const CmpctBlockMessage = struct {
     }
 
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
-        var fbs = std.io.fixedBufferStream(bytes);
-        return try Self.deserializeReader(allocator, fbs.reader());
+        return genericDeserializeSlice(Self, allocator, bytes);
     }
 
     pub fn hintSerializedLen(self: *const Self) usize {
