@@ -1,6 +1,8 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
 const genericChecksum = @import("lib.zig").genericChecksum;
+const genericSerialize = @import("lib.zig").genericSerialize;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
@@ -13,6 +15,8 @@ pub const GetblocksMessage = struct {
     version: i32,
     header_hashes: [][32]u8,
     stop_hash: [32]u8,
+
+    const Self = @This();
 
     pub fn name() *const [12]u8 {
         return protocol.CommandNames.GETBLOCKS ++ [_]u8{0} ** 5;
@@ -50,23 +54,7 @@ pub const GetblocksMessage = struct {
 
     /// Serialize a message as bytes and return them.
     pub fn serialize(self: *const GetblocksMessage, allocator: std.mem.Allocator) ![]u8 {
-        const serialized_len = self.hintSerializedLen();
-
-        const ret = try allocator.alloc(u8, serialized_len);
-        errdefer allocator.free(ret);
-
-        try self.serializeToSlice(ret);
-
-        return ret;
-    }
-
-    /// Serialize a message as bytes and write them to the buffer.
-    ///
-    /// buffer.len must be >= than self.hintSerializedLen()
-    pub fn serializeToSlice(self: *const GetblocksMessage, buffer: []u8) !void {
-        var fbs = std.io.fixedBufferStream(buffer);
-        const writer = fbs.writer();
-        try self.serializeToWriter(writer);
+        return genericSerialize(self, allocator);
     }
 
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !GetblocksMessage {
@@ -96,11 +84,8 @@ pub const GetblocksMessage = struct {
     }
 
     /// Deserialize bytes into a `GetblocksMessage`
-    pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !GetblocksMessage {
-        var fbs = std.io.fixedBufferStream(bytes);
-        const reader = fbs.reader();
-
-        return try GetblocksMessage.deserializeReader(allocator, reader);
+    pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
+        return genericDeserializeSlice(Self, allocator, bytes);
     }
 
     pub fn hintSerializedLen(self: *const GetblocksMessage) usize {
@@ -134,7 +119,6 @@ pub const GetblocksMessage = struct {
 };
 
 // TESTS
-
 test "ok_full_flow_GetBlocksMessage" {
     const allocator = std.testing.allocator;
 

@@ -37,7 +37,6 @@ pub const FilterClearMessage = struct {
 };
 
 // TESTS
-
 test "ok_full_flow_FilterClearMessage" {
     const allocator = std.testing.allocator;
 

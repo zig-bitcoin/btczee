@@ -143,6 +143,8 @@ pub fn receiveMessage(
         protocol.messages.Message{ .filterload = try protocol.messages.FilterLoadMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.BlockTxnMessage.name()))
         protocol.messages.Message{ .blocktxn = try protocol.messages.BlockTxnMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.GetdataMessage.name()))
+        protocol.messages.Message{ .getdata = try protocol.messages.GetdataMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.CmpctBlockMessage.name()))
         protocol.messages.Message{ .cmpctblock = try protocol.messages.CmpctBlockMessage.deserializeReader(allocator, r) }
     else {
@@ -162,7 +164,6 @@ pub fn receiveMessage(
 }
 
 // TESTS
-
 fn write_and_read_message(allocator: std.mem.Allocator, list: *std.ArrayList(u8), network_id: [4]u8, protocol_version: i32, message: anytype) !?protocol.messages.Message {
     const writer = list.writer();
     try sendMessage(allocator, writer, protocol_version, network_id, message);
@@ -261,6 +262,44 @@ test "ok_send_mempool_message" {
 
     switch (received_message) {
         .mempool => {},
+        else => unreachable,
+    }
+}
+
+test "ok_send_getdata_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const GetdataMessage = protocol.messages.GetdataMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const inventory = try test_allocator.alloc(protocol.InventoryItem, 5);
+    defer test_allocator.free(inventory);
+
+    for (inventory) |*item| {
+        item.type = 1;
+        for (&item.hash) |*byte| {
+            byte.* = 0xab;
+        }
+    }
+
+    const message = GetdataMessage{
+        .inventory = inventory,
+    };
+
+    var received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .getdata => |rm| try std.testing.expect(message.eql(&rm)),
         else => unreachable,
     }
 }
