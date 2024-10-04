@@ -3,6 +3,7 @@ const native_endian = @import("builtin").target.cpu.arch.endian();
 const protocol = @import("../lib.zig");
 const genericChecksum = @import("lib.zig").genericChecksum;
 const genericSerialize = @import("lib.zig").genericSerialize;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 const ServiceFlags = protocol.ServiceFlags;
 
@@ -91,8 +92,7 @@ pub const BlockMessage = struct {
 
     /// Deserialize bytes into a `VersionMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
-        var fbs = std.io.fixedBufferStream(bytes);
-        return try Self.deserializeReader(allocator, fbs.reader());
+        return genericDeserializeSlice(Self, allocator, bytes);
     }
 
     pub fn hintSerializedLen(self: BlockMessage) usize {

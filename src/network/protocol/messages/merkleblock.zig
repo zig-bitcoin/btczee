@@ -6,6 +6,7 @@ const BlockHeader = @import("../../../types/block_header.zig");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
 const genericSerialize = @import("lib.zig").genericSerialize;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 /// MerkleBlockMessage represents the "MerkleBlock" message
 ///
@@ -91,8 +92,7 @@ pub const MerkleBlockMessage = struct {
 
     /// Deserialize bytes into a `MerkleBlockMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
-        var fbs = std.io.fixedBufferStream(bytes);
-        return try Self.deserializeReader(allocator, fbs.reader());
+        return genericDeserializeSlice(Self, allocator, bytes);
     }
 
     pub fn new(block_header: BlockHeader, transaction_count: u32, hashes: [][32]u8, flags: []u8) Self {

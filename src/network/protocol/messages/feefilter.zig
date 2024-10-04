@@ -3,6 +3,7 @@ const protocol = @import("../lib.zig");
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const genericChecksum = @import("lib.zig").genericChecksum;
 const genericSerialize = @import("lib.zig").genericSerialize;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 /// FeeFilterMessage represents the "feefilter" message
 ///
@@ -47,10 +48,7 @@ pub const FeeFilterMessage = struct {
 
     /// Deserialize bytes into a `FeeFilterMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
-        var fbs = std.io.fixedBufferStream(bytes);
-        const reader = fbs.reader();
-
-        return try Self.deserializeReader(allocator, reader);
+        return genericDeserializeSlice(Self, allocator, bytes);
     }
 
     pub fn hintSerializedLen(_: *const Self) usize {

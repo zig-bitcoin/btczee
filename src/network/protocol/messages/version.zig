@@ -8,6 +8,7 @@ const Sha256 = std.crypto.hash.sha2.Sha256;
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
 const genericSerialize = @import("lib.zig").genericSerialize;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 /// VersionMessage represents the "version" message
 ///
@@ -127,8 +128,7 @@ pub const VersionMessage = struct {
 
     /// Deserialize bytes into a `VersionMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
-        var fbs = std.io.fixedBufferStream(bytes);
-        return try Self.deserializeReader(allocator, fbs.reader());
+        return genericDeserializeSlice(Self, allocator, bytes);
     }
 
     pub fn hintSerializedLen(self: *const Self) usize {

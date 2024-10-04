@@ -180,3 +180,10 @@ pub fn genericSerialize(m: anytype, allocator: std.mem.Allocator) ![]u8 {
 
     return buffer;
 }
+
+pub fn genericDeserializeSlice(comptime T: type, allocator: std.mem.Allocator, bytes: []const u8) !T {
+    var fbs = std.io.fixedBufferStream(bytes);
+    const reader = fbs.reader();
+
+    return try T.deserializeReader(allocator, reader);
+}

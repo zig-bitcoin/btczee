@@ -1,6 +1,7 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
 const genericChecksum = @import("lib.zig").genericChecksum;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 
@@ -84,8 +85,7 @@ pub const HeadersMessage = struct {
 
     /// Deserialize bytes into a `HeaderMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
-        var fbs = std.io.fixedBufferStream(bytes);
-        return try Self.deserializeReader(allocator, fbs.reader());
+        return genericDeserializeSlice(Self, allocator, bytes);
     }
 
     pub fn hintSerializedLen(self: Self) usize {

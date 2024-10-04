@@ -3,6 +3,7 @@ const protocol = @import("../lib.zig");
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const genericChecksum = @import("lib.zig").genericChecksum;
 const genericSerialize = @import("lib.zig").genericSerialize;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 /// PongMessage represents the "Pong" message
 ///
@@ -46,8 +47,7 @@ pub const PongMessage = struct {
     }
 
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
-        var fbs = std.io.fixedBufferStream(bytes);
-        return try Self.deserializeReader(allocator, fbs.reader());
+        return genericDeserializeSlice(Self, allocator, bytes);
     }
 
     /// Deserialize a Reader bytes as a `VersionMessage`

@@ -2,6 +2,7 @@ const std = @import("std");
 const protocol = @import("../lib.zig");
 const genericChecksum = @import("lib.zig").genericChecksum;
 const genericSerialize = @import("lib.zig").genericSerialize;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
@@ -14,6 +15,8 @@ pub const GetblocksMessage = struct {
     version: i32,
     header_hashes: [][32]u8,
     stop_hash: [32]u8,
+
+    const Self = @This();
 
     pub fn name() *const [12]u8 {
         return protocol.CommandNames.GETBLOCKS ++ [_]u8{0} ** 5;
@@ -81,11 +84,8 @@ pub const GetblocksMessage = struct {
     }
 
     /// Deserialize bytes into a `GetblocksMessage`
-    pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !GetblocksMessage {
-        var fbs = std.io.fixedBufferStream(bytes);
-        const reader = fbs.reader();
-
-        return try GetblocksMessage.deserializeReader(allocator, reader);
+    pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
+        return genericDeserializeSlice(Self, allocator, bytes);
     }
 
     pub fn hintSerializedLen(self: *const GetblocksMessage) usize {
