@@ -170,6 +170,12 @@ pub fn genericChecksum(m: anytype) [4]u8 {
 }
 
 pub fn genericSerialize(m: anytype, allocator: std.mem.Allocator) ![]u8 {
+    std.debug.print("Type m: {}\n", .{@TypeOf(m)});
+
+    comptime {
+        if (!std.meta.hasMethod(@TypeOf(m), "hintSerializedLen")) @compileError("Expects m to have fn 'hintSerializedLen'.");
+        if (!std.meta.hasMethod(@TypeOf(m), "serializeToWriter")) @compileError("Expects m to have fn 'serializeToWriter'.");
+    }
     const serialized_len = m.hintSerializedLen();
 
     const buffer = try allocator.alloc(u8, serialized_len);
@@ -182,6 +188,8 @@ pub fn genericSerialize(m: anytype, allocator: std.mem.Allocator) ![]u8 {
 }
 
 pub fn genericDeserializeSlice(comptime T: type, allocator: std.mem.Allocator, bytes: []const u8) !T {
+    if (!std.meta.hasMethod(T, "deserializeReader")) @compileError("Expects T to have fn 'deserializeReader'.");
+
     var fbs = std.io.fixedBufferStream(bytes);
     const reader = fbs.reader();
 
