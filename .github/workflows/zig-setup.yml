@@ -1,0 +1,14 @@
+name: Zig Setup
+on: workflow_call
+
+env:
+  ZIG_VERSION: 0.13.0
+
+jobs:
+  setup-zig:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
