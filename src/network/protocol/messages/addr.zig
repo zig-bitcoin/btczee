@@ -1,7 +1,7 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
 const genericChecksum = @import("lib.zig").genericChecksum;
-const NetworkAddress = @import("../NetworkAddress.zig").NetworkAddress;
+const NetworkAddress = @import("../types/NetworkAddress.zig").NetworkAddress;
 
 const Endian = std.builtin.Endian;
 const Sha256 = std.crypto.hash.sha2.Sha256;

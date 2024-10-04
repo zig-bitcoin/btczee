@@ -179,7 +179,7 @@ test "ok_send_version_message" {
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
     const ServiceFlags = protocol.ServiceFlags;
-    const NetworkAddress = @import("../protocol/NetworkAddress.zig").NetworkAddress;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -456,7 +456,7 @@ test "ok_send_pong_message" {
 test "ok_send_addr_message" {
     const Config = @import("../../config/config.zig").Config;
     const NetworkIPAddr = @import("../protocol/messages/addr.zig").NetworkIPAddr;
-    const NetworkAddress = @import("../protocol/NetworkAddress.zig").NetworkAddress;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
 
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
@@ -525,7 +525,7 @@ test "ko_receive_invalid_payload_length" {
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
     const ServiceFlags = protocol.ServiceFlags;
-    const NetworkAddress = @import("../protocol/NetworkAddress.zig").NetworkAddress;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -570,7 +570,7 @@ test "ko_receive_invalid_checksum" {
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
     const ServiceFlags = protocol.ServiceFlags;
-    const NetworkAddress = @import("../protocol/NetworkAddress.zig").NetworkAddress;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -615,7 +615,7 @@ test "ko_receive_invalid_command" {
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
     const ServiceFlags = protocol.ServiceFlags;
-    const NetworkAddress = @import("../protocol/NetworkAddress.zig").NetworkAddress;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();

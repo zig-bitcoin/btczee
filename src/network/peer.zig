@@ -4,7 +4,7 @@ const protocol = @import("./protocol/lib.zig");
 const wire = @import("./wire/lib.zig");
 const Config = @import("../config/config.zig").Config;
 const MessageUtils = @import("./message/utils.zig");
-const NetworkAddress = @import("./protocol/NetworkAddress.zig").NetworkAddress;
+const NetworkAddress = @import("./protocol/types/NetworkAddress.zig").NetworkAddress;
 
 pub const Boundness = enum {
     inbound,

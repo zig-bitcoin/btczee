@@ -7,7 +7,7 @@ const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
-const NetworkAddress = @import("../NetworkAddress.zig").NetworkAddress;
+const NetworkAddress = @import("../types/NetworkAddress.zig").NetworkAddress;
 const genericSerialize = @import("lib.zig").genericSerialize;
 const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
