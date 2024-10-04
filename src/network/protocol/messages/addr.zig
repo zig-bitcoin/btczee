@@ -2,6 +2,7 @@ const std = @import("std");
 const protocol = @import("../lib.zig");
 const genericChecksum = @import("lib.zig").genericChecksum;
 const NetworkAddress = @import("../types/NetworkAddress.zig").NetworkAddress;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 const Endian = std.builtin.Endian;
 const Sha256 = std.crypto.hash.sha2.Sha256;
@@ -35,6 +36,8 @@ pub const NetworkIPAddr = struct {
 /// https://developer.bitcoin.org/reference/p2p_networking.html#addr
 pub const AddrMessage = struct {
     ip_addresses: []NetworkIPAddr,
+
+    const Self = @This();
 
     pub inline fn name() *const [12]u8 {
         return protocol.CommandNames.ADDR ++ [_]u8{0} ** 8;
@@ -102,9 +105,7 @@ pub const AddrMessage = struct {
 
     /// Deserialize bytes into a `AddrMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !AddrMessage {
-        var fbs = std.io.fixedBufferStream(bytes);
-        const reader = fbs.reader();
-        return try AddrMessage.deserializeReader(allocator, reader);
+        return genericDeserializeSlice(Self, allocator, bytes);
     }
 
     pub fn hintSerializedLen(self: AddrMessage) usize {
