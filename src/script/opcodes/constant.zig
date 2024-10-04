@@ -1,4 +1,5 @@
 const std = @import("std");
+const Engine = @import("../engine.zig").Engine;
 const EngineError = @import("../lib.zig").EngineError;
 
 pub const Opcode = enum(u8) {
@@ -390,4 +391,55 @@ pub fn opcodeFromString(name: []const u8) ?Opcode {
 pub fn isUnnamedPushNDataOpcode(opcode: Opcode) ?u8 {
     const opcodeByte = opcode.toBytes();
     return if (opcodeByte > 0x00 and opcodeByte <= 0x4b) opcodeByte else null;
+}
+
+pub fn pushDataLen(engine: *Engine, opcode: Opcode) EngineError!usize {
+    if (opcode == Opcode.OP_PUSHDATA1) {
+        if (engine.pc + 1 >= engine.script.len()) {
+            return error.ScriptTooShort;
+        }
+        const length = engine.script.data[engine.pc + 1];
+        return @as(usize, length);
+    } else if (opcode == Opcode.OP_PUSHDATA2) {
+        if (engine.pc + 3 > engine.script.len()) {
+            return error.ScriptTooShort;
+        }
+        const byte0 = engine.script.data[engine.pc + 1];
+        const byte1 = engine.script.data[engine.pc + 2];
+        const length = (@as(u16, byte0)) | (@as(u16, byte1) << 8);
+        return @as(usize, length);
+    } else if (opcode == Opcode.OP_PUSHDATA4) {
+        if (engine.pc + 5 > engine.script.len()) {
+            return error.ScriptTooShort;
+        }
+        const byte0 = engine.script.data[engine.pc + 1];
+        const byte1 = engine.script.data[engine.pc + 2];
+        const byte2 = engine.script.data[engine.pc + 3];
+        const byte3 = engine.script.data[engine.pc + 4];
+        const length = (@as(u32, byte0))
+                    | (@as(u32, byte1) << 8)
+                    | (@as(u32, byte2) << 16)
+                    | (@as(u32, byte3) << 24);
+        return @as(usize, length);
+    } else {
+        return EngineError.OutOfMemory;
+    }
+}
+
+pub fn skipPushData(engine: *Engine, opcode: Opcode) EngineError!void {
+    const data_len = try pushDataLen(engine, opcode);
+
+    if (opcode == Opcode.OP_PUSHDATA1) {
+        engine.pc += 1 + 1 + data_len;
+    } else if (opcode == Opcode.OP_PUSHDATA2) {
+        engine.pc += 1 + 2 + data_len;
+    } else if (opcode == Opcode.OP_PUSHDATA4) {
+        engine.pc += 1 + 4 + data_len;
+    } else {
+        return EngineError.UnknownOpcode;
+    }
+
+    if (engine.pc > engine.script.len()) {
+        return EngineError.ScriptTooShort;
+    }
 }

@@ -9,6 +9,8 @@ const ScriptFlags = @import("lib.zig").ScriptFlags;
 const arithmetic = @import("opcodes/arithmetic.zig");
 const Opcode = @import("opcodes/constant.zig").Opcode;
 const isUnnamedPushNDataOpcode = @import("opcodes/constant.zig").isUnnamedPushNDataOpcode;
+const pushDataLen = @import("opcodes/constant.zig").pushDataLen;
+const skipPushData = @import("opcodes/constant.zig").skipPushData;
 const EngineError = @import("lib.zig").EngineError;
 const sha1 = std.crypto.hash.Sha1;
 const ripemd160 = @import("bitcoin-primitives").hashes.Ripemd160;
@@ -69,57 +71,6 @@ pub const Engine = struct {
         // std.debug.print(format, args);
     }
 
-    pub fn pushDataLen(self: *Engine, opcode: Opcode) EngineError!usize {
-        if (opcode == Opcode.OP_PUSHDATA1) {
-            if (self.pc + 1 >= self.script.len()) {
-                return error.ScriptTooShort;
-            }
-            const length = self.script.data[self.pc + 1];
-            return @as(usize, length);
-        } else if (opcode == Opcode.OP_PUSHDATA2) {
-            if (self.pc + 3 > self.script.len()) {
-                return error.ScriptTooShort;
-            }
-            const byte0 = self.script.data[self.pc + 1];
-            const byte1 = self.script.data[self.pc + 2];
-            const length = (@as(u16, byte0)) | (@as(u16, byte1) << 8);
-            return @as(usize, length);
-        } else if (opcode == Opcode.OP_PUSHDATA4) {
-            if (self.pc + 5 > self.script.len()) {
-                return error.ScriptTooShort;
-            }
-            const byte0 = self.script.data[self.pc + 1];
-            const byte1 = self.script.data[self.pc + 2];
-            const byte2 = self.script.data[self.pc + 3];
-            const byte3 = self.script.data[self.pc + 4];
-            const length = (@as(u32, byte0))
-                        | (@as(u32, byte1) << 8)
-                        | (@as(u32, byte2) << 16)
-                        | (@as(u32, byte3) << 24);
-            return @as(usize, length);
-        } else {
-            return EngineError.OutOfMemory;
-        }
-    }
-
-    pub fn skipPushData(self: *Engine, opcode: Opcode) EngineError!void {
-        const data_len = try self.pushDataLen(opcode);
-
-        if (opcode == Opcode.OP_PUSHDATA1) {
-            self.pc += 1 + 1 + data_len;
-        } else if (opcode == Opcode.OP_PUSHDATA2) {
-            self.pc += 1 + 2 + data_len;
-        } else if (opcode == Opcode.OP_PUSHDATA4) {
-            self.pc += 1 + 4 + data_len;
-        } else {
-            return EngineError.UnknownOpcode;
-        }
-
-        if (self.pc > self.script.len()) {
-            return EngineError.ScriptTooShort;
-        }
-    }
-
     /// Execute the script
     ///
     /// # Returns
@@ -138,7 +89,7 @@ pub const Engine = struct {
                 if (isUnnamedPushNDataOpcode(opcode)) |length| {
                     self.pc += 1 + length;
                 } else if (opcode.isPushData()) {
-                    try self.skipPushData(opcode);
+                    try skipPushData(self, opcode);
                 } else {
                     self.pc += 1;
                 }
