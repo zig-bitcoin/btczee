@@ -3,6 +3,7 @@ const protocol = @import("../lib.zig");
 const genericChecksum = @import("lib.zig").genericChecksum;
 const NetworkAddress = @import("../types/NetworkAddress.zig").NetworkAddress;
 const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
+const genericSerialize = @import("lib.zig").genericSerialize;
 
 const Endian = std.builtin.Endian;
 const Sha256 = std.crypto.hash.sha2.Sha256;
@@ -65,25 +66,9 @@ pub const AddrMessage = struct {
         }
     }
 
-    /// Serialize a message as bytes and write them to the buffer.
-    ///
-    /// buffer.len must be >= than self.hintSerializedLen()
-    pub fn serializeToSlice(self: *const AddrMessage, buffer: []u8) !void {
-        var fbs = std.io.fixedBufferStream(buffer);
-        const writer = fbs.writer();
-        try self.serializeToWriter(writer);
-    }
-
     /// Serialize a message as bytes and return them.
     pub fn serialize(self: *const AddrMessage, allocator: std.mem.Allocator) ![]u8 {
-        const serialized_len = self.hintSerializedLen();
-
-        const ret = try allocator.alloc(u8, serialized_len);
-        errdefer allocator.free(ret);
-
-        try self.serializeToSlice(ret);
-
-        return ret;
+        return genericSerialize(self, allocator);
     }
 
     /// Deserialize a Reader bytes as a `AddrMessage`
