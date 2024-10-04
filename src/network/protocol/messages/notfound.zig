@@ -1,13 +1,12 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
 const Sha256 = std.crypto.hash.sha2.Sha256;
-const InventoryVector = @import("lib.zig").InventoryVector;
 
 /// NotFoundMessage represents the "notfound" message
 ///
 /// https://developer.bitcoin.org/reference/p2p_networking.html#notfound
 pub const NotFoundMessage = struct {
-    inventory: []const InventoryVector,
+    inventory: []const protocol.InventoryItem,
 
     const Self = @This();
 
@@ -42,7 +41,7 @@ pub const NotFoundMessage = struct {
     pub fn serializeToWriter(self: *const Self, writer: anytype) !void {
         try writer.writeInt(u32, @intCast(self.inventory.len), .little);
         for (self.inventory) |inv| {
-            try InventoryVector.serializeToWriter(inv, writer);
+            try inv.encodeToWriter(writer);
         }
     }
 
@@ -65,11 +64,11 @@ pub const NotFoundMessage = struct {
         }
 
         const count = try r.readInt(u32, .little);
-        const inventory = try allocator.alloc(InventoryVector, count);
+        const inventory = try allocator.alloc(protocol.InventoryItem, count);
         errdefer allocator.free(inventory);
 
         for (inventory) |*inv| {
-            inv.* = try InventoryVector.deserializeReader(r);
+            inv.* = try protocol.InventoryItem.decodeReader(r);
         }
 
         return Self{
@@ -93,7 +92,7 @@ pub const NotFoundMessage = struct {
         allocator.free(self.inventory);
     }
 
-    pub fn new(inventory: []const InventoryVector) Self {
+    pub fn new(inventory: []const protocol.InventoryItem) Self {
         return .{
             .inventory = inventory,
         };
@@ -106,7 +105,7 @@ test "ok_fullflow_notfound_message" {
     const allocator = std.testing.allocator;
 
     {
-        const inventory = [_]InventoryVector{
+        const inventory = [_]protocol.InventoryItem{
             .{ .type = 1, .hash = [_]u8{0xab} ** 32 },
             .{ .type = 2, .hash = [_]u8{0xcd} ** 32 },
         };
