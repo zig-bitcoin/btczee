@@ -162,7 +162,6 @@ pub fn receiveMessage(
 }
 
 // TESTS
-
 fn write_and_read_message(allocator: std.mem.Allocator, list: *std.ArrayList(u8), network_id: [4]u8, protocol_version: i32, message: anytype) !?protocol.messages.Message {
     const writer = list.writer();
     try sendMessage(allocator, writer, protocol_version, network_id, message);

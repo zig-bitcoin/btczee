@@ -1,6 +1,9 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
 const Sha256 = std.crypto.hash.sha2.Sha256;
+const genericChecksum = @import("lib.zig").genericChecksum;
+const genericSerialize = @import("lib.zig").genericSerialize;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 /// NotFoundMessage represents the "notfound" message
 ///
@@ -18,23 +21,7 @@ pub const NotFoundMessage = struct {
     ///
     /// Computed as `Sha256(Sha256(self.serialize()))[0..4]`
     pub fn checksum(self: *const Self) [4]u8 {
-        var digest: [32]u8 = undefined;
-        var hasher = Sha256.init(.{});
-        const writer = hasher.writer();
-        self.serializeToWriter(writer) catch unreachable; // Sha256.write is infallible
-        hasher.final(&digest);
-
-        Sha256.hash(&digest, &digest, .{});
-
-        return digest[0..4].*;
-    }
-
-    /// Serialize a message as bytes and write them to the buffer.
-    ///
-    /// buffer.len must be >= than self.hintSerializedLen()
-    pub fn serializeToSlice(self: *const Self, buffer: []u8) !void {
-        var fbs = std.io.fixedBufferStream(buffer);
-        try self.serializeToWriter(fbs.writer());
+        return genericChecksum(self);
     }
 
     /// Serialize the message as bytes and write them to the Writer.
@@ -47,14 +34,7 @@ pub const NotFoundMessage = struct {
 
     /// Serialize a message as bytes and return them.
     pub fn serialize(self: *const Self, allocator: std.mem.Allocator) ![]u8 {
-        const serialized_len = self.hintSerializedLen();
-
-        const ret = try allocator.alloc(u8, serialized_len);
-        errdefer allocator.free(ret);
-
-        try self.serializeToSlice(ret);
-
-        return ret;
+        return genericSerialize(self, allocator);
     }
 
     /// Deserialize a Reader bytes as a `NotFoundMessage`
@@ -78,10 +58,7 @@ pub const NotFoundMessage = struct {
 
     /// Deserialize bytes into a `NotFoundMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
-        var fbs = std.io.fixedBufferStream(bytes);
-        const reader = fbs.reader();
-
-        return try Self.deserializeReader(allocator, reader);
+        return genericDeserializeSlice(Self, allocator, bytes);
     }
 
     pub fn hintSerializedLen(self: *const Self) usize {
@@ -99,7 +76,6 @@ pub const NotFoundMessage = struct {
     }
 };
 
-// TESTS
 // TESTS
 test "ok_fullflow_notfound_message" {
     const allocator = std.testing.allocator;

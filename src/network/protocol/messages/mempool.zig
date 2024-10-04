@@ -37,7 +37,6 @@ pub const MempoolMessage = struct {
 };
 
 // TESTS
-
 test "ok_full_flow_MempoolMessage" {
     const allocator = std.testing.allocator;
 
