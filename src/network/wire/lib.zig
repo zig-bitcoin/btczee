@@ -19,7 +19,6 @@ pub const Error = error{
 };
 
 const BlockHeader = @import("../../types/block_header.zig");
-const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 
 /// Return the checksum of a slice
 ///

@@ -4,7 +4,8 @@ const protocol = @import("../lib.zig");
 const BlockHeader = @import("../../../types/block_header.zig");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
-
+const genericSerialize = @import("lib.zig").genericSerialize;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 /// GetBlockTxnMessage represents the "GetBlockTxn" message
 ///
 /// https://developer.bitcoin.org/reference/p2p_networking.html#getblocktxn
@@ -52,13 +53,7 @@ pub const GetBlockTxnMessage = struct {
 
     /// Serialize a message as bytes and return them.
     pub fn serialize(self: *const Self, allocator: std.mem.Allocator) ![]u8 {
-        const serialized_len = self.hintSerializedLen();
-        const ret = try allocator.alloc(u8, serialized_len);
-        errdefer allocator.free(ret);
-
-        try self.serializeToSlice(ret);
-
-        return ret;
+        return try genericSerialize(self, allocator);
     }
 
     /// Returns the hint of the serialized length of the message.
@@ -96,8 +91,7 @@ pub const GetBlockTxnMessage = struct {
 
     /// Deserialize bytes into a `GetBlockTxnMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
-        var fbs = std.io.fixedBufferStream(bytes);
-        return try Self.deserializeReader(allocator, fbs.reader());
+        return try genericDeserializeSlice(GetBlockTxnMessage, allocator, bytes);
     }
 
     pub fn new(block_hash: [32]u8, indexes: []u64) Self {
