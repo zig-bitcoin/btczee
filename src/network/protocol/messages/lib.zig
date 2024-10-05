@@ -170,8 +170,6 @@ pub fn genericChecksum(m: anytype) [4]u8 {
 }
 
 pub fn genericSerialize(m: anytype, allocator: std.mem.Allocator) ![]u8 {
-    std.debug.print("Type m: {}\n", .{@TypeOf(m)});
-
     comptime {
         if (!std.meta.hasMethod(@TypeOf(m), "hintSerializedLen")) @compileError("Expects m to have fn 'hintSerializedLen'.");
         if (!std.meta.hasMethod(@TypeOf(m), "serializeToWriter")) @compileError("Expects m to have fn 'serializeToWriter'.");
