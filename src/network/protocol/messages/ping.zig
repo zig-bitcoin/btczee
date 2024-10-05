@@ -2,6 +2,8 @@ const std = @import("std");
 const protocol = @import("../lib.zig");
 const Sha256 = std.crypto.hash.sha2.Sha256;
 const genericChecksum = @import("lib.zig").genericChecksum;
+const genericSerialize = @import("lib.zig").genericSerialize;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 /// PingMessage represents the "Ping" message
 ///
@@ -22,24 +24,9 @@ pub const PingMessage = struct {
         return genericChecksum(self);
     }
 
-    /// Serialize a message as bytes and write them to the buffer.
-    ///
-    /// buffer.len must be >= than self.hintSerializedLen()
-    pub fn serializeToSlice(self: *const Self, buffer: []u8) !void {
-        var fbs = std.io.fixedBufferStream(buffer);
-        try self.serializeToWriter(fbs.writer());
-    }
-
     /// Serialize a message as bytes and return them.
     pub fn serialize(self: *const Self, allocator: std.mem.Allocator) ![]u8 {
-        const serialized_len = self.hintSerializedLen();
-
-        const ret = try allocator.alloc(u8, serialized_len);
-        errdefer allocator.free(ret);
-
-        try self.serializeToSlice(ret);
-
-        return ret;
+        return genericSerialize(self, allocator);
     }
 
     /// Serialize the message as bytes and write them to the Writer.
@@ -60,8 +47,7 @@ pub const PingMessage = struct {
     }
 
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
-        var fbs = std.io.fixedBufferStream(bytes);
-        return try Self.deserializeReader(allocator, fbs.reader());
+        return genericDeserializeSlice(Self, allocator, bytes);
     }
 
     /// Deserialize a Reader bytes as a `VersionMessage`

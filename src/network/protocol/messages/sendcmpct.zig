@@ -5,6 +5,7 @@ const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const genericChecksum = @import("lib.zig").genericChecksum;
+const genericSerialize = @import("lib.zig").genericSerialize;
 
 /// SendCmpctMessage represents the "sendcmpct" message
 ///
@@ -36,15 +37,7 @@ pub const SendCmpctMessage = struct {
 
     /// Serialize a message as bytes and return them.
     pub fn serialize(self: *const SendCmpctMessage, allocator: std.mem.Allocator) ![]u8 {
-        const serialized_len = self.hintSerializedLen();
-
-        const buffer = try allocator.alloc(u8, serialized_len);
-        errdefer allocator.free(buffer);
-
-        var fbs = std.io.fixedBufferStream(buffer);
-        try self.serializeToWriter(fbs.writer());
-
-        return buffer;
+        return genericSerialize(self, allocator);
     }
     pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !SendCmpctMessage {
         _ = allocator;
@@ -74,8 +67,8 @@ pub const SendCmpctMessage = struct {
         return self.announce == other.announce and self.version == other.version;
     }
 };
-// TESTS
 
+// TESTS
 test "ok_full_flow_SendCmpctMessage" {
     const allocator = std.testing.allocator;
 
