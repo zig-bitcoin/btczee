@@ -2,6 +2,7 @@ const std = @import("std");
 const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const message = @import("./lib.zig");
 const genericChecksum = @import("lib.zig").genericChecksum;
+const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
@@ -9,6 +10,7 @@ const protocol = @import("../lib.zig");
 
 pub const GetdataMessage = struct {
     inventory: []const protocol.InventoryItem,
+    const Self = @This();
 
     pub inline fn name() *const [12]u8 {
         return protocol.CommandNames.GETDATA ++ [_]u8{0} ** 5;
@@ -94,10 +96,8 @@ pub const GetdataMessage = struct {
     }
 
     /// Deserialize bytes into a `GetdataMessage`
-    pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !GetdataMessage {
-        var fbs = std.io.fixedBufferStream(bytes);
-        const reader = fbs.reader();
-        return try GetdataMessage.deserializeReader(allocator, reader);
+    pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
+        return genericDeserializeSlice(Self, allocator, bytes);
     }
 
 

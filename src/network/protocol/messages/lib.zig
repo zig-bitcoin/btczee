@@ -103,6 +103,7 @@ pub const Message = union(MessageTypes) {
             .getdata => |*m| m.deinit(allocator),
             .cmpctblock => |*m| m.deinit(allocator),
             .headers => |*m| m.deinit(allocator),
+            .inv => |*m| m.deinit(allocator),
             else => {}
         }
     }
