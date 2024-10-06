@@ -145,6 +145,8 @@ pub fn receiveMessage(
         protocol.messages.Message{ .getdata = try protocol.messages.GetdataMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.CmpctBlockMessage.name()))
         protocol.messages.Message{ .cmpctblock = try protocol.messages.CmpctBlockMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.InvMessage.name()))
+        protocol.messages.Message{ .inv = try protocol.messages.InvMessage.deserializeReader(allocator, r) }
     else {
         try r.skipBytes(payload_len, .{}); // Purge the wire
         return error.UnknownMessage;
@@ -689,4 +691,42 @@ test "ok_send_cmpctblock_message" {
     const hint_len = msg.hintSerializedLen();
     try std.testing.expect(hint_len > 0);
     try std.testing.expect(hint_len == serialized.len);
+}
+
+test "ok_send_inv_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const InvMessage = protocol.messages.InvMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const inventory = try test_allocator.alloc(protocol.InventoryItem, 5);
+    defer test_allocator.free(inventory);
+
+    for (inventory) |*item| {
+        item.type = 1;
+        for (&item.hash) |*byte| {
+            byte.* = 0xab;
+        }
+    }
+
+    const message = InvMessage{
+        .inventory = inventory,
+    };
+
+    var received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .inv => |rm| try std.testing.expect(message.eql(&rm)),
+        else => unreachable,
+    }
 }
