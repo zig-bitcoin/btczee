@@ -37,7 +37,6 @@ pub const GetaddrMessage = struct {
 };
 
 // TESTS
-
 test "ok_full_flow_GetaddrMessage" {
     const allocator = std.testing.allocator;
 

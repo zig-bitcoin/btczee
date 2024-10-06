@@ -1,5 +1,6 @@
 const std = @import("std");
 const protocol = @import("../lib.zig");
+const default_checksum = @import("lib.zig").default_checksum;
 
 /// SendHeaders represents the "getaddr" message
 ///
@@ -18,8 +19,7 @@ pub const SendHeadersMessage = struct {
 
     pub fn checksum(self: Self) [4]u8 {
         _ = self;
-        // If payload is empty, the checksum is always 0x5df6e0e2 (SHA256(SHA256("")))
-        return [4]u8{ 0x5d, 0xf6, 0xe0, 0xe2 };
+        return default_checksum;
     }
 
     /// Serialize a message as bytes and return them.
@@ -42,7 +42,6 @@ pub const SendHeadersMessage = struct {
 };
 
 // TESTS
-
 test "ok_full_flow_SendHeaders" {
     const allocator = std.testing.allocator;
 

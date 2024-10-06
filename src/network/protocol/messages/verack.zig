@@ -37,7 +37,6 @@ pub const VerackMessage = struct {
 };
 
 // TESTS
-
 test "ok_full_flow_VerackMessage" {
     const allocator = std.testing.allocator;
 
