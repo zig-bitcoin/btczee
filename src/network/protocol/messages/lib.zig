@@ -45,7 +45,6 @@ pub const MessageTypes = enum {
     cmpctblock,
 };
 
-
 pub const Message = union(MessageTypes) {
     version: VersionMessage,
     verack: VerackMessage,
@@ -105,9 +104,8 @@ pub const Message = union(MessageTypes) {
             .sendheaders => {},
             .filterload => {},
             .blocktxn => |*m| m.deinit(allocator),
-            .headers => |*m| m.deinit(allocator),        }
             .headers => |*m| m.deinit(allocator),
-            else => {}
+            else => {},
         }
     }
 

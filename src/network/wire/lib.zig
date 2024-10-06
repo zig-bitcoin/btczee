@@ -628,13 +628,14 @@ test "ok_send_blocktxn_message" {
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const BlockTxnMessage = protocol.messages.BlockTxnMessage;
+    const Transaction = @import("../../types/transaction.zig");
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
 
     const block_hash = [_]u8{0} ** 32;
-    const indexes = try test_allocator.alloc(CompactSizeUint, 1);
-    indexes[0] = CompactSizeUint.new(1000);
+    const indexes = try test_allocator.alloc(Transaction, 1);
+    indexes[0] = Transaction.init(test_allocator);
     defer test_allocator.free(indexes);
     const message = BlockTxnMessage.new(block_hash, indexes);
 
