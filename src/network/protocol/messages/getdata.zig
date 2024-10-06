@@ -3,6 +3,7 @@ const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const message = @import("./lib.zig");
 const genericChecksum = @import("lib.zig").genericChecksum;
 const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
+const genericSerialize = @import("lib.zig").genericSerialize;
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
@@ -41,14 +42,7 @@ pub const GetdataMessage = struct {
     }
 
     pub fn serialize(self: *const GetdataMessage, allocator: std.mem.Allocator) ![]u8 {
-        const serialized_len = self.hintSerializedLen();
-
-        const ret = try allocator.alloc(u8, serialized_len);
-        errdefer allocator.free(ret);
-
-        try self.serializeToSlice(ret);
-
-        return ret;
+        return genericSerialize(self, allocator);
     }
 
     /// Serialize a message as bytes and write them to the buffer.
