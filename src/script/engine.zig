@@ -8,6 +8,7 @@ const arithmetic = @import("opcodes/arithmetic.zig");
 const Opcode = @import("opcodes/constant.zig").Opcode;
 const isUnnamedPushNDataOpcode = @import("opcodes/constant.zig").isUnnamedPushNDataOpcode;
 const EngineError = @import("lib.zig").EngineError;
+const ScriptBuilder = @import("scriptBuilder.zig").ScriptBuilder;
 const sha1 = std.crypto.hash.Sha1;
 const ripemd160 = @import("bitcoin-primitives").hashes.Ripemd160;
 const Sha256 = std.crypto.hash.sha2.Sha256;
@@ -319,10 +320,10 @@ pub const Engine = struct {
     fn op2Rot(self: *Engine) !void {
         const start = self.stack.items.items.len - 1;
 
-        try self.stack.swap(start-5, start-3);
-        try self.stack.swap(start-4, start-2);
-        try self.stack.swap(start-3, start-1);
-        try self.stack.swap(start-2, start);
+        try self.stack.swap(start - 5, start - 3);
+        try self.stack.swap(start - 4, start - 2);
+        try self.stack.swap(start - 3, start - 1);
+        try self.stack.swap(start - 2, start);
     }
 
     // OP_2OVER: Copies the pair of items two spaces back in the stack to the front
@@ -369,9 +370,9 @@ pub const Engine = struct {
     /// OP_ROT: The top three items on the stack are rotated to the left
     fn opRot(self: *Engine) !void {
         const start = self.stack.items.items.len - 1;
-        
-        try self.stack.swap(start-2, start-1);
-        try self.stack.swap(start-1, start);
+
+        try self.stack.swap(start - 2, start - 1);
+        try self.stack.swap(start - 1, start);
     }
 
     /// OP_NIP: Removes the second-to-top stack item
@@ -608,16 +609,15 @@ test "opSha1 function test" {
     };
 
     for (test_cases) |case| {
-        const allocator = std.testing.allocator;
-
-        const script_bytes = [_]u8{Opcode.OP_SHA1.toBytes()};
-        const script = Script.init(&script_bytes);
-
-        var engine = Engine.init(allocator, script, .{});
-        defer engine.deinit();
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
 
         // Push the input onto the stack
-        try engine.stack.pushByteArray(case.input);
+        _ = try sb.addData(case.input);
+        _ = try sb.addOpcode(Opcode.OP_SHA1);
+
+        var engine = try sb.build();
+        defer engine.deinit();
 
         // Call opSha1
         try engine.execute();
@@ -636,13 +636,15 @@ test "opSha1 function test" {
 }
 
 test "Script execution - OP_RETURN" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
     // Script: OP_1 OP_RETURN OP_2
-    const script_bytes = [_]u8{ 0x51, 0x6a, 0x52 };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInt(1);
+    _ = try sb.addOpcode(Opcode.OP_RETURN);
+    _ = try sb.addInt(2);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try std.testing.expectError(error.EarlyReturn, engine.execute());
@@ -653,25 +655,20 @@ test "Script execution - OP_RETURN" {
     // Check the item on the stack (should be 1)
     {
         const item = try engine.stack.pop();
-        defer allocator.free(item);
+        defer engine.allocator.free(item);
         try std.testing.expectEqualSlices(u8, &[_]u8{1}, item);
     }
 }
 
 test "Script execution - OP_TOALTSTACK OP_FROMALTSTACK" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
     // Simple script: OP_1 OP_TOALTSTACK OP_FROMALTSTACK
-    const script_bytes = [_]u8{
-        Opcode.OP_1.toBytes(),
-        Opcode.OP_2.toBytes(),
-        Opcode.OP_TOALTSTACK.toBytes(),
-        Opcode.OP_TOALTSTACK.toBytes(),
-        Opcode.OP_FROMALTSTACK.toBytes(),
-    };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[2]i32{ 1, 2 });
+    _ = try sb.addOpcodes(&[3]Opcode{ Opcode.OP_TOALTSTACK, Opcode.OP_TOALTSTACK, Opcode.OP_FROMALTSTACK });
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
@@ -681,13 +678,14 @@ test "Script execution - OP_TOALTSTACK OP_FROMALTSTACK" {
 }
 
 test "Script execution - OP_1 OP_1 OP_1 OP_2Drop" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
     // Simple script: OP_1 OP_1 OP_EQUAL
-    const script_bytes = [_]u8{ 0x51, 0x51, 0x51, 0x6d };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[3]i32{ 1, 1, 1 });
+    _ = try sb.addOpcode(Opcode.OP_2DROP);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
@@ -697,13 +695,14 @@ test "Script execution - OP_1 OP_1 OP_1 OP_2Drop" {
 }
 
 test "Script execution - OP_1 OP_2 OP_2Dup" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
-    // Simple script: OP_1 OP_1 OP_EQUAL
-    const script_bytes = [_]u8{ 0x51, 0x52, 0x6e };
-    const script = Script.init(&script_bytes);
+    // Simple script: OP_1 OP_2 OP_2DUP
+    _ = try sb.addInts(&[2]i32{ 1, 2 });
+    _ = try sb.addOpcode(Opcode.OP_2DUP);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
@@ -721,16 +720,18 @@ test "Script execution - OP_1 OP_2 OP_2Dup" {
 }
 
 test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_3Dup" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
-    // Simple script: OP_1 OP_1 OP_EQUAL
-    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x54, 0x6f };
-    const script = Script.init(&script_bytes);
+    // Simple script: OP_1 OP_1 OP_3DUP
+    _ = try sb.addInts(&[4]i32{ 1, 2, 3, 4 });
+    _ = try sb.addOpcode(Opcode.OP_3DUP);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
+
     const element0 = try engine.stack.peekInt(0);
     const element1 = try engine.stack.peekInt(1);
     const element2 = try engine.stack.peekInt(2);
@@ -751,21 +752,13 @@ test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_3Dup" {
 }
 
 test "Script execution - OP_2ROT" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
-    const script_bytes = [_]u8{
-        Opcode.OP_0.toBytes(),
-        Opcode.OP_1.toBytes(),
-        Opcode.OP_2.toBytes(),
-        Opcode.OP_3.toBytes(),
-        Opcode.OP_4.toBytes(),
-        Opcode.OP_5.toBytes(),
-        Opcode.OP_6.toBytes(),
-        Opcode.OP_2ROT.toBytes(),
-    };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[7]i32{ 0, 1, 2, 3, 4, 5, 6 });
+    _ = try sb.addOpcode(Opcode.OP_2ROT);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
@@ -789,22 +782,31 @@ test "Script execution - OP_2ROT" {
 }
 
 test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_2OVER" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
-    // Simple script: OP_1 OP_2 OP_3 OP_4 OP_2OVER
-    const script_bytes = [_]u8{
-        Opcode.OP_1.toBytes(),
-        Opcode.OP_2.toBytes(),
-        Opcode.OP_3.toBytes(),
-        Opcode.OP_4.toBytes(),
-        Opcode.OP_2OVER.toBytes(),
-    };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[4]i32{ 1, 2, 3, 4 });
+    _ = try sb.addOpcode(Opcode.OP_2OVER);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
+
+    // Simple script: OP_1 OP_2 OP_3 OP_4 OP_2OVER
+    // const script_bytes = [_]u8{
+    //     Opcode.OP_1.toBytes(),
+    //     Opcode.OP_2.toBytes(),
+    //     Opcode.OP_3.toBytes(),
+    //     Opcode.OP_4.toBytes(),
+    //     Opcode.OP_2OVER.toBytes(),
+    // };
+    // const script = Script.init(&script_bytes);
+
+    // var engine = Engine.init(allocator, script, .{});
+    // defer engine.deinit();
+
+    // try engine.execute();
     try std.testing.expectEqual(6, engine.stack.len());
 
     const element0 = try engine.stack.peekInt(0);
@@ -823,22 +825,18 @@ test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_2OVER" {
 }
 
 test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_2SWAP" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
     // Simple script: OP_1 OP_2 OP_3 OP_4 OP_2SWAP
-    const script_bytes = [_]u8{
-        Opcode.OP_1.toBytes(),
-        Opcode.OP_2.toBytes(),
-        Opcode.OP_3.toBytes(),
-        Opcode.OP_4.toBytes(),
-        Opcode.OP_2SWAP.toBytes(),
-    };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[4]i32{ 1, 2, 3, 4 });
+    _ = try sb.addOpcode(Opcode.OP_2SWAP);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
+
     try std.testing.expectEqual(4, engine.stack.len());
 
     const element0 = try engine.stack.peekInt(0);
@@ -853,16 +851,18 @@ test "Script execution - OP_1 OP_2 OP_3 OP_4 OP_2SWAP" {
 }
 
 test "Script execution - OP_1 OP_2 OP_IFDUP" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
     // Simple script: OOP_1 OP_2 OP_IFDUP
-    const script_bytes = [_]u8{ 0x51, 0x52, 0x73 };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[2]i32{ 1, 2 });
+    _ = try sb.addOpcode(Opcode.OP_IFDUP);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
+
     const element0 = try engine.stack.peekInt(0);
     const element1 = try engine.stack.peekInt(1);
 
@@ -872,18 +872,14 @@ test "Script execution - OP_1 OP_2 OP_IFDUP" {
 }
 
 test "Script execution - OP_OVER" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
     // Simple script: OP_1 OP_2 OP_3 OP_OVER
-    const script_bytes = [_]u8{
-        Opcode.OP_1.toBytes(),
-        Opcode.OP_2.toBytes(),
-        Opcode.OP_3.toBytes(),
-        Opcode.OP_OVER.toBytes(),
-    };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[3]i32{ 1, 2, 3 });
+    _ = try sb.addOpcode(Opcode.OP_OVER);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
@@ -904,16 +900,18 @@ test "Script execution - OP_OVER" {
 }
 
 test "Script execution - OP_1 OP_2 OP_DEPTH" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
-    // Simple script: OP_1 OP_2 OP_DEPTH
-    const script_bytes = [_]u8{ 0x51, 0x52, 0x74 };
-    const script = Script.init(&script_bytes);
+    // Simple script: OP_1 OP_2 OP_3 OP_4 OP_2SWAP
+    _ = try sb.addInts(&[2]i32{ 1, 2 });
+    _ = try sb.addOpcode(Opcode.OP_DEPTH);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
+
     const element0 = try engine.stack.peekInt(0);
     const element1 = try engine.stack.peekInt(1);
 
@@ -923,16 +921,18 @@ test "Script execution - OP_1 OP_2 OP_DEPTH" {
 }
 
 test "Script execution - OP_1 OP_2 OP_DROP" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
     // Simple script: OP_1 OP_2 OP_DROP
-    const script_bytes = [_]u8{ 0x51, 0x52, 0x75 };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[2]i32{ 1, 2 });
+    _ = try sb.addOpcode(Opcode.OP_DROP);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
+
     try std.testing.expectEqual(1, engine.stack.len());
 
     const element0 = try engine.stack.peekInt(0);
@@ -941,18 +941,13 @@ test "Script execution - OP_1 OP_2 OP_DROP" {
 }
 
 test "Script execution - OP_ROT" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
-    const script_bytes = [_]u8{
-        Opcode.OP_0.toBytes(),
-        Opcode.OP_1.toBytes(),
-        Opcode.OP_2.toBytes(),
-        Opcode.OP_3.toBytes(),
-        Opcode.OP_ROT.toBytes(),
-    };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[4]i32{ 0, 1, 2, 3 });
+    _ = try sb.addOpcode(Opcode.OP_ROT);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
@@ -970,22 +965,30 @@ test "Script execution - OP_ROT" {
 }
 
 test "Script execution - OP_PICK" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
     // Simple script: OP_1 OP_2 OP_3 OP_2 OP_PICK
-    const script_bytes = [_]u8{
-        Opcode.OP_1.toBytes(),
-        Opcode.OP_2.toBytes(),
-        Opcode.OP_3.toBytes(),
-        Opcode.OP_2.toBytes(),
-        Opcode.OP_PICK.toBytes(),
-    };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[4]i32{ 1, 2, 3, 2 });
+    _ = try sb.addOpcode(Opcode.OP_PICK);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
+    // const script_bytes = [_]u8{
+    //     Opcode.OP_1.toBytes(),
+    //     Opcode.OP_2.toBytes(),
+    //     Opcode.OP_3.toBytes(),
+    //     Opcode.OP_2.toBytes(),
+    //     Opcode.OP_PICK.toBytes(),
+    // };
+    // const script = Script.init(&script_bytes);
+
+    // var engine = Engine.init(allocator, script, .{});
+    // defer engine.deinit();
+
+    // try engine.execute();
     try std.testing.expectEqual(4, engine.stack.len());
 
     const element0 = try engine.stack.peekInt(0);
@@ -1000,44 +1003,48 @@ test "Script execution - OP_PICK" {
 }
 
 test "Script execution - OP_DISABLED" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 1);
+    defer sb.deinit();
 
-    // Simple script to run a disabled opcode
-    const script_bytes = [_]u8{0x95};
-    const script = Script.init(&script_bytes);
+    _ = try sb.addData(&[1]u8{0x95});
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
+
+    try engine.execute();
 
     // Expect an error when running a disabled opcode
     try std.testing.expectError(error.DisabledOpcode, engine.opDisabled());
 }
 
 test "Script execution - OP_INVALID" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 1);
+    defer sb.deinit();
 
-    // Simple script to run an invalid opcode
-    const script_bytes = [_]u8{0xff};
-    const script = Script.init(&script_bytes);
+    _ = try sb.addData(&[1]u8{0xff});
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
+
+    try engine.execute();
 
     // Expect an error when running an invalid opcode
     try std.testing.expectError(error.UnknownOpcode, engine.opInvalid());
 }
 
 test "Script execution OP_1 OP_2 OP_3 OP_NIP" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
     // Simple script: OP_1 OP_2 OP_3 OP_NIP
-    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x77 };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[3]i32{ 1, 2, 3 });
+    _ = try sb.addOpcode(Opcode.OP_NIP);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
+
     try std.testing.expectEqual(2, engine.stack.len());
 
     const element0 = try engine.stack.peekInt(0);
@@ -1049,16 +1056,18 @@ test "Script execution OP_1 OP_2 OP_3 OP_NIP" {
 }
 
 test "Script execution OP_1 OP_2 OP_3 OP_OVER" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
     // Simple script: OP_1 OP_2 OP_3 OP_OVER
-    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x78 };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[3]i32{ 1, 2, 3 });
+    _ = try sb.addOpcode(Opcode.OP_OVER);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
+
     try std.testing.expectEqual(4, engine.stack.len());
 
     const element0 = try engine.stack.peekInt(0);
@@ -1069,16 +1078,19 @@ test "Script execution OP_1 OP_2 OP_3 OP_OVER" {
 }
 
 test "Script execution OP_1 OP_2 OP_3 OP_2 OP_ROLL" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
     // Simple script: OP_1 OP_2 OP_3 OP_2 OP_ROLL
-    const script_bytes = [_]u8{ Opcode.OP_1.toBytes(), Opcode.OP_2.toBytes(), Opcode.OP_3.toBytes(), Opcode.OP_2.toBytes(), Opcode.OP_ROLL.toBytes() };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[4]i32{ 1, 2, 3, 2 });
 
-    var engine = Engine.init(allocator, script, .{});
+    _ = try sb.addOpcode(Opcode.OP_ROLL);
+
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
+
     try std.testing.expectEqual(3, engine.stack.len());
 
     const element0 = try engine.stack.peekInt(0);
@@ -1091,16 +1103,18 @@ test "Script execution OP_1 OP_2 OP_3 OP_2 OP_ROLL" {
 }
 
 test "Script execution OP_1 OP_2 OP_3 OP_SWAP" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
     // Simple script: OP_1 OP_2 OP_3 OP_SWAP
-    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x7c };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[3]i32{ 1, 2, 3 });
+    _ = try sb.addOpcode(Opcode.OP_SWAP);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
+
     try std.testing.expectEqual(3, engine.stack.len());
 
     const element0 = try engine.stack.peekInt(0);
@@ -1111,16 +1125,18 @@ test "Script execution OP_1 OP_2 OP_3 OP_SWAP" {
 }
 
 test "Script execution OP_1 OP_2 OP_3 OP_TUCK" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
     // Simple script: OP_1 OP_2 OP_3 OP_TUCK
-    const script_bytes = [_]u8{ Opcode.OP_1.toBytes(), Opcode.OP_2.toBytes(), Opcode.OP_3.toBytes(), Opcode.OP_TUCK.toBytes() };
-    const script = Script.init(&script_bytes);
+    _ = try sb.addInts(&[3]i32{ 1, 2, 3 });
+    _ = try sb.addOpcode(Opcode.OP_TUCK);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
+
     try std.testing.expectEqual(4, engine.stack.len());
 
     const element0 = try engine.stack.peekInt(0);
@@ -1135,16 +1151,18 @@ test "Script execution OP_1 OP_2 OP_3 OP_TUCK" {
 }
 
 test "Script execution OP_1 OP_2 OP_3 OP_SIZE" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
-    // Simple script: OP_1 OP_1 OP_EQUAL
-    const script_bytes = [_]u8{ 0x51, 0x52, 0x53, 0x82 };
-    const script = Script.init(&script_bytes);
+    // Simple script: OP_1 OP_2 OP_3 OP_SIZE
+    _ = try sb.addInts(&[3]i32{ 1, 2, 3 });
+    _ = try sb.addOpcode(Opcode.OP_SIZE);
 
-    var engine = Engine.init(allocator, script, .{});
+    var engine = try sb.build();
     defer engine.deinit();
 
     try engine.execute();
+
     try std.testing.expectEqual(4, engine.stack.len());
 
     const element0 = try engine.stack.popInt();
@@ -1166,18 +1184,15 @@ test "Script execution OP_RIPEMD160" {
     };
 
     for (test_cases) |case| {
-        const allocator = std.testing.allocator;
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
 
-        const script_bytes = [_]u8{Opcode.OP_RIPEMD160.toBytes()};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(case.input);
+        _ = try sb.addOpcode(Opcode.OP_RIPEMD160);
 
-        var engine = Engine.init(allocator, script, .{});
+        var engine = try sb.build();
         defer engine.deinit();
 
-        // Push the input onto the stack
-        try engine.stack.pushByteArray(case.input);
-
-        // Call opRipemd160
         try engine.execute();
 
         // Pop the result from the stack
@@ -1194,13 +1209,15 @@ test "Script execution OP_RIPEMD160" {
 }
 
 test "Script execution - OP_SHA256" {
-    const allocator = std.testing.allocator;
+    var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+    defer sb.deinit();
 
-    const script_bytes = [_]u8{ Opcode.OP_1.toBytes(), Opcode.OP_SHA256.toBytes() };
-    const script = Script.init(&script_bytes);
+    // Simple script: OP_1 OP_2 OP_3 OP_SIZE
+    _ = try sb.addInt(1);
+    _ = try sb.addOpcode(Opcode.OP_SHA256);
 
-    var engine = Engine.init(allocator, script, .{});
-    defer engine.deinit(); // Ensure engine is deinitialized and memory is freed
+    var engine = try sb.build();
+    defer engine.deinit();
 
     try engine.execute();
 
@@ -1228,16 +1245,15 @@ test "Script execution = OP_HASH160" {
     };
 
     for (test_cases) |case| {
-        const allocator = std.testing.allocator;
-
-        const script_bytes = [_]u8{Opcode.OP_HASH160.toBytes()};
-        const script = Script.init(&script_bytes);
-
-        var engine = Engine.init(allocator, script, .{});
-        defer engine.deinit();
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
 
         // Push the input onto the stack
-        try engine.stack.pushByteArray(case.input);
+        _ = try sb.addData(case.input);
+        _ = try sb.addOpcode(Opcode.OP_HASH160);
+
+        var engine = try sb.build();
+        defer engine.deinit();
 
         // Call opHash160
         try engine.execute();

@@ -5,6 +5,7 @@ const Script = @import("../lib.zig").Script;
 const ScriptNum = @import("../lib.zig").ScriptNum;
 const ScriptFlags = @import("../lib.zig").ScriptFlags;
 const StackError = @import("../stack.zig").StackError;
+const ScriptBuilder = @import("../scriptBuilder.zig").ScriptBuilder;
 
 /// Add 1 to the top stack item
 pub fn op1Add(engine: *Engine) !void {
@@ -171,7 +172,6 @@ pub fn opWithin(engine: *Engine) !void {
 }
 
 test "OP_1ADD operation" {
-    const allocator = testing.allocator;
 
     // Test cases
     const normalTestCases = [_]struct {
@@ -192,13 +192,14 @@ test "OP_1ADD operation" {
     };
 
     for (normalTestCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
         // Push the input value onto the stack
         try engine.stack.pushInt(tc.input);
 
@@ -214,13 +215,13 @@ test "OP_1ADD operation" {
     }
     for (overflowTestCases) |tc| {
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        _ = try sb.addData(&[_]u8{0x00});
+
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
         try engine.stack.pushInt(tc.input);
 
         // Execute OP_1ADD
@@ -237,7 +238,6 @@ test "OP_1ADD operation" {
 }
 
 test "OP_1SUB operation" {
-    const allocator = testing.allocator;
 
     // Test cases
     const normalTestCases = [_]struct {
@@ -259,13 +259,14 @@ test "OP_1SUB operation" {
     };
 
     for (normalTestCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
         // Push the input value onto the stack
         try engine.stack.pushInt(tc.input);
 
@@ -280,14 +281,15 @@ test "OP_1SUB operation" {
         try testing.expectEqual(0, engine.stack.len());
     }
     for (overflowTestCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.input);
 
         // Execute OP_1SUB
@@ -304,8 +306,6 @@ test "OP_1SUB operation" {
 }
 
 test "OP_NEGATE operation" {
-    const allocator = testing.allocator;
-
     // Test cases
     const normalTestCases = [_]struct {
         input: i32,
@@ -321,13 +321,14 @@ test "OP_NEGATE operation" {
     };
 
     for (normalTestCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
         // Push the input value onto the stack
         try engine.stack.pushInt(tc.input);
 
@@ -344,8 +345,6 @@ test "OP_NEGATE operation" {
 }
 
 test "OP_ABS operation" {
-    const allocator = testing.allocator;
-
     // Test cases
     const normalTestCases = [_]struct {
         input: i32,
@@ -360,13 +359,14 @@ test "OP_ABS operation" {
         .{ .input = ScriptNum.MIN, .expected = ScriptNum.MAX },
     };
     for (normalTestCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
         // Push the input value onto the stack
         try engine.stack.pushInt(tc.input);
 
@@ -383,7 +383,6 @@ test "OP_ABS operation" {
 }
 
 test "OP_NOT operation" {
-    const allocator = testing.allocator;
 
     // Test cases
     const testCases = [_]struct {
@@ -400,13 +399,14 @@ test "OP_NOT operation" {
     };
 
     for (testCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
         // Push the input value onto the stack
         try engine.stack.pushInt(tc.input);
 
@@ -423,8 +423,6 @@ test "OP_NOT operation" {
 }
 
 test "OP_0NOTEQUAL operation" {
-    const allocator = testing.allocator;
-
     // Test cases
     const testCases = [_]struct {
         input: i32,
@@ -440,13 +438,14 @@ test "OP_0NOTEQUAL operation" {
     };
 
     for (testCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
         // Push the input value onto the stack
         try engine.stack.pushInt(tc.input);
 
@@ -463,8 +462,6 @@ test "OP_0NOTEQUAL operation" {
 }
 
 test "OP_ADD operation" {
-    const allocator = testing.allocator;
-
     // Test cases
     const normalTestCases = [_]struct {
         a: i32,
@@ -491,14 +488,15 @@ test "OP_ADD operation" {
     };
 
     for (normalTestCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.a);
         try engine.stack.pushInt(tc.b);
 
@@ -513,14 +511,15 @@ test "OP_ADD operation" {
         try testing.expectEqual(0, engine.stack.len());
     }
     for (overflowTestCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.a);
         try engine.stack.pushInt(tc.b);
 
@@ -538,7 +537,6 @@ test "OP_ADD operation" {
 }
 
 test "OP_SUB operation" {
-    const allocator = testing.allocator;
 
     // Test cases
     const normalTestCases = [_]struct {
@@ -567,14 +565,15 @@ test "OP_SUB operation" {
     };
 
     for (normalTestCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.a);
         try engine.stack.pushInt(tc.b);
 
@@ -589,14 +588,15 @@ test "OP_SUB operation" {
         try testing.expectEqual(0, engine.stack.len());
     }
     for (overflowTestCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.a);
         try engine.stack.pushInt(tc.b);
 
@@ -614,7 +614,6 @@ test "OP_SUB operation" {
 }
 
 test "OP_BOOLOR operation" {
-    const allocator = testing.allocator;
 
     // Test cases
     const testCases = [_]struct {
@@ -634,14 +633,15 @@ test "OP_BOOLOR operation" {
     };
 
     for (testCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.a);
         try engine.stack.pushInt(tc.b);
 
@@ -658,8 +658,6 @@ test "OP_BOOLOR operation" {
 }
 
 test "OP_NUMEQUAL operation" {
-    const allocator = testing.allocator;
-
     // Test cases
     const testCases = [_]struct {
         a: i32,
@@ -678,14 +676,15 @@ test "OP_NUMEQUAL operation" {
     };
 
     for (testCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.a);
         try engine.stack.pushInt(tc.b);
 
@@ -702,8 +701,6 @@ test "OP_NUMEQUAL operation" {
 }
 
 test "OP_NUMNOTEQUAL operation" {
-    const allocator = testing.allocator;
-
     // Test cases
     const testCases = [_]struct {
         a: i32,
@@ -722,14 +719,15 @@ test "OP_NUMNOTEQUAL operation" {
     };
 
     for (testCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.a);
         try engine.stack.pushInt(tc.b);
 
@@ -746,8 +744,6 @@ test "OP_NUMNOTEQUAL operation" {
 }
 
 test "OP_LESSTHAN operation" {
-    const allocator = testing.allocator;
-
     // Test cases
     const testCases = [_]struct {
         a: i32,
@@ -766,14 +762,15 @@ test "OP_LESSTHAN operation" {
     };
 
     for (testCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.a);
         try engine.stack.pushInt(tc.b);
 
@@ -790,8 +787,6 @@ test "OP_LESSTHAN operation" {
 }
 
 test "OP_GREATERTHAN operation" {
-    const allocator = testing.allocator;
-
     // Test cases
     const testCases = [_]struct {
         a: i32,
@@ -810,14 +805,15 @@ test "OP_GREATERTHAN operation" {
     };
 
     for (testCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.a);
         try engine.stack.pushInt(tc.b);
 
@@ -834,8 +830,6 @@ test "OP_GREATERTHAN operation" {
 }
 
 test "OP_LESSTHANOREQUAL operation" {
-    const allocator = testing.allocator;
-
     // Test cases
     const testCases = [_]struct {
         a: i32,
@@ -854,14 +848,15 @@ test "OP_LESSTHANOREQUAL operation" {
     };
 
     for (testCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.a);
         try engine.stack.pushInt(tc.b);
 
@@ -878,8 +873,6 @@ test "OP_LESSTHANOREQUAL operation" {
 }
 
 test "OP_GREATERTHANOREQUAL operation" {
-    const allocator = testing.allocator;
-
     // Test cases
     const testCases = [_]struct {
         a: i32,
@@ -898,14 +891,15 @@ test "OP_GREATERTHANOREQUAL operation" {
     };
 
     for (testCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.a);
         try engine.stack.pushInt(tc.b);
 
@@ -922,8 +916,6 @@ test "OP_GREATERTHANOREQUAL operation" {
 }
 
 test "OP_MIN operation" {
-    const allocator = testing.allocator;
-
     // Test cases
     const testCases = [_]struct {
         a: i32,
@@ -942,14 +934,15 @@ test "OP_MIN operation" {
     };
 
     for (testCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.a);
         try engine.stack.pushInt(tc.b);
 
@@ -966,8 +959,6 @@ test "OP_MIN operation" {
 }
 
 test "OP_MAX operation" {
-    const allocator = testing.allocator;
-
     // Test cases
     const testCases = [_]struct {
         a: i32,
@@ -986,14 +977,15 @@ test "OP_MAX operation" {
     };
 
     for (testCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.a);
         try engine.stack.pushInt(tc.b);
 
@@ -1010,8 +1002,6 @@ test "OP_MAX operation" {
 }
 
 test "OP_WITHIN operation" {
-    const allocator = testing.allocator;
-
     // Test cases
     const testCases = [_]struct {
         x: i32,
@@ -1028,11 +1018,13 @@ test "OP_WITHIN operation" {
     };
 
     for (testCases) |tc| {
-        // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        // Create a dummy script (content doesn't matter for this test)
+        _ = try sb.addData(&[_]u8{0x00});
+
+        var engine = try sb.build();
         defer engine.deinit();
 
         // Push the input values onto the stack
@@ -1053,8 +1045,6 @@ test "OP_WITHIN operation" {
 }
 
 test "OP_NUMEQUALVERIFY operation" {
-    const allocator = testing.allocator;
-
     // Test cases
     const testCases = [_]struct {
         a: i32,
@@ -1073,14 +1063,15 @@ test "OP_NUMEQUALVERIFY operation" {
     };
 
     for (testCases) |tc| {
+        var sb = try ScriptBuilder.new(std.testing.allocator, 4);
+        defer sb.deinit();
+
         // Create a dummy script (content doesn't matter for this test)
-        const script_bytes = [_]u8{0x00};
-        const script = Script.init(&script_bytes);
+        _ = try sb.addData(&[_]u8{0x00});
 
-        var engine = Engine.init(allocator, script, ScriptFlags{});
+        var engine = try sb.build();
         defer engine.deinit();
-
-        // Push the input values onto the stack
+        // Push the input value onto the stack
         try engine.stack.pushInt(tc.a);
         try engine.stack.pushInt(tc.b);
 
