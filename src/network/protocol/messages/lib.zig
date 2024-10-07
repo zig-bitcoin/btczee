@@ -7,6 +7,7 @@ pub const BlockMessage = @import("block.zig").BlockMessage;
 pub const GetblocksMessage = @import("getblocks.zig").GetblocksMessage;
 pub const PingMessage = @import("ping.zig").PingMessage;
 pub const PongMessage = @import("pong.zig").PongMessage;
+pub const AddrMessage = @import("addr.zig").AddrMessage;
 pub const MerkleBlockMessage = @import("merkleblock.zig").MerkleBlockMessage;
 pub const FeeFilterMessage = @import("feefilter.zig").FeeFilterMessage;
 pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
@@ -30,6 +31,7 @@ pub const MessageTypes = enum {
     getblocks,
     ping,
     pong,
+    addr,
     merkleblock,
     sendcmpct,
     feefilter,
@@ -54,6 +56,7 @@ pub const Message = union(MessageTypes) {
     getblocks: GetblocksMessage,
     ping: PingMessage,
     pong: PongMessage,
+    addr: AddrMessage,
     merkleblock: MerkleBlockMessage,
     sendcmpct: SendCmpctMessage,
     feefilter: FeeFilterMessage,
@@ -77,6 +80,7 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| @TypeOf(m).name(),
             .ping => |m| @TypeOf(m).name(),
             .pong => |m| @TypeOf(m).name(),
+            .addr => |m| @TypeOf(m).name(),
             .merkleblock => |m| @TypeOf(m).name(),
             .sendcmpct => |m| @TypeOf(m).name(),
             .feefilter => |m| @TypeOf(m).name(),
@@ -97,6 +101,9 @@ pub const Message = union(MessageTypes) {
         switch (self.*) {
             .version => |*m| m.deinit(allocator),
             .getblocks => |*m| m.deinit(allocator),
+            .ping => {},
+            .pong => {},
+            .addr => |m| m.deinit(allocator),
             .merkleblock => |*m| m.deinit(allocator),
             .block => |*m| m.deinit(allocator),
             .filteradd => |*m| m.deinit(allocator),
@@ -129,6 +136,7 @@ pub const Message = union(MessageTypes) {
             .sendheaders => |*m| m.checksum(),
             .filterload => |*m| m.checksum(),
             .getblocktxn => |*m| m.checksum(),
+            .addr => |*m| m.checksum(),
             .getdata => |*m| m.checksum(),
             .headers => |*m| m.checksum(),
             .cmpctblock => |*m| m.checksum(),
@@ -154,6 +162,7 @@ pub const Message = union(MessageTypes) {
             .sendheaders => |m| m.hintSerializedLen(),
             .filterload => |*m| m.hintSerializedLen(),
             .getblocktxn => |*m| m.hintSerializedLen(),
+            .addr => |*m| m.hintSerializedLen(),
             .getdata => |m| m.hintSerializedLen(),
             .headers => |*m| m.hintSerializedLen(),
             .cmpctblock => |*m| m.hintSerializedLen(),

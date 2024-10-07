@@ -126,6 +126,8 @@ pub fn receiveMessage(
         protocol.messages.Message{ .ping = try protocol.messages.PingMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.PongMessage.name()))
         protocol.messages.Message{ .pong = try protocol.messages.PongMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.AddrMessage.name()))
+        protocol.messages.Message{ .addr = try protocol.messages.AddrMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.MerkleBlockMessage.name()))
         protocol.messages.Message{ .merkleblock = try protocol.messages.MerkleBlockMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.SendCmpctMessage.name()))
@@ -180,6 +182,7 @@ test "ok_send_version_message" {
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
     const ServiceFlags = protocol.ServiceFlags;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -189,12 +192,16 @@ test "ok_send_version_message" {
         .version = 42,
         .services = ServiceFlags.NODE_NETWORK,
         .timestamp = 43,
-        .recv_services = ServiceFlags.NODE_WITNESS,
-        .trans_services = ServiceFlags.NODE_BLOOM,
-        .recv_ip = [_]u8{13} ** 16,
-        .trans_ip = [_]u8{12} ** 16,
-        .recv_port = 33,
-        .trans_port = 22,
+        .addr_recv = NetworkAddress{
+            .services = ServiceFlags.NODE_WITNESS,
+            .ip = [_]u8{13} ** 16,
+            .port = 33,
+        },
+        .addr_from = NetworkAddress{
+            .services = ServiceFlags.NODE_BLOOM,
+            .ip = [_]u8{12} ** 16,
+            .port = 22,
+        },
         .nonce = 31,
         .user_agent = &user_agent,
         .start_height = 1000,
@@ -449,6 +456,46 @@ test "ok_send_pong_message" {
     }
 }
 
+test "ok_send_addr_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const NetworkIPAddr = @import("../protocol/messages/addr.zig").NetworkIPAddr;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
+
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const AddrMessage = protocol.messages.AddrMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const ip_addresses = try test_allocator.alloc(NetworkIPAddr, 1);
+    defer test_allocator.free(ip_addresses);
+
+    ip_addresses[0] = NetworkIPAddr{ .time = 1414012889, .address = NetworkAddress{
+        .services = 1,
+        .ip = [16]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0, 2, 51 },
+        .port = 8080,
+    } };
+
+    var message = AddrMessage{
+        .ip_addresses = ip_addresses,
+    };
+
+    var received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .addr => |rm| try std.testing.expect(message.eql(&rm)),
+        else => unreachable,
+    }
+}
+
 test "ok_send_sendheaders_message" {
     const Config = @import("../../config/config.zig").Config;
     const ArrayList = std.ArrayList;
@@ -513,6 +560,7 @@ test "ko_receive_invalid_payload_length" {
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
     const ServiceFlags = protocol.ServiceFlags;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -522,12 +570,16 @@ test "ko_receive_invalid_payload_length" {
         .version = 42,
         .services = ServiceFlags.NODE_NETWORK,
         .timestamp = 43,
-        .recv_services = ServiceFlags.NODE_WITNESS,
-        .trans_services = ServiceFlags.NODE_BLOOM,
-        .recv_ip = [_]u8{13} ** 16,
-        .trans_ip = [_]u8{12} ** 16,
-        .recv_port = 33,
-        .trans_port = 22,
+        .addr_recv = NetworkAddress{
+            .services = ServiceFlags.NODE_WITNESS,
+            .ip = [_]u8{13} ** 16,
+            .port = 33,
+        },
+        .addr_from = NetworkAddress{
+            .services = ServiceFlags.NODE_BLOOM,
+            .ip = [_]u8{12} ** 16,
+            .port = 22,
+        },
         .nonce = 31,
         .user_agent = &user_agent,
         .start_height = 1000,
@@ -553,6 +605,7 @@ test "ko_receive_invalid_checksum" {
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
     const ServiceFlags = protocol.ServiceFlags;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -562,12 +615,16 @@ test "ko_receive_invalid_checksum" {
         .version = 42,
         .services = ServiceFlags.NODE_NETWORK,
         .timestamp = 43,
-        .recv_services = ServiceFlags.NODE_WITNESS,
-        .trans_services = ServiceFlags.NODE_BLOOM,
-        .recv_ip = [_]u8{13} ** 16,
-        .trans_ip = [_]u8{12} ** 16,
-        .recv_port = 33,
-        .trans_port = 22,
+        .addr_recv = NetworkAddress{
+            .services = ServiceFlags.NODE_WITNESS,
+            .ip = [_]u8{13} ** 16,
+            .port = 33,
+        },
+        .addr_from = NetworkAddress{
+            .services = ServiceFlags.NODE_BLOOM,
+            .ip = [_]u8{12} ** 16,
+            .port = 22,
+        },
         .nonce = 31,
         .user_agent = &user_agent,
         .start_height = 1000,
@@ -593,6 +650,7 @@ test "ko_receive_invalid_command" {
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
     const ServiceFlags = protocol.ServiceFlags;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -602,12 +660,16 @@ test "ko_receive_invalid_command" {
         .version = 42,
         .services = ServiceFlags.NODE_NETWORK,
         .timestamp = 43,
-        .recv_services = ServiceFlags.NODE_WITNESS,
-        .trans_services = ServiceFlags.NODE_BLOOM,
-        .recv_ip = [_]u8{13} ** 16,
-        .trans_ip = [_]u8{12} ** 16,
-        .recv_port = 33,
-        .trans_port = 22,
+        .addr_recv = NetworkAddress{
+            .services = ServiceFlags.NODE_WITNESS,
+            .ip = [_]u8{13} ** 16,
+            .port = 33,
+        },
+        .addr_from = NetworkAddress{
+            .services = ServiceFlags.NODE_BLOOM,
+            .ip = [_]u8{12} ** 16,
+            .port = 22,
+        },
         .nonce = 31,
         .user_agent = &user_agent,
         .start_height = 1000,
