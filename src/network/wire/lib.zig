@@ -19,6 +19,7 @@ pub const Error = error{
 };
 
 const BlockHeader = @import("../../types/block_header.zig");
+
 /// Return the checksum of a slice
 ///
 /// Use it on serialized messages to compute the header's value
@@ -143,6 +144,8 @@ pub fn receiveMessage(
         protocol.messages.Message{ .sendheaders = try protocol.messages.SendHeadersMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.FilterLoadMessage.name()))
         protocol.messages.Message{ .filterload = try protocol.messages.FilterLoadMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.GetBlockTxnMessage.name()))
+        protocol.messages.Message{ .getblocktxn = try protocol.messages.GetBlockTxnMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.GetdataMessage.name()))
         protocol.messages.Message{ .getdata = try protocol.messages.GetdataMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.CmpctBlockMessage.name()))
@@ -515,6 +518,38 @@ test "ok_send_sendheaders_message" {
 
     switch (received_message) {
         .sendheaders => {},
+        else => unreachable,
+    }
+}
+
+test "ok_send_getblocktxn_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const GetBlockTxnMessage = protocol.messages.GetBlockTxnMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const block_hash = [_]u8{1} ** 32;
+    const indexes = try test_allocator.alloc(u64, 1);
+    indexes[0] = 1;
+    const message = GetBlockTxnMessage.new(block_hash, indexes);
+    defer message.deinit(test_allocator);
+    var received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .getblocktxn => {
+            try std.testing.expectEqual(message.block_hash, received_message.getblocktxn.block_hash);
+            try std.testing.expectEqual(indexes[0], received_message.getblocktxn.indexes[0]);
+        },
         else => unreachable,
     }
 }
