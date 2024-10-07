@@ -154,6 +154,7 @@ pub const Engine = struct {
             Opcode.OP_RIPEMD160 => try self.opRipemd160(),
             Opcode.OP_SHA256 => try self.opSha256(),
             Opcode.OP_HASH160 => try self.opHash160(),
+            Opcode.OP_HASH256 => try self.opHash256(),
             Opcode.OP_CHECKSIG => try self.opCheckSig(),
             Opcode.OP_NIP => try self.opNip(),
             Opcode.OP_OVER => try self.opOver(),
@@ -486,6 +487,18 @@ pub const Engine = struct {
         try self.stack.pushByteArray(&hash_160);
     }
 
+    /// OP_HASH256: The input is hashed two times with SHA-256.
+    fn opHash256(self: *Engine) EngineError!void {
+        const data = try self.stack.pop();
+        defer self.allocator.free(data);
+
+        var digest: [Sha256.digest_length]u8 = undefined;
+        Sha256.hash(data, &digest, .{});
+        Sha256.hash(&digest, &digest, .{});
+
+        try self.stack.pushByteArray(&digest);
+    }
+
     /// OP_CHECKSIG: Verify a signature
     ///
     /// # Returns
@@ -536,6 +549,51 @@ pub const Engine = struct {
         try self.stack.pushByteArray(&hash);
     }
 };
+
+test "Script execution - OP_HASH256" {
+    const allocator = std.testing.allocator;
+
+    const script_bytes = [_]u8{
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_HASH256.toBytes(),
+    };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    const hex_string = "9C12CFDC04C74584D787AC3D23772132C18524BC7AB28DEC4219B8FC5B425F70";
+    var expected_output: [hex_string.len / 2]u8 = undefined;
+    _ = try std.fmt.hexToBytes(&expected_output, hex_string);
+
+    try std.testing.expectEqual(1, engine.stack.len());
+    try std.testing.expectEqualSlices(u8, &expected_output, try engine.stack.peek(0));
+}
+
+test "Script execution - OP_HASH256 (double)" {
+    const allocator = std.testing.allocator;
+
+    const script_bytes = [_]u8{
+        Opcode.OP_14.toBytes(),
+        Opcode.OP_HASH256.toBytes(),
+        Opcode.OP_HASH256.toBytes(),
+    };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    const hex_string = "26AA6C7A9B46E9C409F09C179F7DEFF54F7AF5571D38DE5E5D9BA3932B91F55B";
+    var expected_output: [hex_string.len / 2]u8 = undefined;
+    _ = try std.fmt.hexToBytes(&expected_output, hex_string);
+
+    try std.testing.expectEqual(1, engine.stack.len());
+    try std.testing.expectEqualSlices(u8, &expected_output, try engine.stack.peek(0));
+}
 
 // Testing SHA1 against known vectors
 test "opSha1 function test" {
