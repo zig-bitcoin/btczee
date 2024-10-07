@@ -3,36 +3,35 @@ const CompactSizeUint = @import("bitcoin-primitives").types.CompatSizeUint;
 const message = @import("./lib.zig");
 const genericChecksum = @import("lib.zig").genericChecksum;
 const genericDeserializeSlice = @import("lib.zig").genericDeserializeSlice;
-const genericSerialize = @import("lib.zig").genericSerialize;
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const protocol = @import("../lib.zig");
 
-pub const GetdataMessage = struct {
+pub const InvMessage = struct {
     inventory: []const protocol.InventoryItem,
     const Self = @This();
 
     pub inline fn name() *const [12]u8 {
-        return protocol.CommandNames.GETDATA ++ [_]u8{0} ** 5;
+        return protocol.CommandNames.INV ++ [_]u8{0} ** 5;
     }
 
     /// Returns the message checksum
     ///
     /// Computed as `Sha256(Sha256(self.serialize()))[0..4]`
-    pub fn checksum(self: *const GetdataMessage) [4]u8 {
+    pub fn checksum(self: *const InvMessage) [4]u8 {
         return genericChecksum(self);
     }
 
     /// Free the `inventory`
-    pub fn deinit(self: GetdataMessage, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: InvMessage, allocator: std.mem.Allocator) void {
         allocator.free(self.inventory);
     }
 
     /// Serialize the message as bytes and write them to the Writer.
     ///
     /// `w` should be a valid `Writer`.
-    pub fn serializeToWriter(self: *const GetdataMessage, w: anytype) !void {
+    pub fn serializeToWriter(self: *const InvMessage, w: anytype) !void {
         const count = CompactSizeUint.new(self.inventory.len);
         try count.encodeToWriter(w);
 
@@ -41,20 +40,27 @@ pub const GetdataMessage = struct {
         }
     }
 
-    pub fn serialize(self: *const GetdataMessage, allocator: std.mem.Allocator) ![]u8 {
-        return genericSerialize(self, allocator);
+    pub fn serialize(self: *const InvMessage, allocator: std.mem.Allocator) ![]u8 {
+        const serialized_len = self.hintSerializedLen();
+
+        const ret = try allocator.alloc(u8, serialized_len);
+        errdefer allocator.free(ret);
+
+        try self.serializeToSlice(ret);
+
+        return ret;
     }
 
     /// Serialize a message as bytes and write them to the buffer.
    ///
    /// buffer.len must be >= than self.hintSerializedLen()
-    pub fn serializeToSlice(self: *const GetdataMessage, buffer: []u8) !void {
+    pub fn serializeToSlice(self: *const InvMessage, buffer: []u8) !void {
         var fbs = std.io.fixedBufferStream(buffer);
         const writer = fbs.writer();
         try self.serializeToWriter(writer);
     }
 
-    pub fn hintSerializedLen(self: *const GetdataMessage) usize {
+    pub fn hintSerializedLen(self: *const InvMessage) usize {
         var length: usize = 0;
 
         // Adding the length of CompactSizeUint for the count
@@ -67,12 +73,12 @@ pub const GetdataMessage = struct {
         return length;
     }
 
-    pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !GetdataMessage {
+    pub fn deserializeReader(allocator: std.mem.Allocator, r: anytype) !InvMessage {
 
         const compact_count = try CompactSizeUint.decodeReader(r);
         const count = compact_count.value();
         if (count == 0) {
-            return GetdataMessage{
+            return InvMessage{
                 .inventory = &[_]protocol.InventoryItem{},
             };
         }
@@ -84,18 +90,18 @@ pub const GetdataMessage = struct {
             item.* = try protocol.InventoryItem.decodeReader(r);
         }
 
-        return GetdataMessage{
+        return InvMessage{
             .inventory = inventory,
         };
     }
 
-    /// Deserialize bytes into a `GetdataMessage`
+    /// Deserialize bytes into a `InvMessage`
     pub fn deserializeSlice(allocator: std.mem.Allocator, bytes: []const u8) !Self {
         return genericDeserializeSlice(Self, allocator, bytes);
     }
 
 
-    pub fn eql(self: *const GetdataMessage, other: *const GetdataMessage) bool {
+    pub fn eql(self: *const InvMessage, other: *const InvMessage) bool {
         if (self.inventory.len != other.inventory.len) return false;
 
         for (0..self.inventory.len) |i| {
@@ -112,8 +118,7 @@ pub const GetdataMessage = struct {
 
 
 // TESTS
-
-test "ok_full_flow_GetdataMessage" {
+test "ok_full_flow_inv_message" {
     const allocator = std.testing.allocator;
 
     // With some inventory items
@@ -124,14 +129,14 @@ test "ok_full_flow_GetdataMessage" {
             .{ .type = 2, .hash = [_]u8{0xef} ** 32 },
         };
 
-        const gd = GetdataMessage{
+        const gd = InvMessage{
             .inventory = inventory_items[0..],
         };
 
         const payload = try gd.serialize(allocator);
         defer allocator.free(payload);
 
-        const deserialized_gd = try GetdataMessage.deserializeSlice(allocator, payload);
+        const deserialized_gd = try InvMessage.deserializeSlice(allocator, payload);
 
         try std.testing.expect(gd.eql(&deserialized_gd));
 

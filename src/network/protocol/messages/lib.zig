@@ -22,6 +22,7 @@ pub const FilterLoadMessage = @import("filterload.zig").FilterLoadMessage;
 pub const GetBlockTxnMessage = @import("getblocktxn.zig").GetBlockTxnMessage;
 pub const HeadersMessage = @import("headers.zig").HeadersMessage;
 pub const CmpctBlockMessage = @import("cmpctblock.zig").CmpctBlockMessage;
+pub const InvMessage = @import("inv.zig").InvMessage;
 
 pub const MessageTypes = enum {
     version,
@@ -45,6 +46,7 @@ pub const MessageTypes = enum {
     getdata,
     headers,
     cmpctblock,
+    inv
 };
 
 
@@ -70,6 +72,7 @@ pub const Message = union(MessageTypes) {
     getdata: GetdataMessage,
     headers: HeadersMessage,
     cmpctblock: CmpctBlockMessage,
+    inv: InvMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -94,6 +97,7 @@ pub const Message = union(MessageTypes) {
             .getdata => |m| @TypeOf(m).name(),
             .headers => |m| @TypeOf(m).name(),
             .cmpctblock => |m| @TypeOf(m).name(),
+            .inv => |m| @TypeOf(m).name(),
         };
     }
 
@@ -113,6 +117,7 @@ pub const Message = union(MessageTypes) {
             .filterload => {},
             .getblocktxn => |*m| m.deinit(allocator),
             .headers => |*m| m.deinit(allocator),
+            .inv => |*m| m.deinit(allocator),
             else => {}
         }
     }
@@ -140,6 +145,7 @@ pub const Message = union(MessageTypes) {
             .getdata => |*m| m.checksum(),
             .headers => |*m| m.checksum(),
             .cmpctblock => |*m| m.checksum(),
+            .inv => |*m| m.checksum(),
         };
     }
 
@@ -166,6 +172,7 @@ pub const Message = union(MessageTypes) {
             .getdata => |m| m.hintSerializedLen(),
             .headers => |*m| m.hintSerializedLen(),
             .cmpctblock => |*m| m.hintSerializedLen(),
+            .inv => |*m| m.hintSerializedLen(),
         };
     }
 };
