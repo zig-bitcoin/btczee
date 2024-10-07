@@ -82,6 +82,8 @@ pub const Peer = struct {
                 .version => |vm| {
                     self.protocol_version = @min(self.config.protocol_version, vm.version);
                     self.services = vm.addr_from.services;
+                    // send verack message
+                    try self.sendVerackMessage();
                 },
 
                 .verack => return,
@@ -116,6 +118,18 @@ pub const Peer = struct {
             self.config.protocol_version,
             self.config.network_id,
             message,
+        );
+    }
+
+    /// Send verack message to peer
+    fn sendVerackMessage(self: *const Peer) !void {
+        const verack_message = protocol.messages.VerackMessage{};  // Empty message, as verack doesn't carry data
+        try wire.sendMessage(
+            self.allocator,
+            self.stream.writer(),
+            self.config.protocol_version,
+            self.config.network_id,
+            verack_message,
         );
     }
 
