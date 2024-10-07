@@ -58,7 +58,7 @@ pub const FilterLoadMessage = struct {
         const filter = try allocator.alloc(u8, filter_len);
         errdefer allocator.free(filter);
         try r.readNoEof(filter);
-    
+
         const hash_func = try r.readInt(u32, .little);
         const tweak = try r.readInt(u32, .little);
         const flags = try r.readInt(u8, .little);
@@ -78,7 +78,7 @@ pub const FilterLoadMessage = struct {
     pub fn hintSerializedLen(self: *const Self) usize {
         const fixed_length = 4 + 4 + 1; // hash_func (4 bytes) + tweak (4 bytes) + flags (1 byte)
         const compact_filter_len = CompactSizeUint.new(self.filter.len).hint_encoded_len();
-        return compact_filter_len + self.filter.len + fixed_length; 
+        return compact_filter_len + self.filter.len + fixed_length;
     }
 
     pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
