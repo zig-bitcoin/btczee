@@ -6,7 +6,6 @@ const testing = std.testing;
 pub const ConditionalStackError = error{
     StackUnderflow,
     OutOfMemory,
-    InvalidValue,
 };
 
 pub const ConditionalValues = enum(u8) {
@@ -44,6 +43,9 @@ pub const ConditionalStack = struct {
 
     /// Delete an item from the stack
     pub fn delete(self: *ConditionalStack) ConditionalStackError!void {
+        if (self.stack.items.len == 0) {
+            return ConditionalStackError.OutOfMemory;
+        }
         self.stack.items.len -= 1;
     }
 
