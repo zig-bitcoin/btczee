@@ -19,6 +19,7 @@ pub const Error = error{
 };
 
 const BlockHeader = @import("../../types/block_header.zig");
+
 /// Return the checksum of a slice
 ///
 /// Use it on serialized messages to compute the header's value
@@ -125,6 +126,8 @@ pub fn receiveMessage(
         protocol.messages.Message{ .ping = try protocol.messages.PingMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.PongMessage.name()))
         protocol.messages.Message{ .pong = try protocol.messages.PongMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.AddrMessage.name()))
+        protocol.messages.Message{ .addr = try protocol.messages.AddrMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.MerkleBlockMessage.name()))
         protocol.messages.Message{ .merkleblock = try protocol.messages.MerkleBlockMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.SendCmpctMessage.name()))
@@ -141,8 +144,14 @@ pub fn receiveMessage(
         protocol.messages.Message{ .sendheaders = try protocol.messages.SendHeadersMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.FilterLoadMessage.name()))
         protocol.messages.Message{ .filterload = try protocol.messages.FilterLoadMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.GetBlockTxnMessage.name()))
+        protocol.messages.Message{ .getblocktxn = try protocol.messages.GetBlockTxnMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.GetdataMessage.name()))
+        protocol.messages.Message{ .getdata = try protocol.messages.GetdataMessage.deserializeReader(allocator, r) }
     else if (std.mem.eql(u8, &command, protocol.messages.CmpctBlockMessage.name()))
         protocol.messages.Message{ .cmpctblock = try protocol.messages.CmpctBlockMessage.deserializeReader(allocator, r) }
+    else if (std.mem.eql(u8, &command, protocol.messages.InvMessage.name()))
+        protocol.messages.Message{ .inv = try protocol.messages.InvMessage.deserializeReader(allocator, r) }
     else {
         try r.skipBytes(payload_len, .{}); // Purge the wire
         return error.UnknownMessage;
@@ -160,7 +169,6 @@ pub fn receiveMessage(
 }
 
 // TESTS
-
 fn write_and_read_message(allocator: std.mem.Allocator, list: *std.ArrayList(u8), network_id: [4]u8, protocol_version: i32, message: anytype) !?protocol.messages.Message {
     const writer = list.writer();
     try sendMessage(allocator, writer, protocol_version, network_id, message);
@@ -176,6 +184,7 @@ test "ok_send_version_message" {
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
     const ServiceFlags = protocol.ServiceFlags;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -185,12 +194,16 @@ test "ok_send_version_message" {
         .version = 42,
         .services = ServiceFlags.NODE_NETWORK,
         .timestamp = 43,
-        .recv_services = ServiceFlags.NODE_WITNESS,
-        .trans_services = ServiceFlags.NODE_BLOOM,
-        .recv_ip = [_]u8{13} ** 16,
-        .trans_ip = [_]u8{12} ** 16,
-        .recv_port = 33,
-        .trans_port = 22,
+        .addr_recv = NetworkAddress{
+            .services = ServiceFlags.NODE_WITNESS,
+            .ip = [_]u8{13} ** 16,
+            .port = 33,
+        },
+        .addr_from = NetworkAddress{
+            .services = ServiceFlags.NODE_BLOOM,
+            .ip = [_]u8{12} ** 16,
+            .port = 22,
+        },
         .nonce = 31,
         .user_agent = &user_agent,
         .start_height = 1000,
@@ -259,6 +272,44 @@ test "ok_send_mempool_message" {
 
     switch (received_message) {
         .mempool => {},
+        else => unreachable,
+    }
+}
+
+test "ok_send_getdata_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const GetdataMessage = protocol.messages.GetdataMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const inventory = try test_allocator.alloc(protocol.InventoryItem, 5);
+    defer test_allocator.free(inventory);
+
+    for (inventory) |*item| {
+        item.type = 1;
+        for (&item.hash) |*byte| {
+            byte.* = 0xab;
+        }
+    }
+
+    const message = GetdataMessage{
+        .inventory = inventory,
+    };
+
+    var received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .getdata => |rm| try std.testing.expect(message.eql(&rm)),
         else => unreachable,
     }
 }
@@ -407,6 +458,46 @@ test "ok_send_pong_message" {
     }
 }
 
+test "ok_send_addr_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const NetworkIPAddr = @import("../protocol/messages/addr.zig").NetworkIPAddr;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
+
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const AddrMessage = protocol.messages.AddrMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const ip_addresses = try test_allocator.alloc(NetworkIPAddr, 1);
+    defer test_allocator.free(ip_addresses);
+
+    ip_addresses[0] = NetworkIPAddr{ .time = 1414012889, .address = NetworkAddress{
+        .services = 1,
+        .ip = [16]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 0, 2, 51 },
+        .port = 8080,
+    } };
+
+    var message = AddrMessage{
+        .ip_addresses = ip_addresses,
+    };
+
+    var received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .addr => |rm| try std.testing.expect(message.eql(&rm)),
+        else => unreachable,
+    }
+}
+
 test "ok_send_sendheaders_message" {
     const Config = @import("../../config/config.zig").Config;
     const ArrayList = std.ArrayList;
@@ -433,12 +524,45 @@ test "ok_send_sendheaders_message" {
     }
 }
 
+test "ok_send_getblocktxn_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const GetBlockTxnMessage = protocol.messages.GetBlockTxnMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const block_hash = [_]u8{1} ** 32;
+    const indexes = try test_allocator.alloc(u64, 1);
+    indexes[0] = 1;
+    const message = GetBlockTxnMessage.new(block_hash, indexes);
+    defer message.deinit(test_allocator);
+    var received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .getblocktxn => {
+            try std.testing.expectEqual(message.block_hash, received_message.getblocktxn.block_hash);
+            try std.testing.expectEqual(indexes[0], received_message.getblocktxn.indexes[0]);
+        },
+        else => unreachable,
+    }
+}
+
 test "ko_receive_invalid_payload_length" {
     const Config = @import("../../config/config.zig").Config;
     const ArrayList = std.ArrayList;
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
     const ServiceFlags = protocol.ServiceFlags;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -448,12 +572,16 @@ test "ko_receive_invalid_payload_length" {
         .version = 42,
         .services = ServiceFlags.NODE_NETWORK,
         .timestamp = 43,
-        .recv_services = ServiceFlags.NODE_WITNESS,
-        .trans_services = ServiceFlags.NODE_BLOOM,
-        .recv_ip = [_]u8{13} ** 16,
-        .trans_ip = [_]u8{12} ** 16,
-        .recv_port = 33,
-        .trans_port = 22,
+        .addr_recv = NetworkAddress{
+            .services = ServiceFlags.NODE_WITNESS,
+            .ip = [_]u8{13} ** 16,
+            .port = 33,
+        },
+        .addr_from = NetworkAddress{
+            .services = ServiceFlags.NODE_BLOOM,
+            .ip = [_]u8{12} ** 16,
+            .port = 22,
+        },
         .nonce = 31,
         .user_agent = &user_agent,
         .start_height = 1000,
@@ -479,6 +607,7 @@ test "ko_receive_invalid_checksum" {
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
     const ServiceFlags = protocol.ServiceFlags;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -488,12 +617,16 @@ test "ko_receive_invalid_checksum" {
         .version = 42,
         .services = ServiceFlags.NODE_NETWORK,
         .timestamp = 43,
-        .recv_services = ServiceFlags.NODE_WITNESS,
-        .trans_services = ServiceFlags.NODE_BLOOM,
-        .recv_ip = [_]u8{13} ** 16,
-        .trans_ip = [_]u8{12} ** 16,
-        .recv_port = 33,
-        .trans_port = 22,
+        .addr_recv = NetworkAddress{
+            .services = ServiceFlags.NODE_WITNESS,
+            .ip = [_]u8{13} ** 16,
+            .port = 33,
+        },
+        .addr_from = NetworkAddress{
+            .services = ServiceFlags.NODE_BLOOM,
+            .ip = [_]u8{12} ** 16,
+            .port = 22,
+        },
         .nonce = 31,
         .user_agent = &user_agent,
         .start_height = 1000,
@@ -519,6 +652,7 @@ test "ko_receive_invalid_command" {
     const test_allocator = std.testing.allocator;
     const VersionMessage = protocol.messages.VersionMessage;
     const ServiceFlags = protocol.ServiceFlags;
+    const NetworkAddress = @import("../protocol/types/NetworkAddress.zig").NetworkAddress;
 
     var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
     defer list.deinit();
@@ -528,12 +662,16 @@ test "ko_receive_invalid_command" {
         .version = 42,
         .services = ServiceFlags.NODE_NETWORK,
         .timestamp = 43,
-        .recv_services = ServiceFlags.NODE_WITNESS,
-        .trans_services = ServiceFlags.NODE_BLOOM,
-        .recv_ip = [_]u8{13} ** 16,
-        .trans_ip = [_]u8{12} ** 16,
-        .recv_port = 33,
-        .trans_port = 22,
+        .addr_recv = NetworkAddress{
+            .services = ServiceFlags.NODE_WITNESS,
+            .ip = [_]u8{13} ** 16,
+            .port = 33,
+        },
+        .addr_from = NetworkAddress{
+            .services = ServiceFlags.NODE_BLOOM,
+            .ip = [_]u8{12} ** 16,
+            .port = 22,
+        },
         .nonce = 31,
         .user_agent = &user_agent,
         .start_height = 1000,
@@ -650,4 +788,42 @@ test "ok_send_cmpctblock_message" {
     const hint_len = msg.hintSerializedLen();
     try std.testing.expect(hint_len > 0);
     try std.testing.expect(hint_len == serialized.len);
+}
+
+test "ok_send_inv_message" {
+    const Config = @import("../../config/config.zig").Config;
+    const ArrayList = std.ArrayList;
+    const test_allocator = std.testing.allocator;
+    const InvMessage = protocol.messages.InvMessage;
+
+    var list: std.ArrayListAligned(u8, null) = ArrayList(u8).init(test_allocator);
+    defer list.deinit();
+
+    const inventory = try test_allocator.alloc(protocol.InventoryItem, 5);
+    defer test_allocator.free(inventory);
+
+    for (inventory) |*item| {
+        item.type = 1;
+        for (&item.hash) |*byte| {
+            byte.* = 0xab;
+        }
+    }
+
+    const message = InvMessage{
+        .inventory = inventory,
+    };
+
+    var received_message = try write_and_read_message(
+        test_allocator,
+        &list,
+        Config.BitcoinNetworkId.MAINNET,
+        Config.PROTOCOL_VERSION,
+        message,
+    ) orelse unreachable;
+    defer received_message.deinit(test_allocator);
+
+    switch (received_message) {
+        .inv => |rm| try std.testing.expect(message.eql(&rm)),
+        else => unreachable,
+    }
 }

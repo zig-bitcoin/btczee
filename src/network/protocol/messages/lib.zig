@@ -7,48 +7,22 @@ pub const BlockMessage = @import("block.zig").BlockMessage;
 pub const GetblocksMessage = @import("getblocks.zig").GetblocksMessage;
 pub const PingMessage = @import("ping.zig").PingMessage;
 pub const PongMessage = @import("pong.zig").PongMessage;
+pub const AddrMessage = @import("addr.zig").AddrMessage;
 pub const MerkleBlockMessage = @import("merkleblock.zig").MerkleBlockMessage;
 pub const FeeFilterMessage = @import("feefilter.zig").FeeFilterMessage;
 pub const SendCmpctMessage = @import("sendcmpct.zig").SendCmpctMessage;
 pub const FilterClearMessage = @import("filterclear.zig").FilterClearMessage;
+pub const GetdataMessage = @import("getdata.zig").GetdataMessage;
 pub const Block = @import("block.zig").BlockMessage;
 pub const FilterAddMessage = @import("filteradd.zig").FilterAddMessage;
 const Sha256 = std.crypto.hash.sha2.Sha256;
 pub const NotFoundMessage = @import("notfound.zig").NotFoundMessage;
 pub const SendHeadersMessage = @import("sendheaders.zig").SendHeadersMessage;
 pub const FilterLoadMessage = @import("filterload.zig").FilterLoadMessage;
+pub const GetBlockTxnMessage = @import("getblocktxn.zig").GetBlockTxnMessage;
 pub const HeadersMessage = @import("headers.zig").HeadersMessage;
-
-pub const InventoryVector = struct {
-    type: u32,
-    hash: [32]u8,
-
-    pub fn serializeToWriter(self: InventoryVector, writer: anytype) !void {
-        comptime {
-            if (!std.meta.hasFn(@TypeOf(writer), "writeInt")) @compileError("Expects writer to have fn 'writeInt'.");
-            if (!std.meta.hasFn(@TypeOf(writer), "writeAll")) @compileError("Expects writer to have fn 'writeAll'.");
-        }
-        try writer.writeInt(u32, self.type, .little);
-        try writer.writeAll(&self.hash);
-    }
-
-    pub fn deserializeReader(r: anytype) !InventoryVector {
-        comptime {
-            if (!std.meta.hasFn(@TypeOf(r), "readInt")) @compileError("Expects r to have fn 'readInt'.");
-            if (!std.meta.hasFn(@TypeOf(r), "readBytesNoEof")) @compileError("Expects r to have fn 'readBytesNoEof'.");
-        }
-
-        const type_value = try r.readInt(u32, .little);
-        var hash: [32]u8 = undefined;
-        try r.readNoEof(&hash);
-
-        return InventoryVector{
-            .type = type_value,
-            .hash = hash,
-        };
-    }
-};
 pub const CmpctBlockMessage = @import("cmpctblock.zig").CmpctBlockMessage;
+pub const InvMessage = @import("inv.zig").InvMessage;
 
 pub const MessageTypes = enum {
     version,
@@ -58,6 +32,7 @@ pub const MessageTypes = enum {
     getblocks,
     ping,
     pong,
+    addr,
     merkleblock,
     sendcmpct,
     feefilter,
@@ -67,9 +42,13 @@ pub const MessageTypes = enum {
     notfound,
     sendheaders,
     filterload,
+    getblocktxn,
+    getdata,
     headers,
     cmpctblock,
+    inv
 };
+
 
 pub const Message = union(MessageTypes) {
     version: VersionMessage,
@@ -79,6 +58,7 @@ pub const Message = union(MessageTypes) {
     getblocks: GetblocksMessage,
     ping: PingMessage,
     pong: PongMessage,
+    addr: AddrMessage,
     merkleblock: MerkleBlockMessage,
     sendcmpct: SendCmpctMessage,
     feefilter: FeeFilterMessage,
@@ -88,8 +68,11 @@ pub const Message = union(MessageTypes) {
     notfound: NotFoundMessage,
     sendheaders: SendHeadersMessage,
     filterload: FilterLoadMessage,
+    getblocktxn: GetBlockTxnMessage,
+    getdata: GetdataMessage,
     headers: HeadersMessage,
     cmpctblock: CmpctBlockMessage,
+    inv: InvMessage,
 
     pub fn name(self: Message) *const [12]u8 {
         return switch (self) {
@@ -100,6 +83,7 @@ pub const Message = union(MessageTypes) {
             .getblocks => |m| @TypeOf(m).name(),
             .ping => |m| @TypeOf(m).name(),
             .pong => |m| @TypeOf(m).name(),
+            .addr => |m| @TypeOf(m).name(),
             .merkleblock => |m| @TypeOf(m).name(),
             .sendcmpct => |m| @TypeOf(m).name(),
             .feefilter => |m| @TypeOf(m).name(),
@@ -109,31 +93,32 @@ pub const Message = union(MessageTypes) {
             .notfound => |m| @TypeOf(m).name(),
             .sendheaders => |m| @TypeOf(m).name(),
             .filterload => |m| @TypeOf(m).name(),
+            .getblocktxn => |m| @TypeOf(m).name(),
+            .getdata => |m| @TypeOf(m).name(),
             .headers => |m| @TypeOf(m).name(),
             .cmpctblock => |m| @TypeOf(m).name(),
+            .inv => |m| @TypeOf(m).name(),
         };
     }
 
     pub fn deinit(self: *Message, allocator: std.mem.Allocator) void {
         switch (self.*) {
             .version => |*m| m.deinit(allocator),
-            .verack => {},
-            .mempool => {},
-            .getaddr => {},
             .getblocks => |*m| m.deinit(allocator),
             .ping => {},
             .pong => {},
+            .addr => |m| m.deinit(allocator),
             .merkleblock => |*m| m.deinit(allocator),
-            .sendcmpct => {},
-            .feefilter => {},
-            .filterclear => {},
             .block => |*m| m.deinit(allocator),
             .filteradd => |*m| m.deinit(allocator),
-            .notfound => {},
+            .getdata => |*m| m.deinit(allocator),
             .cmpctblock => |*m| m.deinit(allocator),
             .sendheaders => {},
             .filterload => {},
+            .getblocktxn => |*m| m.deinit(allocator),
             .headers => |*m| m.deinit(allocator),
+            .inv => |*m| m.deinit(allocator),
+            else => {}
         }
     }
 
@@ -155,8 +140,12 @@ pub const Message = union(MessageTypes) {
             .notfound => |*m| m.checksum(),
             .sendheaders => |*m| m.checksum(),
             .filterload => |*m| m.checksum(),
+            .getblocktxn => |*m| m.checksum(),
+            .addr => |*m| m.checksum(),
+            .getdata => |*m| m.checksum(),
             .headers => |*m| m.checksum(),
             .cmpctblock => |*m| m.checksum(),
+            .inv => |*m| m.checksum(),
         };
     }
 
@@ -178,8 +167,12 @@ pub const Message = union(MessageTypes) {
             .notfound => |m| m.hintSerializedLen(),
             .sendheaders => |m| m.hintSerializedLen(),
             .filterload => |*m| m.hintSerializedLen(),
+            .getblocktxn => |*m| m.hintSerializedLen(),
+            .addr => |*m| m.hintSerializedLen(),
+            .getdata => |m| m.hintSerializedLen(),
             .headers => |*m| m.hintSerializedLen(),
             .cmpctblock => |*m| m.hintSerializedLen(),
+            .inv => |*m| m.hintSerializedLen(),
         };
     }
 };
@@ -199,4 +192,29 @@ pub fn genericChecksum(m: anytype) [4]u8 {
     Sha256.hash(&digest, &digest, .{});
 
     return digest[0..4].*;
+}
+
+pub fn genericSerialize(m: anytype, allocator: std.mem.Allocator) ![]u8 {
+    comptime {
+        if (!std.meta.hasMethod(@TypeOf(m), "hintSerializedLen")) @compileError("Expects m to have fn 'hintSerializedLen'.");
+        if (!std.meta.hasMethod(@TypeOf(m), "serializeToWriter")) @compileError("Expects m to have fn 'serializeToWriter'.");
+    }
+    const serialized_len = m.hintSerializedLen();
+
+    const buffer = try allocator.alloc(u8, serialized_len);
+    errdefer allocator.free(buffer);
+
+    var fbs = std.io.fixedBufferStream(buffer);
+    try m.serializeToWriter(fbs.writer());
+
+    return buffer;
+}
+
+pub fn genericDeserializeSlice(comptime T: type, allocator: std.mem.Allocator, bytes: []const u8) !T {
+    if (!std.meta.hasMethod(T, "deserializeReader")) @compileError("Expects T to have fn 'deserializeReader'.");
+
+    var fbs = std.io.fixedBufferStream(bytes);
+    const reader = fbs.reader();
+
+    return try T.deserializeReader(allocator, reader);
 }

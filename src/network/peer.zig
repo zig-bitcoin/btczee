@@ -4,6 +4,7 @@ const protocol = @import("./protocol/lib.zig");
 const wire = @import("./wire/lib.zig");
 const Config = @import("../config/config.zig").Config;
 const MessageUtils = @import("./message/utils.zig");
+const NetworkAddress = @import("./protocol/types/NetworkAddress.zig").NetworkAddress;
 
 pub const Boundness = enum {
     inbound,
@@ -80,7 +81,9 @@ pub const Peer = struct {
             switch (received_message) {
                 .version => |vm| {
                     self.protocol_version = @min(self.config.protocol_version, vm.version);
-                    self.services = vm.trans_services;
+                    self.services = vm.addr_from.services;
+                    // send verack message
+                    try self.sendVerackMessage();
                 },
 
                 .verack => return,
@@ -95,8 +98,16 @@ pub const Peer = struct {
 
         const message = protocol.messages.VersionMessage.new(
             self.config.protocol_version,
-            .{ .ip = std.mem.zeroes([16]u8), .port = 0, .services = self.config.services },
-            .{ .ip = address.in6.sa.addr, .port = address.in6.getPort(), .services = 0 },
+            NetworkAddress{
+                .services = self.config.services,
+                .ip = std.mem.zeroes([16]u8),
+                .port = 0,
+            },
+            NetworkAddress{
+                .services = 0,
+                .ip = address.in6.sa.addr,
+                .port = address.in6.getPort(),
+            },
             std.crypto.random.int(u64),
             self.config.bestBlock(),
         );
@@ -107,6 +118,18 @@ pub const Peer = struct {
             self.config.protocol_version,
             self.config.network_id,
             message,
+        );
+    }
+
+    /// Send verack message to peer
+    fn sendVerackMessage(self: *const Peer) !void {
+        const verack_message = protocol.messages.VerackMessage{};  // Empty message, as verack doesn't carry data
+        try wire.sendMessage(
+            self.allocator,
+            self.stream.writer(),
+            self.config.protocol_version,
+            self.config.network_id,
+            verack_message,
         );
     }
 
