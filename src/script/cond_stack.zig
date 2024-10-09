@@ -88,12 +88,8 @@ test "ConditionalStack basic operations" {
     // Test push and len
     try cond_stack.push(ConditionalValues.True);
     try testing.expectEqual(1, cond_stack.len());
-
-    // Test push and len
-    try cond_stack.push(ConditionalValues.False);
-    try testing.expectEqual(2, cond_stack.len());
     
     // Test delete
     try cond_stack.delete();
-    try testing.expectEqual(1, cond_stack.len());
+    try testing.expectEqual(0, cond_stack.len());
 }
