@@ -44,7 +44,7 @@ pub const ConditionalStack = struct {
     /// Delete an item from the stack
     pub fn delete(self: *ConditionalStack) ConditionalStackError!void {
         if (self.stack.items.len == 0) {
-            return ConditionalStackError.OutOfMemory;
+            return ConditionalStackError.StackUnderflow;
         }
         self.stack.items.len -= 1;
     }
