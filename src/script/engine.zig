@@ -1,12 +1,16 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Stack = @import("stack.zig").Stack;
+const ConditionalStack = @import("cond_stack.zig").ConditionalStack;
+const ConditionalValues = @import("cond_stack.zig").ConditionalValues;
 const Script = @import("lib.zig").Script;
 const asBool = @import("lib.zig").asBool;
 const ScriptFlags = @import("lib.zig").ScriptFlags;
 const arithmetic = @import("opcodes/arithmetic.zig");
 const Opcode = @import("opcodes/constant.zig").Opcode;
 const isUnnamedPushNDataOpcode = @import("opcodes/constant.zig").isUnnamedPushNDataOpcode;
+const pushDataLen = @import("opcodes/constant.zig").pushDataLen;
+const skipPushData = @import("opcodes/constant.zig").skipPushData;
 const EngineError = @import("lib.zig").EngineError;
 const ScriptBuilder = @import("scriptBuilder.zig").ScriptBuilder;
 const sha1 = std.crypto.hash.Sha1;
@@ -21,6 +25,8 @@ pub const Engine = struct {
     stack: Stack,
     /// Alternative stack for some operations
     alt_stack: Stack,
+    /// Conditional stack stack for some operations
+    cond_stack: ConditionalStack,
     /// Program counter (current position in the script)
     pc: usize,
     /// Execution flags
@@ -42,6 +48,7 @@ pub const Engine = struct {
             .script = script,
             .stack = Stack.init(allocator),
             .alt_stack = Stack.init(allocator),
+            .cond_stack = ConditionalStack.init(allocator),
             .pc = 0,
             .flags = flags,
             .allocator = allocator,
@@ -52,6 +59,7 @@ pub const Engine = struct {
     pub fn deinit(self: *Engine) void {
         self.stack.deinit();
         self.alt_stack.deinit();
+        self.cond_stack.deinit();
     }
 
     /// Log debug information
@@ -76,8 +84,20 @@ pub const Engine = struct {
             self.log("\nPC: {d}, Opcode: 0x{x:0>2}\n", .{ self.pc, opcodeByte });
             self.logStack();
 
-            self.pc += 1;
             const opcode: Opcode = try Opcode.fromByte(opcodeByte);
+
+            if (!(self.cond_stack.branchExecuting()) and !(opcode.isConditional())) {
+                if (isUnnamedPushNDataOpcode(opcode)) |length| {
+                    self.pc += 1 + length;
+                } else if (opcode.isPushData()) {
+                    try skipPushData(self, opcode);
+                } else {
+                    self.pc += 1;
+                }
+                continue;
+            }
+
+            self.pc += 1;
             try self.executeOpcode(opcode);
         }
 
@@ -116,6 +136,10 @@ pub const Engine = struct {
             .OP_1, .OP_2, .OP_3, .OP_4, .OP_5, .OP_6, .OP_7, .OP_8, .OP_9, .OP_10, .OP_11, .OP_12, .OP_13, .OP_14, .OP_15, .OP_16 => try self.opN(opcode),
             Opcode.OP_NOP => try self.opNop(),
             Opcode.OP_VERIFY => try self.opVerify(),
+            Opcode.OP_IF => try self.opIf(),
+            Opcode.OP_NOTIF => try self.opNotIf(),
+            Opcode.OP_ELSE => try self.opElse(),
+            Opcode.OP_ENDIF => try self.opEndIf(),
             Opcode.OP_RETURN => try self.opReturn(),
             Opcode.OP_TOALTSTACK => try self.opToAltStack(),
             Opcode.OP_FROMALTSTACK => try self.opFromAltStack(),
@@ -549,7 +573,168 @@ pub const Engine = struct {
         sha1.hash(data, &hash, .{});
         try self.stack.pushByteArray(&hash);
     }
+
+    /// OP_IF: If the top stack value is not False, the statements are executed. The top stack value is removed.
+    fn opIf(self: *Engine) !void {
+        var cond: ConditionalValues = ConditionalValues.False;
+        if (self.cond_stack.branchExecuting()) {
+            const ok = try self.stack.popBool();
+            if (ok) {
+                cond = ConditionalValues.True;
+            }
+        } else {
+            cond = ConditionalValues.Skip;
+        }
+        try self.cond_stack.push(cond);
+    }
+
+    /// OP_NOTIF: If the top stack value is False, the statements are executed. The top stack value is removed.
+    fn opNotIf(self: *Engine) !void {
+        var cond: ConditionalValues = ConditionalValues.False;
+        if (self.cond_stack.branchExecuting()) {
+            const ok = try self.stack.popBool();
+            if (!ok) {
+                cond = ConditionalValues.True;
+            }
+        } else {
+            cond = ConditionalValues.Skip;
+        }
+        try self.cond_stack.push(cond);
+    }
+
+    /// OP_ELSE: If the preceding opIF or opNOTIF or opELSE was not executed then these statements are 
+    /// and if the preceding opIF or opNOTIF or opELSE was executed then these statements are not.
+    fn opElse(self: *Engine) !void {
+        try self.cond_stack.swap();
+    }
+
+    /// OP_ENFIF: Ends an if/else block.
+    fn opEndIf(self: *Engine) !void {
+        try self.cond_stack.delete();
+    }
 };
+
+test "Script execution - OP_IF false" {
+    const allocator = std.testing.allocator;
+
+    const script_bytes = [_]u8{
+        Opcode.OP_0.toBytes(),
+        Opcode.OP_IF.toBytes(),
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_ENDIF.toBytes(),
+    };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    try std.testing.expectEqual(0, engine.stack.len());
+}
+
+test "Script execution - OP_IF true" {
+    const allocator = std.testing.allocator;
+
+    const script_bytes = [_]u8{
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_IF.toBytes(),
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_ENDIF.toBytes(),
+    };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    try std.testing.expectEqual(1, engine.stack.len());
+    try std.testing.expectEqual(1, try engine.stack.peekInt(0));
+}
+
+test "Script execution - OP_NOTIF false" {
+    const allocator = std.testing.allocator;
+
+    const script_bytes = [_]u8{
+        Opcode.OP_0.toBytes(),
+        Opcode.OP_NOTIF.toBytes(),
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_ENDIF.toBytes(),
+    };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    try std.testing.expectEqual(1, engine.stack.len());
+    try std.testing.expectEqual(1, try engine.stack.peekInt(0));
+}
+
+test "Script execution - OP_NOTIF true" {
+    const allocator = std.testing.allocator;
+
+    const script_bytes = [_]u8{
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_NOTIF.toBytes(),
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_ENDIF.toBytes(),
+    };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    try std.testing.expectEqual(0, engine.stack.len());
+}
+
+test "Script execution - OP_IF OP_ELSE false" {
+    const allocator = std.testing.allocator;
+
+    const script_bytes = [_]u8{
+        Opcode.OP_0.toBytes(),
+        Opcode.OP_IF.toBytes(),
+        Opcode.OP_0.toBytes(),
+        Opcode.OP_ELSE.toBytes(),
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_ENDIF.toBytes(),
+    };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    try std.testing.expectEqual(1, engine.stack.len());
+    try std.testing.expectEqual(1, try engine.stack.peekInt(0));
+}
+
+test "Script execution - OP_IF OP_ELSE true" {
+    const allocator = std.testing.allocator;
+
+    const script_bytes = [_]u8{
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_IF.toBytes(),
+        Opcode.OP_0.toBytes(),
+        Opcode.OP_ELSE.toBytes(),
+        Opcode.OP_1.toBytes(),
+        Opcode.OP_ENDIF.toBytes(),
+    };
+    const script = Script.init(&script_bytes);
+
+    var engine = Engine.init(allocator, script, .{});
+    defer engine.deinit();
+
+    try engine.execute();
+
+    try std.testing.expectEqual(1, engine.stack.len());
+    try std.testing.expectEqual(0, try engine.stack.peekInt(0));
+}
 
 test "Script execution - OP_HASH256" {
     const allocator = std.testing.allocator;

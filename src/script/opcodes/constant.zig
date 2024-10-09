@@ -1,4 +1,5 @@
 const std = @import("std");
+const Engine = @import("../engine.zig").Engine;
 const EngineError = @import("../lib.zig").EngineError;
 
 pub const Opcode = enum(u8) {
@@ -390,4 +391,57 @@ pub fn opcodeFromString(name: []const u8) ?Opcode {
 pub fn isUnnamedPushNDataOpcode(opcode: Opcode) ?u8 {
     const opcodeByte = opcode.toBytes();
     return if (opcodeByte > 0x00 and opcodeByte <= 0x4b) opcodeByte else null;
+}
+
+pub fn pushDataLen(engine: *Engine, opcode: Opcode) EngineError!usize {
+    if (opcode == Opcode.OP_PUSHDATA1) {
+        if (engine.pc + 1 >= engine.script.len()) {
+            return error.ScriptTooShort;
+        }
+
+        const length = engine.script.data[engine.pc+1];
+
+        return @as(usize, length);
+    }
+    else if (opcode == Opcode.OP_PUSHDATA2) {
+        if (engine.pc + 3 > engine.script.len()) {
+            return error.ScriptTooShort;
+        }
+
+        const bytes = engine.script.data;
+        const length = (@as(u16, bytes[engine.pc+1])) | (@as(u16, bytes[engine.pc+2]) << 8);
+
+        return @as(usize, length);
+    }
+    else if (opcode == Opcode.OP_PUSHDATA4) {
+        if (engine.pc + 5 > engine.script.len()) {
+            return error.ScriptTooShort;
+        }
+
+        const bytes = engine.script.data;
+        const length = (@as(u32, bytes[engine.pc+1]))
+                    | (@as(u32, bytes[engine.pc+2]) << 8)
+                    | (@as(u32, bytes[engine.pc+3]) << 16)
+                    | (@as(u32, bytes[engine.pc+4]) << 24);
+
+        return @as(usize, length);
+    }
+    else {
+        return EngineError.OutOfMemory;
+    }
+}
+
+pub fn skipPushData(engine: *Engine, opcode: Opcode) EngineError!void {
+    const data_len = try pushDataLen(engine, opcode);
+
+    switch (opcode) {
+        Opcode.OP_PUSHDATA1 => engine.pc += data_len + 2,
+        Opcode.OP_PUSHDATA2 => engine.pc += data_len + 3,
+        Opcode.OP_PUSHDATA4 => engine.pc += data_len + 4,
+        else => return EngineError.UnknownOpcode,
+    }
+
+    if (engine.pc > engine.script.len()) {
+        return EngineError.ScriptTooShort;
+    }
 }
